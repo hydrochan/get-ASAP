@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 01-auth-env-setup plan 02 (Task 1 TDD complete; Task 2 awaiting NOTION_TOKEN user setup)
-last_updated: "2026-04-03T08:15:30.308Z"
+stopped_at: Completed Phase 01-auth-env-setup plan 02 — Gmail + Notion 양쪽 API 연결 검증 완료 (Phase 1 All Done)
+last_updated: "2026-04-03T08:35:25.964Z"
 last_activity: 2026-04-03
 progress:
   total_phases: 5
@@ -54,6 +54,7 @@ Progress: [░░░░░░░░░░] 0%
 *Updated after each plan completion*
 | Phase 01-auth-env-setup P01 | 5 | 2 tasks | 9 files |
 | Phase 01-auth-env-setup P02 | 15 | 1 tasks | 3 files |
+| Phase 01-auth-env-setup P02 | 15 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,7 @@ Recent decisions affecting current work:
 - [Phase 01-auth-env-setup]: gmail.readonly 스코프로 시작, Phase 2에서 필요 시 gmail.modify 확장
 - [Phase 01-auth-env-setup]: notion-client APIResponseError 생성자 시그니처 확인: (code, status, message, headers, raw_body_text)
 - [Phase 01-auth-env-setup]: 모듈 레벨 import 후 테스트에서 importlib.reload(config) -> importlib.reload(notion_auth) 순서로 환경변수 반영
+- [Phase 01-auth-env-setup]: notion_auth.py: 모듈 레벨 import 대신 config.NOTION_TOKEN 런타임 참조 방식 사용 - 테스트 및 환경변수 변경 반영 보장
 
 ### Pending Todos
 
@@ -82,6 +84,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-03T08:15:30.299Z
-Stopped at: Completed 01-auth-env-setup plan 02 (Task 1 TDD complete; Task 2 awaiting NOTION_TOKEN user setup)
+Last session: 2026-04-03T08:35:25.956Z
+Stopped at: Completed Phase 01-auth-env-setup plan 02 — Gmail + Notion 양쪽 API 연결 검증 완료 (Phase 1 All Done)
 Resume file: None

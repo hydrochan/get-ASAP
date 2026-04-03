@@ -52,7 +52,7 @@ completed: 2026-04-03
 - **Duration:** 15 min
 - **Started:** 2026-04-03T08:10:00Z
 - **Completed:** 2026-04-03T08:25:00Z
-- **Tasks:** 1/2 (Task 2는 checkpoint:human-verify - NOTION_TOKEN 설정 대기)
+- **Tasks:** 2/2 (Task 2 checkpoint:human-verify APPROVED)
 - **Files modified:** 3
 
 ## Accomplishments
@@ -63,6 +63,11 @@ completed: 2026-04-03
 ## Task Commits
 
 1. **Task 1: Notion 인증 모듈 구현 (TDD)** - `fb3d09b` (feat)
+2. **Task 2: Notion 연결 검증 및 전체 Phase 1 확인** - `b5564e4` (fix) — checkpoint:human-verify APPROVED
+   - verify_notion.py 실행 성공: 워크스페이스 이름 출력 확인
+   - verify_gmail.py 실행 성공: Gmail 라벨 확인
+   - pytest tests/ -v: 9/9 통과
+   - notion_auth.py에서 `from config import NOTION_TOKEN` → `import config` + `config.NOTION_TOKEN` 런타임 참조로 수정
 
 **Plan metadata:** (docs commit - 아래에서 생성)
 
@@ -103,27 +108,35 @@ completed: 2026-04-03
 ## Issues Encountered
 - notion-client SDK의 APIResponseError 생성자 시그니처가 플랜에 명시된 것과 달랐음. `inspect.signature`로 확인 후 수정.
 
-## User Setup Required
+## User Setup Completed
 
-**Task 2 (checkpoint:human-verify) 완료를 위해 아래 설정이 필요합니다:**
+**Task 2 (checkpoint:human-verify) — APPROVED on 2026-04-03**
 
-1. https://www.notion.so/my-integrations 접속
-2. "New integration" 클릭 > 이름: "get-ASAP" > "Internal" 선택 > Submit
-3. "Internal Integration Secret" 복사
-4. `.env` 파일에 `NOTION_TOKEN=<복사한 토큰>` 추가
-5. 선택: 테스트용 Notion 페이지 생성 후 "..." > "Connections" > 생성한 Integration 연결
+사용자 완료 내역:
+- Notion Integration "get-ASAP" 생성 (Internal)
+- `.env`에 `NOTION_TOKEN` 추가
+- `verify_notion.py` 실행 성공 — 워크스페이스 이름 출력 확인
+- `verify_gmail.py` 실행 성공 — Gmail 라벨 확인
+- `pytest tests/ -v` — 9/9 통과
 
-검증 명령:
-```
-.venv\Scripts\python verify_notion.py
-.venv\Scripts\python verify_gmail.py
-.venv\Scripts\python -m pytest tests/ -v
-```
+추가 버그 수정 (commit b5564e4):
+- `notion_auth.py`: 모듈 레벨 `from config import NOTION_TOKEN` 방식이 런타임 환경변수 변경을 반영하지 못하는 문제
+- 수정: `import config` + `config.NOTION_TOKEN` 런타임 참조 방식으로 변경
 
 ## Next Phase Readiness
-- notion_auth.py는 완성 상태 — Phase 4에서 즉시 사용 가능
-- Task 2 (실제 NOTION_TOKEN 설정 및 연결 검증)는 사용자 수동 설정 필요
-- Phase 1 전체 완료 조건: verify_notion.py + verify_gmail.py 양쪽 성공
+- Gmail + Notion 양쪽 API 연결 검증 완료 — Phase 1 전체 목표 달성
+- notion_auth.py, auth.py 모두 완성 상태 — Phase 2/4에서 즉시 사용 가능
+- Phase 2 (email-processing)로 진행 가능
+
+## Self-Check: PASSED
+
+- notion_auth.py: FOUND
+- verify_notion.py: FOUND
+- tests/test_notion_auth.py: FOUND
+- .planning/phases/01-auth-env-setup/01-02-SUMMARY.md: FOUND
+- Commit fb3d09b (feat): FOUND
+- Commit b5564e4 (fix): FOUND
+- pytest tests/: 9/9 PASSED
 
 ---
 *Phase: 01-auth-env-setup*
