@@ -1,0 +1,17 @@
+{
+  "acs": {
+    "sender": "alerts@acs.org",
+    "name": "ACS Publications",
+    "journals": ["JACS", "ACS Nano", "ACS Catalysis", "Nano Letters"]
+  },
+  "elsevier": {
+    "sender": "ealerts@elsevier.com",
+    "name": "Elsevier",
+    "journals": ["Applied Catalysis B", "Journal of Catalysis"]
+  },
+  "science": {
+    "sender": "ScienceAdvances@sciencemag.org",
+    "name": "Science",
+    "journals": ["Science", "Science Advances"]
+  }
+}
