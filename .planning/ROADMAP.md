@@ -11,7 +11,7 @@ Gmail ASAP 알림 메일에서 논문 데이터를 자동 수집하여 Notion DB
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
 - [ ] **Phase 1: 인증 및 환경 설정** - Gmail OAuth 2.0과 Notion Integration Token으로 양쪽 API 연결을 확립한다
-- [ ] **Phase 2: 메일 감지 프레임워크** - Gmail에서 ASAP 메일을 필터링하고 증분 동기화로 새 메일만 처리하는 기반을 구축한다
+- [x] **Phase 2: 메일 감지 프레임워크** - Gmail에서 ASAP 메일을 필터링하고 증분 동기화로 새 메일만 처리하는 기반을 구축한다 (completed 2026-04-03)
 - [ ] **Phase 3: 출판사 파서 구현** - ACS, Elsevier, Science 출판사 메일에서 논문 제목과 DOI를 추출하는 플러그인 파서를 구현한다
 - [ ] **Phase 4: Notion 통합 및 중복 방지** - 추출된 논문 데이터를 Notion DB에 저장하고 DOI 기반 중복을 방지한다
 - [ ] **Phase 5: 오라클 클라우드 배포** - cron으로 전체 파이프라인을 자동 실행하고 실행 결과를 로그에 기록한다
@@ -42,10 +42,10 @@ Plans:
   3. 처리 완료된 메일에 라벨이 부여되거나 READ 상태로 표시된다
   4. 메일 발신자/제목에서 저널명이 자동으로 추론된다
   5. 새 출판사 파서를 parsers/ 디렉토리에 파일 하나 추가하는 것만으로 등록할 수 있다
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 02-01-PLAN.md — 데이터 모델 + 파서 플러그인 구조 (PARSE-04, PARSE-05)
-- [ ] 02-02-PLAN.md — Gmail 클라이언트 + 증분 동기화 + 라벨 마킹 (MAIL-01, MAIL-02, MAIL-03)
+- [x] 02-02-PLAN.md — Gmail 클라이언트 + 증분 동기화 + 라벨 마킹 (MAIL-01, MAIL-02, MAIL-03)
 
 ### Phase 3: 출판사 파서 구현
 **Goal**: ACS, Elsevier, Science 출판사 ASAP 메일에서 논문 제목과 DOI가 정확히 추출된다
@@ -86,7 +86,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. 인증 및 환경 설정 | 2/2 | Complete |  |
-| 2. 메일 감지 프레임워크 | 1/2 | In Progress|  |
+| 2. 메일 감지 프레임워크 | 2/2 | Complete   | 2026-04-03 |
 | 3. 출판사 파서 구현 | 0/TBD | Not started | - |
 | 4. Notion 통합 및 중복 방지 | 0/TBD | Not started | - |
 | 5. 오라클 클라우드 배포 | 0/TBD | Not started | - |

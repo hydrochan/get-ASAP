@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 02-mail-detection-02-01-PLAN.md
-last_updated: "2026-04-03T11:07:34.635Z"
+status: verifying
+stopped_at: "Checkpoint: 02-mail-detection-02-02 Task 2 - gmail.modify 재인증 필요"
+last_updated: "2026-04-03T11:14:02.973Z"
 last_activity: 2026-04-03
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-03)
 
 Phase: 02 (mail-detection) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-03
 
 Progress: [░░░░░░░░░░] 0%
@@ -56,6 +56,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-auth-env-setup P02 | 15 | 1 tasks | 3 files |
 | Phase 01-auth-env-setup P02 | 15 | 2 tasks | 3 files |
 | Phase 02-mail-detection P01 | 3 | 2 tasks | 8 files |
+| Phase 02-mail-detection P02 | 10 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,8 @@ Recent decisions affecting current work:
 - [Phase 01-auth-env-setup]: notion_auth.py: 모듈 레벨 import 대신 config.NOTION_TOKEN 런타임 참조 방식 사용 - 테스트 및 환경변수 변경 반영 보장
 - [Phase 02-mail-detection]: inspect.isabstract로 BaseParser 미완성 서브클래스 인스턴스화 방지 (테스트 환경 in-memory 클래스 오염 대응)
 - [Phase 02-mail-detection]: publishers.json 발신자 이메일은 플레이스홀더 -- Phase 3 시작 전 실제 메일에서 확인 후 수정 필요
+- [Phase 02-mail-detection]: historyId 404 폴백: state['historyId'] = None 후 재귀 호출로 전체 동기화 트리거
+- [Phase 02-mail-detection]: base64url 패딩: Gmail API는 패딩 없이 반환 → '==' 추가로 파이썬 urlsafe_b64decode 호환
 
 ### Pending Todos
 
@@ -87,6 +90,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-03T11:07:34.627Z
-Stopped at: Completed 02-mail-detection-02-01-PLAN.md
+Last session: 2026-04-03T11:14:02.965Z
+Stopped at: Checkpoint: 02-mail-detection-02-02 Task 2 - gmail.modify 재인증 필요
 Resume file: None

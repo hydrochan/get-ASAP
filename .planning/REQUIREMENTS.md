@@ -13,9 +13,9 @@
 
 ### Email Detection
 
-- [ ] **MAIL-01**: Gmail API로 출판사별 ASAP 알림 메일을 필터링하여 가져올 수 있다 (발신자/제목 기반)
-- [ ] **MAIL-02**: historyId 기반 증분 동기화로 새 메일만 처리할 수 있다 (state.json 영속화)
-- [ ] **MAIL-03**: 처리 완료된 메일을 READ 상태로 마킹하거나 라벨을 부여할 수 있다
+- [x] **MAIL-01**: Gmail API로 출판사별 ASAP 알림 메일을 필터링하여 가져올 수 있다 (발신자/제목 기반)
+- [x] **MAIL-02**: historyId 기반 증분 동기화로 새 메일만 처리할 수 있다 (state.json 영속화)
+- [x] **MAIL-03**: 처리 완료된 메일을 READ 상태로 마킹하거나 라벨을 부여할 수 있다
 
 ### Parsing
 
@@ -58,9 +58,9 @@
 |--------|-------|--------|
 | AUTH-01 | Phase 1 | Complete |
 | AUTH-02 | Phase 1 | Complete |
-| MAIL-01 | Phase 2 | Pending |
-| MAIL-02 | Phase 2 | Pending |
-| MAIL-03 | Phase 2 | Pending |
+| MAIL-01 | Phase 2 | Complete |
+| MAIL-02 | Phase 2 | Complete |
+| MAIL-03 | Phase 2 | Complete |
 | PARSE-04 | Phase 2 | Complete |
 | PARSE-05 | Phase 2 | Complete |
 | PARSE-01 | Phase 3 | Pending |
