@@ -27,7 +27,10 @@ Gmail ASAP 알림 메일에서 논문 데이터를 자동 수집하여 Notion DB
   2. token.json으로 Gmail API를 호출하면 메일박스 정보를 반환한다 (토큰 만료 시 자동 갱신)
   3. Notion Integration Token으로 API를 호출하면 워크스페이스 정보를 반환한다
   4. .env 파일에 모든 인증 정보가 저장되고 코드에 하드코딩된 키가 없다
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 01-01-PLAN.md — 프로젝트 스캐폴딩 + Gmail OAuth 인증 (AUTH-01)
+- [ ] 01-02-PLAN.md — Notion 인증 모듈 + 전체 검증 (AUTH-02)
 
 ### Phase 2: 메일 감지 프레임워크
 **Goal**: 출판사 ASAP 메일만 정확히 필터링하고 이미 처리한 메일은 재처리하지 않는다
@@ -75,11 +78,11 @@ Gmail ASAP 알림 메일에서 논문 데이터를 자동 수집하여 Notion DB
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. 인증 및 환경 설정 | 0/TBD | Not started | - |
+| 1. 인증 및 환경 설정 | 0/2 | Planning complete | - |
 | 2. 메일 감지 프레임워크 | 0/TBD | Not started | - |
 | 3. 출판사 파서 구현 | 0/TBD | Not started | - |
 | 4. Notion 통합 및 중복 방지 | 0/TBD | Not started | - |
