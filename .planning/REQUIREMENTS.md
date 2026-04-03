@@ -56,21 +56,21 @@
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| AUTH-01 | - | Pending |
-| AUTH-02 | - | Pending |
-| MAIL-01 | - | Pending |
-| MAIL-02 | - | Pending |
-| MAIL-03 | - | Pending |
-| PARSE-01 | - | Pending |
-| PARSE-02 | - | Pending |
-| PARSE-03 | - | Pending |
-| PARSE-04 | - | Pending |
-| PARSE-05 | - | Pending |
-| NOTION-01 | - | Pending |
-| NOTION-02 | - | Pending |
-| NOTION-03 | - | Pending |
-| DEPLOY-01 | - | Pending |
-| DEPLOY-02 | - | Pending |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| MAIL-01 | Phase 2 | Pending |
+| MAIL-02 | Phase 2 | Pending |
+| MAIL-03 | Phase 2 | Pending |
+| PARSE-04 | Phase 2 | Pending |
+| PARSE-05 | Phase 2 | Pending |
+| PARSE-01 | Phase 3 | Pending |
+| PARSE-02 | Phase 3 | Pending |
+| PARSE-03 | Phase 3 | Pending |
+| NOTION-01 | Phase 4 | Pending |
+| NOTION-02 | Phase 4 | Pending |
+| NOTION-03 | Phase 4 | Pending |
+| DEPLOY-01 | Phase 5 | Pending |
+| DEPLOY-02 | Phase 5 | Pending |
 
 ---
 *15 requirements | 5 categories | Created 2026-04-03*
