@@ -9,7 +9,7 @@
 ### Authentication
 
 - [x] **AUTH-01**: Gmail OAuth 2.0 인증을 설정하고 token.json으로 자동 갱신할 수 있다 (Production 모드)
-- [ ] **AUTH-02**: Notion Integration Token을 설정하고 API 접근을 검증할 수 있다
+- [x] **AUTH-02**: Notion Integration Token을 설정하고 API 접근을 검증할 수 있다
 
 ### Email Detection
 
@@ -57,7 +57,7 @@
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
 | AUTH-01 | Phase 1 | Complete |
-| AUTH-02 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Complete |
 | MAIL-01 | Phase 2 | Pending |
 | MAIL-02 | Phase 2 | Pending |
 | MAIL-03 | Phase 2 | Pending |

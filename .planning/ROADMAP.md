@@ -30,7 +30,7 @@ Gmail ASAP 알림 메일에서 논문 데이터를 자동 수집하여 Notion DB
 **Plans:** 1/2 plans executed
 Plans:
 - [x] 01-01-PLAN.md — 프로젝트 스캐폴딩 + Gmail OAuth 인증 (AUTH-01)
-- [ ] 01-02-PLAN.md — Notion 인증 모듈 + 전체 검증 (AUTH-02)
+- [x] 01-02-PLAN.md — Notion 인증 모듈 + 전체 검증 (AUTH-02)
 
 ### Phase 2: 메일 감지 프레임워크
 **Goal**: 출판사 ASAP 메일만 정확히 필터링하고 이미 처리한 메일은 재처리하지 않는다
