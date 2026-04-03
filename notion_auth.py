@@ -1,6 +1,6 @@
 """Notion API 인증 모듈 (per D-07, D-08, D-10)"""
 from notion_client import Client, APIResponseError
-from config import NOTION_TOKEN
+import config
 
 
 def get_notion_client() -> Client:
@@ -9,12 +9,12 @@ def get_notion_client() -> Client:
     .env의 NOTION_TOKEN 환경변수를 사용한다 (per D-07).
     토큰이 없으면 ValueError를 발생시킨다.
     """
-    if not NOTION_TOKEN:
+    if not config.NOTION_TOKEN:
         raise ValueError(
             "NOTION_TOKEN 환경변수가 설정되지 않았습니다. "
             ".env 파일에 NOTION_TOKEN=your_token 을 추가하세요."
         )
-    return Client(auth=NOTION_TOKEN)
+    return Client(auth=config.NOTION_TOKEN)
 
 
 def verify_notion_connection(client: Client) -> str:

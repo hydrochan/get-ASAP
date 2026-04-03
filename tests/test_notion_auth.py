@@ -18,13 +18,10 @@ def test_get_notion_client_success(mock_env):
 
 def test_get_notion_client_no_token_raises(monkeypatch):
     """NOTION_TOKEN이 없으면 ValueError를 발생시킨다"""
-    monkeypatch.delenv("NOTION_TOKEN", raising=False)
-    # config 모듈 재로드하여 환경변수 변경 반영
-    import importlib
     import config
-    importlib.reload(config)
     import notion_auth
-    importlib.reload(notion_auth)
+    # config.NOTION_TOKEN을 직접 패치 (load_dotenv가 .env에서 재로드하는 문제 우회)
+    monkeypatch.setattr(config, "NOTION_TOKEN", None)
     with pytest.raises(ValueError, match="NOTION_TOKEN"):
         notion_auth.get_notion_client()
 
