@@ -86,6 +86,48 @@ Conventions not yet established. Will populate as patterns emerge during develop
 Architecture not yet mapped. Follow existing patterns found in the codebase.
 <!-- GSD:architecture-end -->
 
+## 운영 가이드
+
+### 새 저널 추가 (같은 출판사)
+기존 출판사(ACS, Wiley, Elsevier, Science)의 새 저널은 `publishers.json`의 `journals` 배열에 이름만 추가하면 됨. 파서 코드 수정 불필요.
+```json
+// 예: Wiley에 "Advanced Science" 추가
+"journals": ["Angewandte Chemie", "Advanced Materials", ..., "Advanced Science"]
+```
+
+### 새 출판사 추가
+1. `publishers.json`에 출판사 항목 추가 (sender, name, journals, doi_prefix)
+2. `parsers/` 디렉토리에 파서 파일 생성 (예: `parsers/rsc.py`)
+   - `BaseParser`를 상속하고 `can_parse()`, `parse()` 구현
+   - 파일 추가만으로 `parser_registry.py`가 자동 등록
+3. 실제 메일 HTML을 `tests/fixtures/`에 저장하여 테스트 작성
+
+### DOI prefix 규칙
+각 출판사의 DOI는 고유한 prefix를 가짐. `publishers.json`의 `doi_prefix` 필드로 CrossRef 결과를 검증:
+- ACS: `10.1021/`
+- Wiley: `10.1002/`
+- Elsevier: `10.1016/`
+- Science: `10.1126/`
+
+### 에러 로그 확인
+```bash
+# 실패/경고만 필터링
+type logs\get-asap.log | findstr "WARNING ERROR"
+```
+주요 경고 패턴:
+- `파서 없음 (publisher=...)` → publishers.json에 출판사 추가 필요
+- `CrossRef DOI prefix 불일치` → doi_prefix 확인
+- `알 수 없는 발신자` → publishers.json의 sender 확인
+- `CrossRef 제목 불일치` → 정상 동작 (엉뚱한 DOI 거부)
+
+### 서버 배포
+```bash
+ssh ubuntu@161.33.8.8
+cd ~/get-ASAP && git pull && .venv/bin/pip install -r requirements.txt
+# cron 등록: crontab -e
+# 0 */6 * * * cd /home/ubuntu/get-ASAP && .venv/bin/python main.py >> logs/cron.log 2>&1
+```
+
 <!-- GSD:workflow-start source:GSD defaults -->
 ## GSD Workflow Enforcement
 
