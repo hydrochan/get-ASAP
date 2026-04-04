@@ -1,0 +1,704 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+    <title>Untitled Document</title>
+    <meta charset="utf-8">
+    <style type="text/css">
+        span.preheader {
+            display: none !important;
+        }
+
+        hr {
+            color: #FF8200;
+            background-color: #FF8200;
+            border:none;
+            height:2px;
+        }
+
+        p {
+            color: #505050;
+            font-size: 15px;
+            line-height: 24px;
+            font-family: Arial, Helvetica;
+            margin-top: 0;
+            margin-bottom: 0px;
+            padding-top: 0px;
+            margin-bottom: 5px;
+            font-weight: normal;
+
+        }
+
+        h1 {
+            color: #505050;
+            font-size: 23px;
+            line-height: 40px;
+            font-family: Arial, Helvetica;
+            margin-top: 0;
+            padding-top: 0;
+            padding-bottom: 0px;
+            font-weight: normal;
+
+        }
+
+        h2 {
+            color: #505050;
+            font-size: 23px;
+            line-height: 32px;
+            font-family: Georgia, Arial;
+            margin-top: 0px;
+            padding-top: 0px;
+            margin-bottom: 0px;
+            font-weight: normal;
+        }
+
+        h3 {
+            color: #505050;
+            font-size: 18px;
+            line-height: 20px;
+            font-family: Arial, Helvetica;
+            margin-top: 5px;
+            padding-top: 0px;
+            padding-bottom: 0px;
+            font-weight: normal;
+        }
+
+        li {
+            color: #FF8200;
+            font-size: 20px;
+            line-height: 28px;
+            font-family: Arial, Helvetica;
+            margin-top: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            padding-left: 0px;
+            font-weight: normal;
+        }
+
+        table[class="image-frame-center-aligned"] {
+            margin: 0px 0px 0px 16px;
+        }
+
+        table[class="image-frame"] {
+            margin: 0px 0px 0px 11px;
+        }
+
+
+        /* OBLIGATORY EMAIL STYLES */
+        #outlook a {
+            padding: 0;
+        }
+
+        .ReadMsgBody {
+            width: 100%;
+        }
+
+        .ExternalClass {
+            width: 100%;
+        }
+
+        .ExternalClass, .ExternalClass p, .ExternalClass span, .ExternalClass font, .ExternalClass td, .ExternalClass div {
+            line-height: 100%;
+        }
+
+        body, table, td, a {
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+
+        table, td {
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
+        }
+
+        img {
+            -ms-interpolation-mode: bicubic;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        img {
+            border: 0;
+            height: auto;
+            line-height: 100%;
+            outline: none;
+            text-decoration: none;
+        }
+
+        table {
+            border-collapse: collapse !important;
+        }
+
+        body {
+            height: 100% !important;
+            margin: 0;
+            padding: 0;
+            width: 100% !important;
+            background-color: #ffffff;
+        }
+
+        /* BYE BYE BLUE LINKS + ORPHAN STYLE */
+        .appleFooter a {
+            color: #999999 !important;
+            text-decoration: none !important;
+        }
+
+        .appleLink a {
+            color: #ffffff !important;
+            text-decoration: none !important;
+        }
+
+        .padding-top {
+            padding-top: 0px !important;
+        }
+
+        /* iOS BLUE LINKS */
+        a[x-apple-data-detectors] {
+            color: inherit !important;
+            text-decoration: none !important;
+            font-size: inherit !important;
+            font-family: inherit !important;
+            font-weight: inherit !important;
+            line-height: inherit !important;
+        }
+
+        /* MEDIA QUERY SCREEN 600px */
+        @media screen and (max-width: 600px), screen and (max-device-width: 600px) {
+            table[class="responsive-table"] {
+                width: 100% !important;
+            }
+
+            table[class="image-frame"] {
+                width: 150px !important;
+                align: left !important;
+            }
+
+            table[class="image-frame-center-aligned"] {
+                width: 420px !important;
+                align: left;
+                float: left;
+                text-align: left;
+                margin: 0px 0px 0px 0px;
+            }
+
+            table[class="image-td-center-aligned"] {
+                width: 420px !important;
+                align: left !important;
+                padding-left: 0px;
+            }
+
+            td[class="block-padding"] {
+                padding: 10px 5% 10px 5% !important;
+                text-align: left;
+            }
+
+            td[class="block-padding-center2"] {
+                padding: 10px 5% 20px 5% !important;
+                text-align: center;
+            }
+
+            td[class="mobile-width"] {
+                padding: 0 9% !important;
+            }
+
+            td[class="section-padding"] {
+                padding: 40px 15px !important;
+            }
+
+            td[class="no-padding"] {
+                padding: 0px !important;
+            }
+
+            td[class="padding-top"] {
+                padding-top: 40px !important;
+            }
+
+            br[class="mobile-hide"] {
+                display: none !important;
+            }
+        }
+
+        /* MEDIA QUERY SCREEN 480px */
+        @media screen and (max-width: 480px), screen and (max-device-width: 480px) {
+
+            a[class="cta"] {
+                font-size: 16px !important;
+            }
+
+            td[class="padding-top"] {
+                padding-top: 25px !important;
+            }
+
+            img[id="image-200x200"] {
+                width: 150px !important;
+                float: none;
+            }
+
+            img[id="fullwidth-image"] {
+                width: 450px !important;
+                float: none;
+            }
+
+            img[id="image-420"] {
+                width: 420px !important;
+                align: left;
+                float: none;
+                margin: 0px 0px 0px 0px;
+            }
+
+            table[class="image-frame-center-aligned"] {
+                width: 420px !important;
+                align: left;
+                float: left;
+                text-align: left;
+            }
+
+            table[class="image-td-center-aligned"] {
+                width: 420px !important;
+                align: left !important;
+                padding: 0px 0px 0px 0px;
+            }
+
+            table[class="maincta"] {
+                width: 100% !important;
+                align: left !important;
+            }
+
+            img[id="image-no-mobile"] {
+                display: none;
+            }
+
+            table[id="table-no-mobile"] {
+                display: none;
+            }
+        }
+
+        /* MEDIA QUERY SCREEN 350px */
+        @media screen and (max-width: 350px), screen and (max-device-width: 350px) {
+            td[class="mobile-width"] {
+                padding: 0 3% !important;
+            }
+
+            img[id="image-200x200"] {
+                width: 150px !important;
+                float: none;
+            }
+
+            img[id="fullwidth-image"] {
+                width: 330px !important;
+                float: none;
+            }
+
+            img[id="image-420"] {
+                width: 330px !important;
+                align: left;
+                float: none;
+                margin: 0px 0px 0px 0px;
+            }
+
+            table[class="image-frame-center-aligned"] {
+                width: 330px !important;
+                align: left;
+                float: left;
+                text-align: left;
+            }
+
+            table[class="image-td-center-aligned"] {
+                width: 330px !important;
+                align: left !important;
+                padding-left: 0px;
+            }
+
+            table[class="maincta"] {
+                width: 100% !important;
+                align: left !important;
+            }
+        }
+
+
+        /* WEBKIT, CHROME, SAFARI MEDIA QUERY */
+        @media screen and (-webkit-min-device-pixel-ratio: 0) {
+            td[class="no-padding"] {
+                padding: 0 !important;
+            }
+
+            td[class="title"] {
+                display: block !important;
+                padding-top: 35px;
+            }
+
+            td[class="webkit-hide"] {
+                display: none !important;
+            }
+        }
+
+        /* WEBKIT, CHROME, SAFARI MEDIA QUERY @ 600px */
+        @media screen and (-webkit-min-device-pixel-ratio: 0) and (max-width: 600px) {
+
+            a[class="cta"] {
+                background: #ffffff no-repeat !important;
+                color: #444444 !important;
+            }
+
+        }
+
+        /* WEBKIT, CHROME, SAFARI MEDIA QUERY @ 480px*/
+        @media screen and (-webkit-min-device-pixel-ratio: 0) and (max-width: 480px) {
+
+            td[class="title"] {
+                padding-top: 15px;
+            }
+
+            td[class="title-padding"] {
+                padding-top: 10px !important;
+            }
+        }
+
+    </style>
+</head>
+<body>
+<span class="preheader" style="text-align:center"></span>
+<table bgcolor="#ffffff" border="0" cellpadding="0" cellspacing="0" width="100%">
+    <tr>
+        <td align="center" bgcolor="#EDEEEE" style="padding: 0px 0 0px 0px; background-color: #ffffff;" width="100%">
+            <table border="0" cellpadding="0" cellspacing="0" class="responsive-table" width="720">
+                <tr>
+                    <td>
+                        <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                            <tr>
+                                <td align="center" bgcolor="#FFFFFF">
+                                    <table border="0" cellpadding="0" cellspacing="0" class="responsive-table"
+                                           width="100%">
+                                        <tr>
+                                            <td align="center" valign="top">
+                                                <table border="0" cellpadding="0" cellspacing="0"
+                                                       class="responsive-table" width="100%">
+                                                    <tr>
+                                                        <td align="left" class="padding-top" colspan="2"
+                                                            style="padding-top: 0px; padding-left: 16px;">
+                                                            <a href="https://click.notification.elsevier.com/CL0/https:%2F%2Fwww.sciencedirect.com/1/0100019d588cb5ca-eb847578-881a-409e-ac26-402721085cf0-000000/d1_-7rJbWFXVKia6sXUhoVy9HgQSfxANR0RiDHlEML8=451"
+                                                               title="wordmark link"><img align="left" alt="wordmark"
+                                                                                          src="https://sdfestaticassets-us-east-1.sciencedirectassets.com/shared-assets/47/images/wordmark-sd-orange-small.png"></a>
+                                                        </td>
+                                                    </tr>
+                                                </table>
+
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+<table border="0" cellpadding="0" cellspacing="0" width="100%">
+    <tr>
+        <td align="center" bgcolor="#505050"
+            style="padding: 0 0 0px 0px; background-color: #505050; top center no-repeat;background-size: cover;"
+            width="100%">
+            <table bgcolor="#505050" border="0" cellpadding="16" cellspacing="0" class="responsive-table"
+                   width="720">
+                <tr>
+                    <td>
+                        <table border="0" cellpadding="0" cellspacing="0" class="responsive-table"
+                               width="100%">
+                            <tr>
+                                <td align="left" valign="top" style="padding: 23px 0px">
+                                    <h1 style="color:#ffffff">Alert: <b>Applied Catalysis B: Environment and Energy<b></h1>
+                                    <p style="color:#ffffff" align="left"><b>New Articles</b> available on
+                                        ScienceDirect</p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+    <table bgcolor="#ffffff" border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td align="center" bgcolor="#ffffff"
+                style="padding: 0 0 0px 0px; background-color: #ffffff; top center no-repeat;background-size: cover;"
+                width="100%">
+                <!--white content wrapper -->
+                <table bgcolor="#FFFFFF" border="0" cellpadding="16" cellspacing="0"
+                       class="responsive-table" width="720">
+                    <tr>
+                        <td>
+                            <table border="0" cellpadding="0" cellspacing="0" class="responsive-table"
+                                   width="100%">
+                                <!-- Section Header -->
+                                <!-- Content -->
+                                <tr>
+                                    <td align="left" valign="top">
+                                        <h2>
+                                            <a href="https://click.notification.elsevier.com/CL0/https:%2F%2Fwww.sciencedirect.com%2Fscience%3F_ob=GatewayURL%26_method=citationSearch%26_version=1%26_piikey=S0926337326003838%26_origin=RV_SD_AIP_EMAIL%26dgcid=raven_sd_aip_email/1/0100019d588cb5ca-eb847578-881a-409e-ac26-402721085cf0-000000/XFdRMh8WO3i_sZh3XQhOgMw58pjdgyTvOqbhxncsc9k=451"
+                                               style="word-wrap: break-word; color: #007398; font-weight: none; text-decoration:none;">Deciphering the Bidirectional Reconstructions and Lattice Oxygen Activation for High-Performance Bifunctional Oxygen Electrocatalysis in Zn-Air Batteries</a>
+                                        </h2>
+                                        <p align="left">
+                                               Research article
+                                                <br>
+                                                <span style="color:#848484">
+                                                            Available Online 04 April 2026<br>
+                                                            </span>
+                                            Hongru Hao, Jiahui Wang, Qiuping Huang, Zhijian Li, Jian Zhou, Hengqi Liu, Lingling Xu, Zhe Lv, Wenhan Guo, Bo Wei
+                                        </p>
+
+    <p align="left"
+       style="font-family: Helvetica, Arial, sans-serif;font-size:12px;color:#848484;font-style:italic;">
+        <span>Graphical abstract</span>
+        <br/>
+        <span>
+            <img src="http://ars.els-cdn.com/content/image//1-s2.0-S0926337326003838-ga1.jpg"
+                 width="344"
+                 height="200">
+        </span>
+    </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table><!-- fold item with caregory header ends-->
+    <!-- fold item with caregory header ends-->
+    <!-- fold item with caregory header ends-->
+    <table bgcolor="#ffffff" border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td align="center" bgcolor="#ffffff"
+                style="padding: 0 0 0px 0px; background-color: #ffffff; top center no-repeat;background-size: cover;"
+                width="100%">
+                <!--white content wrapper -->
+                <table bgcolor="#FFFFFF" border="0" cellpadding="16" cellspacing="0"
+                       class="responsive-table" width="720">
+                    <tr>
+                        <td>
+                            <table border="0" cellpadding="0" cellspacing="0" class="responsive-table"
+                                   width="100%">
+                                <!-- Section Header -->
+                                <!-- Content -->
+                                <tr>
+                                    <td align="left" valign="top">
+                                        <h2>
+                                            <a href="https://click.notification.elsevier.com/CL0/https:%2F%2Fwww.sciencedirect.com%2Fscience%3F_ob=GatewayURL%26_method=citationSearch%26_version=1%26_piikey=S092633732600384X%26_origin=RV_SD_AIP_EMAIL%26dgcid=raven_sd_aip_email/1/0100019d588cb5ca-eb847578-881a-409e-ac26-402721085cf0-000000/ZQGNuPAAfHKJ0c2Yeym8w5GWgBnvTDiiCM8lNRWlIE0=451"
+                                               style="word-wrap: break-word; color: #007398; font-weight: none; text-decoration:none;">Pulsed Potential–Assisted Cu<sup>δ+</sup>-Enriched CuCo@TiO<sub>2</sub> Enables High-Efficiency Nitrate Electroreduction to Ammonia</a>
+                                        </h2>
+                                        <p align="left">
+                                               Research article
+                                                <br>
+                                                <span style="color:#848484">
+                                                            Available Online 04 April 2026<br>
+                                                            </span>
+                                            Senhao Wang, Yaoqi Huang, Yinjie Zhou, Xu Ji, Yuan Wang, Shuying Cheng, Selvi Mushina, Mingwu Tan, Yong Wang, Shaojun Yuan
+                                        </p>
+
+    <p align="left"
+       style="font-family: Helvetica, Arial, sans-serif;font-size:12px;color:#848484;font-style:italic;">
+        <span>Graphical abstract</span>
+        <br/>
+        <span>
+            <img src="http://ars.els-cdn.com/content/image//1-s2.0-S092633732600384X-ga1.jpg"
+                 width="299"
+                 height="200">
+        </span>
+    </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table><!-- fold item with caregory header ends-->
+    <!-- fold item with caregory header ends-->
+    <!-- fold item with caregory header ends-->
+    <table bgcolor="#ffffff" border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td align="center" bgcolor="#ffffff"
+                style="padding: 0 0 0px 0px; background-color: #ffffff; top center no-repeat;background-size: cover;"
+                width="100%">
+                <!--white content wrapper -->
+                <table bgcolor="#FFFFFF" border="0" cellpadding="16" cellspacing="0"
+                       class="responsive-table" width="720">
+                    <tr>
+                        <td>
+                            <table border="0" cellpadding="0" cellspacing="0" class="responsive-table"
+                                   width="100%">
+                                <!-- Section Header -->
+                                <!-- Content -->
+                                <tr>
+                                    <td align="left" valign="top">
+                                        <h2>
+                                            <a href="https://click.notification.elsevier.com/CL0/https:%2F%2Fwww.sciencedirect.com%2Fscience%3F_ob=GatewayURL%26_method=citationSearch%26_version=1%26_piikey=S0926337326003802%26_origin=RV_SD_AIP_EMAIL%26dgcid=raven_sd_aip_email/1/0100019d588cb5ca-eb847578-881a-409e-ac26-402721085cf0-000000/_8w6262mL4Fj3R3VxLKieMwDzysPhLNQfE-YMiyIDDI=451"
+                                               style="word-wrap: break-word; color: #007398; font-weight: none; text-decoration:none;">When rattan blooms: A photocatalytic reactor inspired by the natural tubular structure of rattan for efficient pollutant degradation and simultaneous hydrogen evolution</a>
+                                        </h2>
+                                        <p align="left">
+                                               Research article
+                                                <br>
+                                                <span style="color:#848484">
+                                                            Available Online 03 April 2026<br>
+                                                            </span>
+                                            Qi Gao, Tiantian Wang, Lin Chen, Bingbing Mi, Jing Yuan, Liangmeng Ni, Xiaozhou Song, Liquan Jing, Zhijia Liu, Jinguang Hu
+                                        </p>
+
+    <p align="left"
+       style="font-family: Helvetica, Arial, sans-serif;font-size:12px;color:#848484;font-style:italic;">
+        <span>Graphical abstract</span>
+        <br/>
+        <span>
+            <img src="http://ars.els-cdn.com/content/image//1-s2.0-S0926337326003802-ga1.jpg"
+                 width="362"
+                 height="200">
+        </span>
+    </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table><!-- fold item with caregory header ends-->
+    <!-- fold item with caregory header ends-->
+    <!-- fold item with caregory header ends-->
+    <table bgcolor="#ffffff" border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td align="center" bgcolor="#ffffff"
+                style="padding: 0 0 0px 0px; background-color: #ffffff; top center no-repeat;background-size: cover;"
+                width="100%">
+                <!--white content wrapper -->
+                <table bgcolor="#FFFFFF" border="0" cellpadding="16" cellspacing="0"
+                       class="responsive-table" width="720">
+                    <tr>
+                        <td>
+                            <table border="0" cellpadding="0" cellspacing="0" class="responsive-table"
+                                   width="100%">
+                                <!-- Section Header -->
+                                <!-- Content -->
+                                <tr>
+                                    <td align="left" valign="top">
+                                        <h2>
+                                            <a href="https://click.notification.elsevier.com/CL0/https:%2F%2Fwww.sciencedirect.com%2Fscience%3F_ob=GatewayURL%26_method=citationSearch%26_version=1%26_piikey=S0926337326003814%26_origin=RV_SD_AIP_EMAIL%26dgcid=raven_sd_aip_email/1/0100019d588cb5ca-eb847578-881a-409e-ac26-402721085cf0-000000/GNNKUV4ZweBxnNa6rIrq_V-L3RQUZXNo0A1M10TgugY=451"
+                                               style="word-wrap: break-word; color: #007398; font-weight: none; text-decoration:none;">Facet Polarization Electric Field and Fe Single-Atom Co-Regulate Bulk Carriers Separation for Photocatalytic Nitrogen Fixation</a>
+                                        </h2>
+                                        <p align="left">
+                                               Research article
+                                                <br>
+                                                <span style="color:#848484">
+                                                            Available Online 03 April 2026<br>
+                                                            </span>
+                                            Hao Du, Huihui Zhou, Behzad Hameed, Shengjie Xia, Chao Yang, Chenglin Zhong, Woon-Ming Lau, Guanhua Zhang
+                                        </p>
+
+    <p align="left"
+       style="font-family: Helvetica, Arial, sans-serif;font-size:12px;color:#848484;font-style:italic;">
+        <span>Graphical abstract</span>
+        <br/>
+        <span>
+            <img src="http://ars.els-cdn.com/content/image//1-s2.0-S0926337326003814-ga1.jpg"
+                 width="483"
+                 height="200">
+        </span>
+    </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table><!-- fold item with caregory header ends-->
+    <!-- fold item with caregory header ends-->
+    <!-- fold item with caregory header ends-->
+
+<table bgcolor="#ffffff" border="0" cellpadding="0" cellspacing="0" width="100%">
+    <tr>
+        <td align="center" bgcolor="#ffffff"
+            style="padding: 0 0 0px 0px; background-color: #ffffff; top center no-repeat;background-size: cover;"
+            width="100%">
+            <!--white content wrapper -->
+            <table bgcolor="#FFFFFF" border="0" cellpadding="16" cellspacing="0" class="responsive-table"
+                   width="720">
+                <tr>
+                    <td>
+                        <table border="0" cellpadding="0" cellspacing="0" class="maincta">
+                            <tr>
+                                <td align="left" bgcolor="#007398">
+                                    <a href="https://click.notification.elsevier.com/CL0/https:%2F%2Fwww.sciencedirect.com%2Fscience%2Fjournal%2Faip%2F09263373%3Fdgcid=raven_sd_aip_email/1/0100019d588cb5ca-eb847578-881a-409e-ac26-402721085cf0-000000/XJ29GChd_fq-R7oxqfSiLutieOXtt_OvIRR5YD2HWpk=451"
+                                       style="font-size: 18px; font-family: Helvetica, Arial, sans-serif; color: #ffffff; text-decoration: none; color: #ffffff; text-decoration :none; padding: 12px 18px; border: 3px solid #007398; display: inline-block;"
+                                       target="_blank" title="New Articles in Press, 04 April">New
+                                        Articles in Press, 04 April</a>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+
+<hr style="margin-top:25px;">
+<table bgcolor="#ffffff" border="0" cellpadding="0" cellspacing="0" width="100%">
+    <tr>
+        <td align="center" bgcolor="#ffffff"
+            style="padding: 0 0 0px 0px; background-color: #ffffff; top center no-repeat;background-size: cover;"
+            width="100%">
+            <table bgcolor="#FFFFFF" border="0" cellpadding="16" cellspacing="0" class="responsive-table"
+                   width="720">
+                <tr>
+                    <td>
+                        <p style="font-size:13px; padding-bottom:5px">
+                            <a href="https://click.notification.elsevier.com/CL0/https:%2F%2Fwww.sciencedirect.com%2Fuser%2Falerts%2Fjournal/1/0100019d588cb5ca-eb847578-881a-409e-ac26-402721085cf0-000000/jto6yQ1QLhhigtXxn-FlS0EuOtayRXkKX19FXy9OZn8=451"
+                               target="_blank" rel="noopener noreferrer" data-auth="NotApplicable" style="word-wrap:break-word; color:#007398; font-weight:none; text-decoration:none"> Manage my alerts
+                            </a> |
+                            <a href="https://click.notification.elsevier.com/CL0/https:%2F%2Fservice.elsevier.com%2Fapp%2Fanswers%2Fdetail%2Fa_id%2F9832%2Fsupporthub%2Fsciencedirect%2F/1/0100019d588cb5ca-eb847578-881a-409e-ac26-402721085cf0-000000/ACWfK-YcBp6oNCaYJgatQqHYbAU5ZX1hL2o0fJW80Hc=451"
+                               target="_blank" rel="nooper noreferrer" data-auth="NotApplicable" style="word-wrap:break-word; color:#007398; font-weight:none; text-decoration:none"> Support
+                               </a> |
+                            <a href="https://click.notification.elsevier.com/CL0/https:%2F%2Fwww.sciencedirect.com%2Fsdfe%2Falerts%2Funsubscribe%3FsubscriptionID=742ab649-5fcf-43a5-a6a2-986d0cb81744%26hash=b5dce7affbbcf1445281a76e3ad27418dea8f23b%26dgcid=raven_sd_aip_email/1/0100019d588cb5ca-eb847578-881a-409e-ac26-402721085cf0-000000/NA40gWuvZhjHflr5fKIoScNdeGfgDfaTUeLkxea-lgw=451"
+                                _label="unsubscribe here" _type="optout" target="_blank"
+                                style="word-wrap: break-word; color: #007398; font-weight: none; text-decoration:none;">Unsubscribe </a>
+                        </p>
+                        <p style="font-size:12px; line-height:22px;">By using email or alert services, you
+                            agree to comply with the ScienceDirect <a href="https://click.notification.elsevier.com/CL0/https:%2F%2Fwww.elsevier.com%2Flegal%2Felsevier-website-terms-and-conditions/1/0100019d588cb5ca-eb847578-881a-409e-ac26-402721085cf0-000000/X-jxs5g8burBnVTljHXcD7JSYWbMV9L4bzwJUnbHf_w=451"
+                                                                      _label="termsAndConds" _type="mail"
+                                                                      target="_blank"
+                                                                      style="word-wrap: break-word; color: #007398; font-weight: none; text-decoration:none;">Terms
+                                and Conditions</a>.</p>
+                        <p style="font-size:12px; line-height:22px;">You received this email because you signed up to receive an alert on ScienceDirect.</p>
+                        <p style="font-size:12px; line-height:22px;">Copyright &copy; 2026 <a
+                                    href="https://click.notification.elsevier.com/CL0/https:%2F%2Fwww.elsevier.com%2F/1/0100019d588cb5ca-eb847578-881a-409e-ac26-402721085cf0-000000/HlTjguCE34SqXJ_DtnuvtQUbpUnNJbzOwXTg5kPP1-I=451" title="elsevier"
+                                    style="word-wrap: break-word; color: #007398; font-weight: none; text-decoration:none;">Elsevier
+                                B.V.</a>, its licensors, and contributors. All rights are reserved, including those for text and data mining, AI training, and similar technologies. | <a
+                                    href="https://click.notification.elsevier.com/CL0/https:%2F%2Fwww.elsevier.com%2Flegal%2Fprivacy-policy/1/0100019d588cb5ca-eb847578-881a-409e-ac26-402721085cf0-000000/xAu3tuCJUIKOLSx1Xo7CRWMMSUK9tMn_wA1I8OOG_PY=451"
+                                    title="privacy policy"
+                                    style="word-wrap: break-word; color: #007398; font-weight: none; text-decoration:none;">Elsevier
+                                privacy policy</a></p>
+                        <p style="font-size:12px; line-height:22px;">Elsevier B.V. Registered Office:
+                            Radarweg 29, 1043NX Amsterdam, The Netherlands. Reg. No. 33158992 - Netherlands.
+                            VAT No. NL 005033019B01.</p>
+                        <p style="font-size:12px; line-height:22px;">Subscription ID: 742ab649-5fcf-43a5-a6a2-986d0cb81744
+                            Webuser ID: 480202944 Results Event ID: 3b503e17-3fb4-440c-ac15-ce875482fb9c</p>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+</td>
+</tr>
+</table>
+<img alt="" src="http://click.notification.elsevier.com/CI0/0100019d588cb5ca-eb847578-881a-409e-ac26-402721085cf0-000000/pe6a8JMHoF3LHTbkfJxhIbwH_M_XefYejcsKA5GBwVA=451" style="display: none; width: 1px; height: 1px;">
+</body>
+</html>

@@ -1,0 +1,2477 @@
+<html xmlns:bkstg="http://www.atypon.com/backstage-ns" xmlns:xje="java:com.atypon.publish.util.xml.XslJavaExtension" xmlns:pxje="java:com.atypon.frontend.services.impl.PassportXslJavaExtentions" xmlns:urlutil="java:com.atypon.literatum.customization.UrlUtil" xmlns:w="http://www.wiley.com/namespaces/wiley" xmlns:afe="http://www.atypon.com/atypon-frontend" xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:periclesxje="java:com.atypon.pericles.services.impl.PericlesXsltJavaExtension" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:wiley="http://www.wiley.com/namespaces/wiley" xmlns:fn="http://www.w3.org/2005/xpath-functions">
+   <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+      <base href="https://advanced.onlinelibrary.wiley.com">
+      <style type="text/css">
+            * {
+            color: #313131;
+            font-size: 14px;
+            font-family: 'Open Sans', Verdana;
+            }
+            #AlertEmail {
+            max-width:670px;
+            }
+            .section__header{
+            text-transform: uppercase;
+            }
+            .rlist--inline.separator&gt;li.separator{
+            border-right: 1px solid #dfddd6;
+            }
+            h5.section__header {
+            font-size:18px;
+            }
+            h6.section__header {
+            font-size:16px;
+            }
+            .issue-items-container{
+            clear: both;
+            padding-top: 20px;
+            }
+            .issue-item {
+            border-bottom: 1px solid #E7E4DF;
+            margin-top: 0px;
+            padding-top: 0px;
+            }
+            @media screen and (max-width: 767px) {
+            .issue-item {
+            border-bottom:0;
+            }
+            }
+            .issue-item {
+            font-size: 14px;
+            }
+            .table-of-content .issue-item {
+            border-top: 1px solid transparent;
+            }
+            .issue-item .issue-item h6.section__header {
+            font-size:16px;
+            }
+            .issue-item .issue-item__title {
+            color: #005274;
+            font-size:16px;
+            }
+            .issue-item .issue-item__title h5 {
+            font-weight: 600;
+            color: #005274;
+            font-size: 16px;
+            }
+            .issue-item .issue-item__title h5 i{
+            color: #005274;
+            font-size: 16px;
+            }
+            h5,h6 {
+            margin: 10px auto;
+            }
+            a {
+            text-decoration:none;
+            }
+            .rlist--inline {
+            padding:0px;
+            }
+            .rlist--inline li {
+            margin-left: 0;
+            }
+            .rlist--inline&gt;li {
+            display: inline-block;
+            }
+            .issue-item .loa li a {
+            color: #757472;
+            }
+            .table-of-content .loa a {
+            color: #424240;
+            }
+            .issue-item .loa li span {
+            margin-right: 0;
+            color: #757472;
+            }
+            .issue-item .loa {
+            font-size: 12px;
+            margin-bottom: 4px;
+            }
+            .table-of-content .toc-item__abstract {
+            display: block;
+            }
+            .issue-item .abstract-preview {
+            display: block;
+            max-width:90%;
+            }
+            .abstract-preview {
+            padding: 20px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            background: #fff;
+            }
+            .toc-item__abstract {
+            display: none;
+            padding: 15px;
+            }
+            .abstract-preview h2 {
+            font-size: 12px;
+            }
+            .toc-item__abstract p {
+            margin: 0;
+            }
+            .corrections-container {
+            margin-bottom: 16px;
+            }
+            .corrections-container .corrections-label span{
+            font-size: 12px;
+            color: #e55800;
+            }
+
+            .icon-notice:after {
+            font-style: normal;
+            font-weight: bold;
+            font-size: 10px;
+            color: #e55800;
+            margin-right: 10px;
+            }
+
+            .corrections-label {
+            display: block;
+            padding: 7px;
+            background: #faf7f2;
+            border: 1px solid #DFDDD6;
+            border-bottom: none;
+            }
+
+            .corrections-body {
+            display: block !important;
+            width: 99%;
+            border: 1px solid #DFDDD6;
+            border-top:none
+            }
+            .corrections-body &gt; ul &gt; li {
+            padding: 20px 30px;
+            }
+
+            .corrections-body &gt; ul {
+            margin: 0;
+            list-style: none;
+            padding: 0;
+            }
+
+            .corrections-body h6 {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            }
+            .corrections-body .parent-item {
+            text-transform: none;
+            font-size: 12px;
+            font-weight: normal;
+            }
+            .corrections-body .epub-section {
+            margin-bottom: 0;
+            }
+            .cover-image img {
+            width: 200px;
+            }
+            .open-access .doi-access{
+            color: #6d2077;
+            font-size: 12px;
+            font-weight: 600;
+            }
+            .icon-lock_open {
+            float: left;
+            width: 18px;
+            height: 16px;
+            background-image: url('https://advanced.onlinelibrary.wiley.com/pb-assets/images/icon-lock_open.png');
+            background-repeat: no-repeat;
+            }
+            .image {
+            width: 200px;
+            }
+            hr {
+            height: 1px;
+            border: none;
+            color: #E7E4DF;
+            background-color: #E7E4DF;
+            }
+            .open-sans-verdana{
+            font-family: 'Open Sans', Verdana;
+            }
+            p {
+            font-family: 'Open Sans', Verdana;
+            color: #313131;
+            }
+
+        </style>
+   </head>
+   <body id="AlertEmail" style="margin-left:13px; background-color: #fff !important;">
+      <p style="color:#313131; font-family:'Open Sans', Verdana;margin-top: .5rem!important; margin-bottom: .5rem!important; text-align: center!important;">View newly published articles in the latest issue table of contents.</p>
+      <table style="width:100%">
+         <tr><a href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4WS6W-2Fykgvi9GhRy7JA7i1gFWZjJLkTHCWxK965mbbKaElJX5g50JLJvd0Km8VIFgo-3DNx6B_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKC0NvQxijQpW-2FFtPsKZEjk8ArJ2LiCseWBo6XYD4JFRj-2F2Uup3tY18QUtWSpH4xJShULElR9wOOF4rjFSJ72Qh9K0VXD1rQniOuA0zg1SOUnCYz9KNvXKt5Oz8nxfpr6TLYFZDwPEdfwxg506kD2L2JZ-2BY38E6PJkp1aQh6CJ0wbU-3D"><img src="https://advanced.onlinelibrary.wiley.com/pb-assets/journal-banners/16146840.jpg"></a></tr>
+      </table>
+      <table style="width:100%">
+         <tr>
+            <td class="cover-image" width="150"><a href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tub-2BDkXopqQPr3oHdVVWfv1AYVAtiSl-2FmHj-2BdoLXj-2FX72gvGA7QHxwfjiGh7Gppc0JC2sSF_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCy6dDQz7v6KQzB6ofBEaUgvdjl3e0-2Fn9FDstBSlqCTOGEU-2BPcrVCG0sVU-2BK4AeyiRgT-2FbioWtxqU3rjSnBW7jik3vlzq1RMwlZZIsJpkgMzqnXrsHJGwLr4X6e1edbLi7lt-2F-2FIcdj6XjbzACb1faqzhlLCbSr8G1gRfiXkgLvEM8-3D"><img src="https://advanced.onlinelibrary.wiley.com/cms/asset/436c00d7-f254-43db-9cf6-95056e536a0f/aenm.v16.13.cover.gif" style="display: block; border: 0px; width: auto; height: 130px; max-width: 100px;" alt="Cover Image" class="cover" height="130" width="100" /></a></td>
+            <td class="journal-title"><b class="series-title" style="font-family: 'Open Sans', Verdana; color: #313131;">Advanced Energy Materials</b><br><a class="volume-issue" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tub-2BDkXopqQPr3oHdVVWfv1AYVAtiSl-2FmHj-2BdoLXj-2FX72gvGA7QHxwfjiGh7Gppc0JCUx8__QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCkYViqbl016Se7aARE4zElZP33wzPu0llgX51JM8crDUkeei1kaQX-2BFOZPhHnD-2F3hJ6kRa2lOqDsAQb45-2BO5yUUe3LU2AMlzv5aj9zzoRV9c-2FkIa9mGWyQE3Ah4dP1uaqSrwzad25bq6EfVKreBvII7U1AOCWedJliS-2F3Lld01kM-3D" style="color: #123D80; font-family: 'Open Sans', Verdana;">Volume 16, Issue 13</a><p style="color: #313131; font-family: 'Open Sans', Verdana; margin-bottom: 0;">1 April 2026</p>
+               <p style="color: #313131; font-family: 'Open Sans', Verdana;"></p>
+               <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin-top:11px; border-collapse: collapse;">
+                  <tr>
+                     <td style="color:#313131; font-family:'Open Sans', Verdana, sans-serif; font-size: 8.25pt; line-height: 14px; mso-line-height-rule: exactly; padding-left: 0;">
+                    If you no longer wish to receive these alerts,
+                    <a style="color: #123D80; font-size: 8.25pt; font-family:Open Sans, Verdana, sans-serif; text-decoration: underline;" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tub3UrSeFltJR8tGp-2B-2Fz2e0WDsRKU-2BuAoC-2F6MraH2PO7uirsIYlEeu9wXc9omP2H-2BGO-2BMBvDVHdJnwRbOEYJ0bHwHu5dTUHxD7IxsysGU-2FoHxw-3D5_BU_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCQrG63JVgHFqu7qAbB0qPs-2BUC26QYtUpF0Tb9KXdgEqdZKjjxxCq-2FM4y94O9wgB4HYOVhD1yyR-2FVbVjGkO-2FO-2BGeuneEvI3JW47tPk-2FdUbL3xPm9HvxcZ3frkCndHCT7Wb-2Fp06x1dMY3B6GW3SKbR14Ol4w-2BVvjFq3jj4-2Bm1XtgTM-3D">unsubscribe here</a>.
+                </td>
+                  </tr>
+               </table>
+            </td>
+         </tr>
+      </table>
+      <table cellpadding="0" cellspacing="0" border="0" style="width:100%;border-bottom:1px solid #e7e4df;border-top:1px solid #e7e4df;margin:50px auto;padding:10px 0">
+         <tbody>
+            <tr>
+               <td align="center" valign="middle" style="font-family: 'Open Sans', Verdana;font-size: 16px;">
+                  <table cellpadding="0" cellspacing="0" border="0">
+                     <tbody>
+                        <tr>
+                           <td align="center" valign="middle" style="font-family: 'Open Sans', Verdana;font-size: 16px;"><a class="reset-password-btn bald__text" style="text-decoration: none;font-weight: 700;color:#fff;background-color:#005274;display: block;padding:0.375rem 0.75rem;margin: auto;-webkit-text-size-adjust: none;mso-border-alt:12px solid #005274;" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tub-2BDkXopqQPr3oHdVVWfv1AYVAtiSl-2FmHj-2BdoLXj-2FX72gvGA7QHxwfjiGh7Gppc0JC8pJF_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCsI2nu2-2FHfCN836RbdMnzhJiP7BUuqBjJ1Wvtk6RCkNQjsYVKWGe5hnj24c4gHshmdiGZq5B9yPeeQO07BksfLC1cvnkNzcPpxuVDTlUerkVyMBu0eYiTRbmEuISPBSQ3Om4OeEDyP3dmUCOwdeYp9ZYB0qA4QLwsoB27raAF2Fw-3D">Browse table of contents</a></td>
+                        </tr>
+                     </tbody>
+                  </table>
+               </td>
+            </tr>
+         </tbody>
+      </table>
+      <div class="table-of-content">
+         <div class="table-of-content">
+            <div class="issue-items-container bulkDownloadWrapper">
+               <h3 id="heading-level-1-1" class="toc__heading section__header to-section" title="Cover Picture" tabindex="0" style="margin-bottom: -7px; font-family: 'Open Sans', Verdana; color: #313131;">
+                  <p style="color:#313131; font-family: 'Open Sans', Verdana;">Cover Picture</p>
+               </h3>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><span class="doi-access-wrapper"><span class="access-type free-access"><img src="https://advanced.onlinelibrary.wiley.com/pb-assets/images/icon-lock_free.png" style="padding-right: 3px; margin-right: 3px;"/><span class="doi-access"><span class="doi-access" tabindex=0 style="font-family:Open Sans, Verdana; color: #123D80;font-size: 12px;font-weight: 600; padding-right: 3px; margin-right: 3px;vertical-align: 2px;">Free Access</span></span></span></span><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBbwCmQPmiWYrJpqDttMzQ5JtCQ3fdksVTjyVqNimlu7-2FvLIIIOFkLaqQ08puJZDFihyhYgM-2B0xvBG5cspKIsPN5ZC9B6sspJo-2Bj5LfECEHT6cvr3_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCtcpYtY5VgR0bnRtrDdH8rKtYoXvmjf1DQrfnVFSukfX9a-2B0GBPF95z3I6mREYXu8f6gY6-2FO4CbgYIhC0MwjxnwQv6skx6ICI3xDNcwrwWNgd7Nl2cCJo06F-2BQtAfX8P6bZd-2FQx6OqwtdoYrtvQVIDmLCbyhucX4sNAS4zBmpkZc-3D"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Interface Stabilization via In Situ Lithiated Sn Interlayer in All‐Solid‐State Li‐Metal Batteries: Toward Pellet‐Type Cell to Pouch‐Type Cell (Adv. Energy Mater. 13/2026)</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Garam Kim, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ So-Jeong Im, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Ji-Hyun Yu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Chul-Ho Lee, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Yeonguk Son, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Hyungyeon Cha, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Seung Ho Choi, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Ji-Sang Yu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+ Jaeik Hyun, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+ Sunhye Yang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+ Heetaek Park, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+ Jeong-Hee Choi, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+ Youngoh Kim, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Yoon-Cheol Ha, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Ki-Hun Nam</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e70762
+            |
+        First Published: 03 April 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxvWblcYpZ6gr-2B9IoXxl7EpSLXXF-2Btd8ygBIOaF-2FSr7cJsDXdcE0VTFKCDXO2Hn7iJHLPJhhONKgcW2-2FUsUMd09A-3D-3DGmUH_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKC5XPveTvI9sTtrDFXhtBWG8VXPOZWoRd210dQfsJ-2BXNg2RG5-2FyF9RJxoR5U4IXUBvM-2FJf8uTJMWU3e9cD58OC5sMVcXeFaBKVehJEkZCQqv09O07NZiaeX8D5-2BFcCNt0Iqr43o9pT-2B6-2BP9nR6iBKkWCRPF1pmp34zNuXPh-2BG-2BLzs-3D" style="display: inline-block;"><img width="150" alt="Interface Stabilization via In Situ Lithiated Sn Interlayer in All-Solid-State Li-Metal Batteries: Toward Pellet-Type Cell to Pouch-Type Cell (Adv. Energy Mater. 13/2026) Volume 16 Issue 13, 2026" class="image" src="http://onlinelibrary.wiley.com/cms/asset/14314918-29d3-4a7d-82fc-2504edd998b3/aenm70762-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;"><b>All-Solid-State Batteries</b></p>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">In article number <a href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZEB-2FqyvOxZDnCcqF2aSG-2BD7jltQB7NEJZ8PsXPnOKHOViO7uk_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCrrWYwf-2BWGNFQou-2B8UL7RZH8U-2B0gE44j8WZQ2I2vfx3EuoU1wizt6NAeDuoZmFb7ZVWv9cDtI5CZovckJusoA63dINYGMs1UhnEV5OlfCzyMlT2CZSRw6JnNvUOM98iU6boVJ88JZuQ3R-2F57Mw0h7XQLGLGUWQHerZtkHfDtMxhY-3D">e05910</a>, Youngoh Kim, Yoon-Cheol Ha, Ki-Hun Nam, and co-workers illustrate a nano Sn interlayer at the Li metal/solid electrolyte interface, enabling regulated interfacial reactions and uniform Li-ion transport. By suppressing interfacial degradation and supporting stable plating/stripping, this strategy offers a scalable pathway toward durable all-solid-state Li-metal batteries, extending from laboratory cells to practical pouch-cell configurations.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+            </div>
+            <div class="issue-items-container bulkDownloadWrapper">
+               <h3 id="heading-level-1-2" class="toc__heading section__header to-section" title="Back Cover" tabindex="0" style="margin-bottom: -7px; font-family: 'Open Sans', Verdana; color: #313131;">
+                  <p style="color:#313131; font-family: 'Open Sans', Verdana;">Back Cover</p>
+               </h3>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><span class="doi-access-wrapper"><span class="access-type free-access"><img src="https://advanced.onlinelibrary.wiley.com/pb-assets/images/icon-lock_free.png" style="padding-right: 3px; margin-right: 3px;"/><span class="doi-access"><span class="doi-access" tabindex=0 style="font-family:Open Sans, Verdana; color: #123D80;font-size: 12px;font-weight: 600; padding-right: 3px; margin-right: 3px;vertical-align: 2px;">Free Access</span></span></span></span><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBcP-2Fz3JRdqZEw348hqEJP80t9KQg-2Bxby8lpS7FOodpIEr4MpXajoKH1luMUF9DmNuQAFt-2FjQV5owgxRho2L7dKr0ILrwzILoG1wBWBG07zxOftXi_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCoi2ZTtyzQwGHXpCGaQuk7ZkWsdq3crX-2FV25MPY4k-2Ff6At4Ww2sLsqtEmt1rD5THgsJC2N-2Fxl9iY-2Fe2dMBpUq1pdWYrAfJ1aIVxAi-2FyefC5jrv-2FgUzRKj1sbmR-2FTr1s7jwyh0AJsm5dWC006xgbuBaZQI6C3BjtMCcSh5pczV-2BMM-3D"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Quantifying Lattice–Crack–Electrochemical Transport Coupling for Durable, Fast‐Charging Battery Cathodes (Adv. Energy Mater. 13/2026)</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Chen-Hao Tu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Chi-En Tseng, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Wei-Cheng Lai, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Chao-Hsiang Hsu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Jing-Sen Yang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Yu-Cheng Zheng, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Huy Hoang Dang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Ping-Chun Tsai</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e70807
+            |
+        First Published: 03 April 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxgvGUIGz39ZlyZkqW2pxca9GPQjpGxIuaERFYaLIe03NOoGQOurdvX0s3ijg59dboEoPAcvwkQIDnkGMy1teb3A-3D-3DCyfN_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCc-2FCghXg65fJuMNFxWt-2BKmgfRtFzdgtr8z1b3BokT7jHyDGx7oj4l9xMCHgnWZE2VQsAGSuligdb3vM0jGkIjrrMM0NS6jXoCHb5YOeulPlCOpxMjZl0v8sJ0iJaY-2FJEDW8LWCLYP-2FjmPVmlrhkat8V5mDubFPk0G54wIuAJLvOc-3D" style="display: inline-block;"><img width="150" alt="Quantifying Lattice–Crack–Electrochemical Transport Coupling for Durable, Fast-Charging Battery Cathodes (Adv. Energy Mater. 13/2026) Volume 16 Issue 13, 2026" class="image" src="http://onlinelibrary.wiley.com/cms/asset/43006f40-ecee-48df-b0ab-873c501830ca/aenm70807-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;"><b>Fast-Charging Battery Cathodes</b></p>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">While cracking in battery cathodes has been associated with improved rate performance, its quantitative impact on ion transport remains unclear. In article number <a href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZEB-2FqyvOxZDnCcqF2aSG-2BD7gY9P31M2fW24lJOLud78WCGTB__QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKC6VpVtzEUyiaM8ROs68KOJVQa5gV0vf2t7iDsI0BAzIVNpQDHOjFSD5ZyC-2Fliht3ind1fS52pPZVc2l6NUfn71hd0ZhUMDGtZ8tA8YI-2ByO2HwtIfAi7NdUYcj9Ywy7mOM4GBWyw2f1-2B1Gy-2Bujm3KWZ3lih08hgpQ0isPyk3cnxY1h6bps0G5k4QuO02wW5Ees">e06427</a>, Ping-Chun Tsai and co-workers establish a multiscale experimental and modelling framework that decouples fracture effects from intrinsic lattice diffusion, identifying fracture-generated interfaces as central contributors to enhanced ion transport and fast-charging behaviour.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+            </div>
+            <div class="issue-items-container bulkDownloadWrapper">
+               <h3 id="heading-level-1-3" class="toc__heading section__header to-section" title="Issue Information" tabindex="0" style="margin-bottom: -7px; font-family: 'Open Sans', Verdana; color: #313131;">
+                  <p style="color:#313131; font-family: 'Open Sans', Verdana;">Issue Information</p>
+               </h3>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><span class="doi-access-wrapper"><span class="access-type free-access"><img src="https://advanced.onlinelibrary.wiley.com/pb-assets/images/icon-lock_free.png" style="padding-right: 3px; margin-right: 3px;"/><span class="doi-access"><span class="doi-access" tabindex=0 style="font-family:Open Sans, Verdana; color: #123D80;font-size: 12px;font-weight: 600; padding-right: 3px; margin-right: 3px;vertical-align: 2px;">Free Access</span></span></span></span><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBbMPtcv76PpZvTJUrqMjhHCun5GwPGLVw2iBo67Q7NC1c8PlRLEqrfqDLf8Ogxv1NsUcOxyqX2pQI-2FQjaeaGnKim51nsTjcPymWVRl-2B7VmSLG9iT_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKC1MXqgFZWBfe08PY9GlLliMTSPdxLDb-2BcbwzKt-2B7jjHlNHk-2FRVJwSVqe1o-2BdZaKkO9Z-2BDch9kDtuRm9mlFJEwekHOp9FzSNIka2SkdCaX4RL-2Fh934OlAX0Bb1Z-2F2Rg5-2FV1AoJ1o96zTrlR3HiXrPJWpaQJxVBn3nnFOmB2ACtqUL-2B5x-2Bsj2hio0bFGUUQqNOM"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Issue Information</h5></a>
+                  <p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e70138
+            |
+        First Published: 03 April 2026</p>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+            </div>
+            <div class="issue-items-container bulkDownloadWrapper">
+               <h3 id="heading-level-1-4" class="toc__heading section__header to-section" title="REVIEW" tabindex="0" style="margin-bottom: -7px; font-family: 'Open Sans', Verdana; color: #313131;">
+                  <p style="color:#313131; font-family: 'Open Sans', Verdana;">REVIEW</p>
+               </h3>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBTHI8WrE1EPERALGPdGc65ozW5-2BP-2BxFCWK7Efvz5hU9vBmI-2FYu1LXCkBAvq09CUDLvKnREEwgJRVpMc1wD-2FSObh1qHwvDYDBGP-2BUnPLnYylWVUhj_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCxOGKTMA6KafDn1LBSWTYxHd2zikAJQEd1vvmfv4luvFfHTXIyEBcvwACD1N4kZLm-2FEWBaLwsesDmaLnt6tnyfrdId8rh-2FQaQBjHKH1sa0t-2FpDQ82hW5AIUY6-2FJqKOyq0GiVSlGZDbs3oIpFKQ6T8Pee5CRjma7WwqhMpl0NUWy4claaRMR7FBzJ9ed7lAP2P"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Rational Design of Cellulose‐Based Gel Electrolytes for Next‐Generation Zinc‐Ion Batteries: Mechanisms, Advances, and Perspectives</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Jianchao Gao, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Sisi Zhang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Chuang Jiang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Fangming Bai, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Jiawei Yan, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Wei Liu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Chenxiao Lin, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Mingkai Liu</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e06462
+            |
+        First Published: 20 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxAHoVmC3z1z5NKqGGl1bu3YDChY-2Bg6nFm5Dz9slb1uNfjDablGBQ42BDosVswjYglLD57tR2Ai1FszROPgPaHnw-3D-3DlRTM_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCNA4PaqQ-2FLihCEXVdg0-2B5owjYgmP1cYJZazA60dw8o6tKaQ1FIYDkdFh5s3CAdrU9LKpUapO-2F3egC5tWdhHFBJGM-2FrQjkKVXP87TG-2BTLw9JGkicHRPABDblDSEg5bhzzx-2FE2T5QbNK65O1qLLKeNtF7Sm8rhgFAaGYBdU1Debeu7b7gagQw1mfuUGXGLRgUNu" style="display: inline-block;"><img width="150" alt="Rational Design of Cellulose-Based Gel Electrolytes for Next-Generation Zinc-Ion Batteries: Mechanisms, Advances, and Perspectives" class="image" src="http://onlinelibrary.wiley.com/cms/asset/08739493-f59c-4b8c-9952-912c09aa401c/aenm70672-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">This review summarizes recent advances in cellulose-based gel electrolytes for zinc-ion batteries, emphasizing their structural design, preparation strategies, and electrochemical mechanisms that enable dendrite suppression, interfacial stabilization, and the development of flexible, durable, and eco-friendly zinc-ion batteries for sustainable energy storage.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><span class="doi-access-wrapper"><span class="open-access access-type"><img src="https://advanced.onlinelibrary.wiley.com/pb-assets/images/icon-lock_open.png" style="padding-right: 3px; margin-right: 3px;"/><span class="doi-access"><span class="doi-access" tabindex=0 style="font-family:Open Sans, Verdana; color: #123D80;font-size: 12px;font-weight: 600; padding-right: 3px; margin-right: 3px;">Open Access</span></span></span></span><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBTHI8WrE1EPERALGPdGc65pTQNYsznOMIp4Q30dO8wOsBzOqf-2F-2B5GiCNoqtCfAUTnsp3EZBTpl0-2B9hO0yjz-2Fpf5GgdvEGtYOkeMnn0MDDARQ7vfL_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCX8aj1bMyNxs2-2FrgCHSJ0lfZwbqiIiDJMJjc26nkYp4IpHDMzNOmP-2BOxKeiwCfdW1GtTEI2KIiKYciYlUg09IJaO9Yczrzs6CmzeBsp7Tc8StcWimUeM5nd3049ML-2BssEzmkXy-2FAtgFn6hceRXRqp9a7WDmSOylpbtyR4DaLPWI2l2IyAXB-2FXK0oufzugu4Y-2B"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Stage‐Specific Roles of Deep Eutectic Solvents in Recycling of Spent Lithium‐Ion Batteries</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Jingxiu Wang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Yan Wang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Yanqiu Lyu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Jianfeng Mao, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Zaiping Guo</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e06741
+            |
+        First Published: 21 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxtf8olnCTJLCYsjBqV0MxW2ctN-2Btcv3rrhXKComWGGcdnoXcg0bJ4K61LLRoQ3o9AKRyK6xeJFXETnCX-2FKq3OPg-3D-3DJ1An_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCaIiLdmysuaiXSVXLBQvPAvg8yEtEUhYeJQSzVRtBI-2FvpY36ti7V66WHkxvoK66-2F1TX1O-2B9Fzyl-2F7C7GSgm1z9KKH4y9NFuKCGv27lVRltrpEwRx3apgieInxqGJ4PiTnvDrjLOHM0WgZed8wOGqLYi0yRUXfkZEp-2FYre0xiUuzIPW7XqXijwCqLwMh2XY5PO" style="display: inline-block;"><img width="150" alt="Stage-Specific Roles of Deep Eutectic Solvents in Recycling of Spent Lithium-Ion Batteries" class="image" src="http://onlinelibrary.wiley.com/cms/asset/786ddb9e-18fe-4bc5-bb16-6a0f15021b42/aenm70660-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">Deep eutectic solvents (DESs) offer tunable acidity, redox, and coordination properties for selective recycling of spent lithium-ion battery cathodes. Through co-dissolution, single- and two-metal separations, DESs enable sustainable recovery of critical metals for closed-loop regeneration of battery-grade materials, advancing a circular economy for energy storage.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBUpfYVcsFtvkIrhoF6-2FX7eF-2FozOAwq183muEFe05S2LXcwuk1VrSb7MZ5XyCNxY9jPuOVc7DzOxOZuWk7kiFx3Lc-2Fke2ktCAew21U-2FFC9WHgQoXZ_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCbF2KfTvrWV0wpOFzazPRORSJIk3k-2FFqGnDGh9WI-2BcqoVGexQlmIkP03W-2B5WRFYeOCpXUzhjWG0hv1r3oJ3TGS0S1EdHvIBmlnPJTXLSGxz81-2BCoL6ezH61n2niY6G4eSHRXOLdWJTAGg0hzDbfY3gLv8imAAharjfiq9Zpkmw4pXJY1ssShv-2FOxozbblZCG7"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Unleashing Sodium–Sulfur Battery Performance With Atomically Dispersed Single Atom Catalysts</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Sandip Maiti, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Matthew T. Curnan, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Noor Almusleh, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Silpa Subhalaxmi, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Dongwoo Shin, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Ramanuj Narayan, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Kakali Maiti, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Jaehyun Hur</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e05686
+            |
+        First Published: 28 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxFIl6vaJnTsuI4E6qGfs69Kcz3RsecAHaxLnPxixME0613hWJd2NW5pxCZzXNiq7JfsD2c-2B8oMXdwRDcZoW7-2BvA-3D-3DuHWq_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKC4ZhZwxpjc1PZa5EgByRbPUpQmap-2BFl96LtI9bOwlpxhvdtb9Z6YL7adJ1vPf8z-2F7siEp-2BUrKY4KSsgVCy3i0WoEaZM1k9-2FK8KgGfL9dZ7EZNQ5ZyuWTlZMxQMb7fi9An50CCpMW0cB0ZY5kzJ1lePedOKcdYZlypkRudPCFU7lpg8yqLynyDtGz4SFiViGGI" style="display: inline-block;"><img width="150" alt="Unleashing Sodium–Sulfur Battery Performance With Atomically Dispersed Single Atom Catalysts" class="image" src="http://onlinelibrary.wiley.com/cms/asset/71d44a7b-fad6-4e7a-9db9-a9747bd44d96/aenm70700-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">We investigate how morphological features and well-characterized atomic structures are linked to catalytic performance enhancement in room temperature Na–S batteries, describing how single atom catalysts impact redox kinetics and reactive efficiency toward developing battery technologies.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBTHI8WrE1EPERALGPdGc65pVwVC4o5RVOCzmay4hK4Pq96ckUPsFL8w5oS6O9xbcsFLSN6EYzPCZndVT-2BUn0FR-2FjhzQxUpmJH4pcIuXz81Pg-SYf_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCn-2Fu51NJpKIeyBSy7-2BJDUSYj7jxG-2BDZGd-2FBRCuMvvw22lt-2FnIRTsD6SGS3BjLZJTQO-2BVDgOn-2BYf8LAvA8dsHYLPpH8hT5KdpvsuqyPURUtPzlNCDe2bSYoQJW3pHmtVJ5NuxYS0cHMrOHc-2FXMpemCMrdcEVouYlaR8745r-2B2z6C7d4kdnhNkJhkES-2BOGcBmO4"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">High‐Performance Triboelectric Nanogenerators for Marine Science: From Material Design, Intelligent Structures to System Integration</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Liqiang Liu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Jingxiang Xu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Wending Zuo, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Jinda Lin, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Walid A. Daoud, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Tao Jiang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Zhong Lin Wang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Xiya Yang</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e06057
+            |
+        First Published: 29 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom full-width-image-wrapper" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxS8ZcT7uW08c4FHpOq6UTPZcHqlmlVjQSigdBidKTmKQdhJOkHMB5vLBqqtUVFitdONFu-2B12qikn-2FRCuZh2Y3eQ-3D-3DEYdU_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKClZUPeFeycBUYZ6i7Hd9DhOCvQNnqxccicsCqheZhbNYWoDoE-2B9aG5hmsaJA2ZeAF-2FfCKa8A5Wth1V8uUWoiYsPoOya2Cf6oq2X1pVnHVTK4Jejd-2BUNaAOOyVBsc0tHQYcQt1XqV0iIfJb294PRGJBaZMqZFbUsPeZzNpR9QDnlIlpX-2FaSBfoa4UYH1pNP0Zs" style="display: table;"><img width="150" alt="High-Performance Triboelectric Nanogenerators for Marine Science: From Material Design, Intelligent Structures to System Integration" class="image full-width-image" src="http://onlinelibrary.wiley.com/cms/asset/f6c61bfc-362b-4299-aa9f-622105bfba45/aenm70682-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;width: 100%;max-width: 100%;max-height: none;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">This review summarizes the high-output marine TENGs, focusing on material engineering, structural optimization, charge regulation and power management, hybridization strategies, and existing challenges in deployment in marine environments, serving as a valuable guide for researchers and engineers seeking to develop sustainable energy harvesting technologies for marine environments.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+            </div>
+            <div class="issue-items-container bulkDownloadWrapper">
+               <h3 id="heading-level-1-5" class="toc__heading section__header to-section" title="RESEARCH ARTICLE" tabindex="0" style="margin-bottom: -7px; font-family: 'Open Sans', Verdana; color: #313131;">
+                  <p style="color:#313131; font-family: 'Open Sans', Verdana;">RESEARCH ARTICLE</p>
+               </h3>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><span class="doi-access-wrapper"><span class="open-access access-type"><img src="https://advanced.onlinelibrary.wiley.com/pb-assets/images/icon-lock_open.png" style="padding-right: 3px; margin-right: 3px;"/><span class="doi-access"><span class="doi-access" tabindex=0 style="font-family:Open Sans, Verdana; color: #123D80;font-size: 12px;font-weight: 600; padding-right: 3px; margin-right: 3px;">Open Access</span></span></span></span><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBUpfYVcsFtvkIrhoF6-2FX7eEl75sVYFmOpwkGqGe5Rsvp1-2FYO4wkLYbPpbKPOxQ-2FZN9ocIWr2aIlNNeI49pKOIwHvBbpU4TOxr0obj3rgaJcy0je-_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCmFfsQ-2FOPhJX7Fiy1dRl1c6tmkifrxboaxA2dQpkIAUdgNTKYXV440jquz-2Bgb1cOEQqM2a2woTVXpvyTkwKaXPUFSK5EFU1Y1VpPWIUKs2J-2FGyXsOTa8a3oiPRgpMS5L-2Fy8T2ovr5KYpkQEUHuOIK-2BMpTAGR5J46mD5dmNhM1erZ5CU3wQg-2FP9HLzC4ScBJdh"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Interface Stabilization via In Situ Lithiated Sn Interlayer in All‐Solid‐State Li‐Metal Batteries: Toward Pellet‐Type Cell to Pouch‐Type Cell</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Garam Kim, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ So-Jeong Im, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Ji-Hyun Yu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Chul-Ho Lee, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Yeonguk Son, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Hyungyeon Cha, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Seung Ho Choi, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Ji-Sang Yu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+ Jaeik Hyun, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+ Sunhye Yang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+ Heetaek Park, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+ Jeong-Hee Choi, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+ Youngoh Kim, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Yoon-Cheol Ha, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Ki-Hun Nam</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e05910
+            |
+        First Published: 08 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxrhhLWbv-2BppeSXteQ9kV9Z2vskxiiv-2BNo6-2FzaP0cArF3w6SqlF7KOgSRsuWw-2BhYnLdPMS28tyyDc-2FksKhzq55zw-3D-3DQemB_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKC27B3gxFeaBFEwt2QYrW0LHPntGqPo2gscTW-2B9gybti33relJt5gDDlupdI0b07WDqhaMzSbQfTJwhcqAYp-2BuYefpgp-2BhCENNid0ziztwvVuhtCYg3mUzPpsD1kNXPV-2F0XYvxm1wQONDmT7fdBDqyj59m3EmIWLmqi45AKpqfUcyM-2FyT7FUrV9aKkuVXJwAzz" style="display: inline-block;"><img width="150" alt="Interface Stabilization via In Situ Lithiated Sn Interlayer in All-Solid-State Li-Metal Batteries: Toward Pellet-Type Cell to Pouch-Type Cell" class="image" src="http://onlinelibrary.wiley.com/cms/asset/aa89adee-6886-4a19-8baf-aaa930627452/aenm70624-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">An in situ lithiated Sn interlayer forms a stable, lithiophilic, and conductive interface that enables durable and scalable pouch-type all-solid-state lithium metal batteries under low pressure.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBTHI8WrE1EPERALGPdGc65oYog-2FFZz-2FrLOjue4e9AWH0hBJ3xAYaij08It4fw1H49waou-2FLjZejXHuJspjcDOmmor6-2BB2FDBVhehsyEga96gyXdp_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCqhDrM7qrf5mpWCVhAKu4xlyhPiDbe2PLBSJ8-2Fk1X9cYNh9H-2Bcx4VJjisrw6LOKjaxR39NhAq5IyT7TRy0pwMbuFJeGgAvlmOphhHgAYZghmn5He8AHdqu4ZkAE0mjLUfO7mPdIO6dyvCtzYNX9MIukYefAHnNmD53iEtCKO2CEmfXjuRRXM841sTKib8fX0f"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Quantifying Lattice–Crack–Electrochemical Transport Coupling for Durable, Fast‐Charging Battery Cathodes</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Chen-Hao Tu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Chi-En Tseng, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Wei-Cheng Lai, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Chao-Hsiang Hsu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Jing-Sen Yang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Yu-Cheng Zheng, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Huy Hoang Dang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Ping-Chun Tsai</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e06427
+            |
+        First Published: 29 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom full-width-image-wrapper" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxXgM96I6Z5PbRTqPfn2vJDEcxNIex1oFuvvFl2nbr7DymBfpBKa0oLL0nOhKIcQ3CjNB7GYIH2Pp1IieB1hPrSQ-3D-3Di9-d_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCdt5Jqc72dD96Sic4xk6SCs8Aam-2BbQjqOQC3XG6ivn45SFKuhrEjvaWAS8Hv7lwy69D6VCz9iYha9zmnImZm7Jgp0cLFDcl0RKcoJLPru4lXa2HNFiGVMbyfwdQMlLu8z5kVteqMkm-2BiGKCGn9moNdWC7RF7w0x1RPwiovVKJpz1j2rgBiCgER0MOWV92wXOt" style="display: table;"><img width="150" alt="Quantifying Lattice–Crack–Electrochemical Transport Coupling for Durable, Fast-Charging Battery Cathodes" class="image full-width-image" src="http://onlinelibrary.wiley.com/cms/asset/2789ccfd-c8d7-4b2b-87f9-7dc5cd97fcda/aenm70671-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;width: 100%;max-width: 100%;max-height: none;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">This study establishes a quantitative lattice–crack–transport framework that mechanistically links microstructural fracture, Li<sup>+</sup> bulk diffusion, and interfacial charge transfer in layered cathodes. It reveals that crack-generated surfaces dominate apparent transport enhancement in polycrystalline materials, while downsized single-crystal particles can achieve comparable fast-charging performance with superior durability—providing quantitative design rules for next-generation high-rate cathodes.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBUpfYVcsFtvkIrhoF6-2FX7eEQTIW7YE6ycMsrcByZblQfsRWLfsOZAIi8TVVJKu8gEUQQFR1hzSYK6CT8Wq-2BeKOYseppXEMHzFZZrGRvE1GDGtlbQ_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKClRriKXH6M2ATxnXlnaiPm6-2FkFOTVtiOaiVWVQqwTqCCjs-2Bb-2BbUiJFmjlIV8cV-2FGACAyeiHjRrba-2BNCGIH1aFxC7UjMqhlH4MANEJa3c6Oh-2FdRqscBcGLyQP1w-2BvFwr0r5TF0H2Btffjiki5tmYyNQpL2qD8TgPRv2U5T4ckd0VM9ukIroPUkmFvQZb-2BKxj0-2B"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Decoupling Electrolyte Degradation Pathways With Diverse Li Plating Processes on Graphite Electrodes</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Ke Zhang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Yonggang Hu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Shijun Tang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Wenxuan Hu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Jianrong Lin, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Huiyan Zhang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Yufan Peng, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Yuanzhe Tao, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+ Yiqing Liao, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+ Ying Lin, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+ Lixuan Pan, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+ Meifang Ding, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+ Jinding Liang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Yimin Wei, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Lufeng Yang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Jie Chen, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Zhengliang Gong, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Yanting Jin, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Yong Yang</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e05230
+            |
+        First Published: 20 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom full-width-image-wrapper" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxcTDNC8QFqExxwS4GfTK045ipaf5KRRcd-2FUgBT7JSQsk25-2BkOJT6WlqiWMJuxrmh3rQ2IZFOt-2FCvNZ5wrKPKURQ-3D-3DayE-_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCEMyojdN2u1r34sz-2BWeVC-2FWYhkt0MAP0hBXbyszvghz5Z-2B1csm3ipnYoUJKRUSbC82d9-2F5M-2FDyezjBkfxApWkAKMAFDlkbkngRWg50AQ6IREitQBtZ9ygONSQKG1DqyedWibvsvb984ldaiMRVCZ4VZ8eA52ZR2oYT4KRriaeGH0EjEwpwB26tKgKyk8tsQGj" style="display: table;"><img width="150" alt="Decoupling Electrolyte Degradation Pathways With Diverse Li Plating Processes on Graphite Electrodes" class="image full-width-image" src="http://onlinelibrary.wiley.com/cms/asset/0388fa5b-a30e-417c-9a6c-c16426ed6f8a/aenm70669-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;width: 100%;max-width: 100%;max-height: none;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">Controlled overcharge in <i>N/P</i>&nbsp;&lt;&nbsp;1 cells is combined with practical fast-charging in <i>N/P&nbsp;</i>&gt;1 cells to decouple lithium plating-induced side reactions from baseline graphite aging. Quantitative MST, NMR, and GC-MS analysis resolves inactive-lithium species and electrolyte component loss, revealing distinct electrolyte degradation pathways and guiding safer, longer-lasting fast-charge battery designs.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBTHI8WrE1EPERALGPdGc65rsmBt3jMQfm3vPpIpN94Afy3K-2BTCpmM-2BedfrpLG004TON5F8hdVM-2FWx8wSbX3wej8IVU3m8kc7uErJuCM28A-2FlcjR9_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCrA8vuPqBJngScofkfJPIdx5YyhkMXV7ykgMNZ8TNgxg5i-2Bkue-2F7L9iuYmQQj1JGa9H5Ro4YZQAUnW6uYibKm-2FJvUHSuj2QH1xy8kfBW6pB3knFn182lwZbyv892aDvUqMZn2UdFbmdT-2BxIlISTWUUZgfsg5G3rgqE8OrLKiNp3QW5QufG17E6XekMdQN4umq"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Holistic Anode Interface Engineering for High‐Efficiency and Stable Carbon‐Perovskite Solar Modules</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Haodong Wu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Jungjin Yoon, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Kavyashree S. Keremane, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Luyao Zheng, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Yuchen Hou, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Shweta Sharma, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Dong Yang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Sixing Xiong, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+ Yanhui Zhang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+ Jin Qian, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+ Shashank Priya, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+ Bed Poudel, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+ Kai Wang</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e06097
+            |
+        First Published: 22 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgx0-2BBwuXRfiWITQZ1K-2FkAZXdV0DPivdBgQy4LIuJA3LecBJb3pW8PtoO2RQJr3h-2FoIeF0ZTAUyR0z9703B0wtviQ-3D-3DhAmX_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKC-2Fe-2BgMxF96B7CltA9C4cBHm9YRmtOc9lH2nNjOAtUphZFaXMMJ-2FrA9I7aJ9mP3M3Gs8ukvxE6g34A-2FMi0x8MkIqtK43TDoMeH2IcqBFuUro7BwTBE6C5in03oWpruuOTqSjbgLG7REaMPJqpHtkhTXNcVU5ZgXAZe9GARmIf5Ydfd5KSJTB-2BUFguyIaOXpZ-2Bw" style="display: inline-block;"><img width="150" alt="Holistic Anode Interface Engineering for High-Efficiency and Stable Carbon-Perovskite Solar Modules" class="image" src="http://onlinelibrary.wiley.com/cms/asset/a267e2b2-44a3-4b72-a0b1-aef86adc5e9f/aenm70676-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">A holistic anode interface design is introduced to overcome interfacial contact and charge-transport limitations in planar carbon-based perovskite solar modules. Picosecond laser surface texturing and liquid-metal-modified carbon electrodes synergistically enhance interfacial conformity, carrier extraction, and moisture resistance, enabling highly efficient, stable large-area modules and advancing scalable, low-cost perovskite photovoltaic technologies.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><span class="doi-access-wrapper"><span class="open-access access-type"><img src="https://advanced.onlinelibrary.wiley.com/pb-assets/images/icon-lock_open.png" style="padding-right: 3px; margin-right: 3px;"/><span class="doi-access"><span class="doi-access" tabindex=0 style="font-family:Open Sans, Verdana; color: #123D80;font-size: 12px;font-weight: 600; padding-right: 3px; margin-right: 3px;">Open Access</span></span></span></span><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBYxhFl1rt4kr2ZDyxo4-2FJoNs2c1d-2FSGb6IyUY30QqBxy5Jz08KOn-2F-2FrTDi5LQxoe3-2BY7NpI5FHhW3YjOBwwlOzp6AqzMEmQwapfLsIxZ-2FqbvL7C6_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCKRn7tpU9w2oYZ32MY2nvy6PTToZkV8rE0xiLoi5PQtHCl9AD7D9z0qP-2Bixt2V8vHSvsS7zLLd-2BWZfJ9dNLVTAOvvx-2F39lbKh31tQ2zwT7NIXdgs7qxQAvfSaANRpahQsja8rqBLmfXvOGrkzVI3hSkvJueeVj-2BwJM1iUQJBNANnr0Hb94OzKCPwM6w9ylEHI"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Leveraging Digital Advanced Manufacturing to Enable Polymer Electrolyte Fuel Cells With Ultrahigh Gravimetric Power Density</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Hadi Heidary, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Vahid Nasrollahi, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Daniel Wilmot, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Jacob Bracegirdle-Morais, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Sophie C. Cox, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Stefan Dimov, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Moataz M. Attallah, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Ahmad El-kharouf, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+ Sara Walker, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+ Robert Steinberger-Wilckens</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e04454
+            |
+        First Published: 21 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom full-width-image-wrapper" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgx8eZcEsk5rcdBFqhk1y1Zdlwi-2FgwneMQXtw4Yd3kRnsCoJEDMhK4ohcqsgI6ubEzmsUylk8vRGVjIYETinyuCoA-3D-3DNbo7_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCiRF-2FPJKhQWgkXmI2YRd452shN7xK4Eb87EgGmQkex4RoNRzRXcCFBvo1nA7qVBONot9e46XK0tS-2FhOG6OG2RiyxFYlhIaH7FMuFd-2FJW6glTXDnvDLKOsFLzU6iW4xF4U-2BZPyQUWDMLMuGloCt7RjGYshFJwDjHkL-2BF0fBCoGC2QEXMl5bei8hHMcU8JpQhRB" style="display: table;"><img width="150" alt="Leveraging Digital Advanced Manufacturing to Enable Polymer Electrolyte Fuel Cells With Ultrahigh Gravimetric Power Density" class="image full-width-image" src="http://onlinelibrary.wiley.com/cms/asset/09b001ca-88c8-4900-99a0-4f2ce03b64d4/aenm70674-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;width: 100%;max-width: 100%;max-height: none;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">This study employs digital advanced manufacturing to develop lightweight, compact porous distributors as alternatives to conventional bipolar plates in PEM fuel cells. A graphene-coated nickel foam achieves a power density of 1.52 W cm<sup>−2</sup>, while titanium-based designs deliver lightweight solutions: an LPBF-fabricated Gyroid lattice reaches 1.36 W cm<sup>−</sup><sup>2</sup>, and a laser-patterned non-homogeneous architecture achieves 1.62 W cm<sup>−</sup><sup>2</sup>, corresponding to &gt;10 kW L<sup>−</sup><sup>1</sup> and 9 kW kg<sup>−</sup><sup>1</sup>.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBRklZeDS2gPnnyMtY9h5hv-2BSSQ0kj7-2F21f5Lub-2BCD2hrWEjDjH6os4qIsaXfEjLlD0dpXISytU-2BUJuciElJ2zopW7vvuO-2FIhtVKjH5EU3Hcrl-oc_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKC8tp4yL-2BDwRbfkIAorhiuumGCAIwmaZSO6Qwb3ruoVSiy0WF3RxISLupiX3mFxQpgLQPljtulYzvVe0TlgkaqeJpzIfaEM2mDGYdhebspI0E63DYg1RtgTzeQFegFZEpryt2elx8XVbZDH2Fu9hAbFl-2Bssv2LFqYm2PQp4dcrU-2BgrvRwaHaZiQiNTT0lNhL8W"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Self‐Assembled Molecular Capsule via Metastable Soft Interface for Stable Aqueous Batteries</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Kaiqiang Zhang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Haoning Xi, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Shengtao Yang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Qinhan Yang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Jilei Ye, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Yuping Wu</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e70668
+            |
+        First Published: 21 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxGyU2hxog5GVXV8PCEHCcXCHpD5Wrk4YiokzmD2ZRn1FziIiZi1faOu1KI5kHtGNY5tVdCkZbEVVYGgKMZiNVyQ-3D-3DfqGT_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCQ1I9MLINQDp7uYj1-2BwwW8uT1asRypFgUsbUeNJtDWwXeer-2Fcww9-2BTK3nAsSewplKbIylI-2F3RxTf49Lb6ajdSvtOMluVTtBzKrVUexrDXnmTlZNocUqoZc3flMZjJRXvO43w7TgLRbCn6oF7nr4NseuiaohXkmxLR99wGscbXUTrQIDcEfx6IEgmkGfowKiE0" style="display: inline-block;"><img width="150" alt="Self-Assembled Molecular Capsule via Metastable Soft Interface for Stable Aqueous Batteries" class="image" src="http://onlinelibrary.wiley.com/cms/asset/0994e5c2-42a3-4dd8-ab97-6a9ed9f84664/aenm70668-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">This study reports a self-assembled molecular capsule formed by amphiphilic polymers (Pluronic F127) on organic redox particles to stabilize both oxidized and reduced species in aqueous battery systems. The resulting soft, metastable interface survives dry-wet transitions upon contact with the aqueous electrolyte. It regulates water and ion access, suppresses electrode degradation, and markedly improves cycling stability.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBX-2FPTqFIYnoYCjaktXmIv-2Bj3RYnzymxKuFn86RDeZDQWZb6gtzMNvmQwrplmcUL44CZWwaXrqfnaUr71-2FOsn9nozD4JtWXs9Se-2BUzcezbpSILDTI_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKC4Ab-2FUErcCHS-2BF0-2Fci9LwQjmV7CcSN3Q7bf581CRYfWjQ1DnNbIhC6O-2FA7WE0aOQeiutd3KnlW69oU41l362Wzpr8K6Rp9FzIJUO4sXCAnxwsEM6GdbzOH7gkG-2BmWtLdHS-2FHz8C6jdx43PZ6FkG5KuABQUxF2SB4UnFZ7dg9RMyQbLxgyC76PZ0K6kYvsfXUJ"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Mitigating Hydrogen Evolution Reaction with Polyzwitterionic Hydrogel Electrolyte in Aqueous Aluminum‐ion Batteries</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Jin-Jie Liew, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Bei-Er Jia, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Dan-Yang Wang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Ziyue Wen, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Hong-Han Choo, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Jinxuan Song, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Qiang Zhu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Man-Fai Ng, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+ Qingyu Yan</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e70677
+            |
+        First Published: 21 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxgGn-2FOYohtEQSTA4tkThHE6z2tfcKN9RlbGGhUMt6hBPhajWkBAV0l-2Bfto0mJE6D-2FRVeUWIAqVdkpc6rh1M2mYw-3D-3D3bP9_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCXOLT-2BfmnkPWjwBNR1uu4oefN49jAtlsIPsCYKbLabfdXfRfYbJBkcIMDPt66ql-2FgssiBKwgaOClGe15WgB7-2BLMXzwsp-2FWjAC-2BRR-2BwjEPzv0kN5LMNlyYx17U2uRe1x7aaWFpaKs9wUp3MWtSS6HDL4b-2BgN3z9ID5fUoF1CsofzXEJib4h0rlXZdDWBmgowyD" style="display: inline-block;"><img width="150" alt="Mitigating Hydrogen Evolution Reaction with Polyzwitterionic Hydrogel Electrolyte in Aqueous Aluminum-ion Batteries" class="image" src="http://onlinelibrary.wiley.com/cms/asset/529f4524-bc01-4ca6-bd32-c13f618d382d/aenm70677-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">The polyzwitterionic hydrogel electrolyte (PZHE) operates under lean-water conditions with abundant bound water molecules; this effectively suppresses free water activity and mitigates parasitic reactions associated with the Al anode. Zwitterionic groups construct ionic migration channels across the polymeric matrix, ensuring high ionic conductivity and uniform ion flux, thereby facilitating reversible Al plating/stripping, enhancing overall electrochemical performance.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBUpfYVcsFtvkIrhoF6-2FX7eGvyV6HUxqDrxLoZ99axhv3CHvkCA5CPSm6QpioqRUE9uzk3OnVDRVDaZMOJsWak4G8bsEo5Jc-2Bxy7XHP7quB7F7jm4_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCFu6aa6zD1Vh2g-2BYo-2B4w-2Bj4zlRhur5AIeEkogj6mY66LY5wwgSAGqlA31hCP04UG0hfsFCHh9oK0qZLuzuMZGHb5-2FtFgg3BUfTRUYfrf6DEv-2F77zSKO5iqa0LCAaPC8gZERrBlPgdf5RLcqL-2FQkejFuWi1JUI7ZhllKkrNSpRiMXHNLL28NuRmFLq8T-2FTdn-2Bg"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">A Mineral‐Biopolymer Synergistic Quasi‐Solid‐State Electrolyte for Long‐Lasting Zinc Metal Batteries</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Chi Chen, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Fulong Li, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Yating Gao, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Gai Li, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Lutong Shan, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Yicai Pan, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Yongqiang Yang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Wen Chen, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+ Xiaoxiao Liang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+ Jing Li, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+ Zhenyue Xing, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+ Peng Rao, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+ Zhenye Kang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Yingjie Hua, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Xiaodong Shi, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Xinlong Tian</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e05241
+            |
+        First Published: 23 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom full-width-image-wrapper" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgx6NNiFX5B-2FErqo5dqc29ivnyJiBBiX0-2Ft0N5mfdVGvYU-2FytlaD0vMUj-2BXi2eBC9kgvKNo-2B9EoydSB61QqAAxmSA-3D-3DbNYL_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCm72VAsA-2Bk0PwBCfgScmcfcRwiIRUu-2FS9TMywweMbmEcVc2fCP4lAnYUJlpIoI6Ic3bKJvxbG2N6GG7IMLbj-2FlvXosiGqKcN0OA7SoECr2EBsqX0DWvbwmQgZzpgnZ-2FXxR2CzQuJgGawo-2BN4CPBqcjOUBYRASM4wngpR-2BmGxkMRqbzxH-2Ff6546FHlYVcSS7Bc" style="display: table;"><img width="150" alt="A Mineral-Biopolymer Synergistic Quasi-Solid-State Electrolyte for Long-Lasting Zinc Metal Batteries" class="image full-width-image" src="http://onlinelibrary.wiley.com/cms/asset/5f4aa8a4-f923-4c73-a93f-084ef8209e3c/aenm70675-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;width: 100%;max-width: 100%;max-height: none;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">DLM@SA@Zn composite electrolyte delivers fast zinc diffusion kinetics and strong interaction with polyiodides, which physically separates the redox reactions of metallic zinc to Zn<sup>2+</sup> ions (Zn anode side) and iodine to iodides (AC@I<sub>2</sub> cathode side), effectively endows the uniform zinc deposition, and eliminates the active iodine dissolution and polyiodide shuttle during the cycling process.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBUpfYVcsFtvkIrhoF6-2FX7eHfUPZ0iSpp8gzyrB8DkqFjGoeujFypPwMEmPFscaMeKP4RW5sX3BSAdRr0wjFhLMcymUTqXbgxzdILXa5SvJgxDytO_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCAYuY7QmDb8ArygZEJRIEVLVHcbj84wKG4gm1wuhnSuUGrWmDz9F8YPSzR7-2Fkw1IZGmmS2eA7UpNWd-2Bd8KPTv-2BagaZ7CM2P5tr2iKnMHgcIc8piY8zVpaUU9l3hd6uE3S-2FNhd0VVcw4-2FiPpdNR0y-2BUY5cvdYro-2BUWR5DOVx5Z8rNX255lLO52RdEZ-2BzBJVrid"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Dampening Lithium Charge Density by Clustering Solvents and Anions to Tame Lithium De‐Coordination Energy for Low‐Temperature Lithium‐Metal Batteries</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Jin-Hao Zhang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Yu Zhang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Zhi-Yuan Gu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Jin-Xiu Chen, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Chen-Hao Yu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Ayaulym Belgibayeva, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Gulnur Kalimuldina, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Xin-Bing Cheng, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+ Long Kong</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e05551
+            |
+        First Published: 26 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxU384NqGGW83-2F9WGSu3SU83EgvJUAifEfj-2BNSLX7o2voHAO7ejNzLhEOy4IGYA9qhE8-2Fv2UisD1Cc7xTTyNykOA-3D-3DqZq2_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKC6kiU7CAcWSK8zEnNjrN8dm7xggwDidG7NowpqX9yrgqoHXl6VS4TwLOFZRuQONc4U88y35IPYBvDmD-2FlaQHI-2FXP7kU8uM-2FM9to8JF-2FeJ8afRJpLUlaTXyoUUVCXWpZii-2FGz4Tbb90kbLLuI8NmNsKQzhwXbXZ9Uf0UJOMjgE1LXciZqCrvfgANUjDmGPPQMB" style="display: inline-block;"><img width="150" alt="Dampening Lithium Charge Density by Clustering Solvents and Anions to Tame Lithium De-Coordination Energy for Low-Temperature Lithium-Metal Batteries" class="image" src="http://onlinelibrary.wiley.com/cms/asset/449326ce-863d-4422-9376-7870458166c0/aenm70673-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">Both the bulky electrolyte and the interfacial layer gain benefits from such cluster solvates. In the bulky electrolyte, it has been observed that the electron-donating nature of LiNO<sub>3</sub> reduces the positive charge of Li<sup>+</sup>, thereby dampening the interaction between Li<sup>+</sup> and TEP ligands (E<sub>de2</sub>&lt;E<sub>de1</sub>). In the interfacial layer, cluster solvates facilitate the interfacial charge exchange to hasten Li transport kinetics (N<sub>2</sub>&gt;N<sub>1</sub>).
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><span class="doi-access-wrapper"><span class="open-access access-type"><img src="https://advanced.onlinelibrary.wiley.com/pb-assets/images/icon-lock_open.png" style="padding-right: 3px; margin-right: 3px;"/><span class="doi-access"><span class="doi-access" tabindex=0 style="font-family:Open Sans, Verdana; color: #123D80;font-size: 12px;font-weight: 600; padding-right: 3px; margin-right: 3px;">Open Access</span></span></span></span><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBUpfYVcsFtvkIrhoF6-2FX7eG6H-2FxzdyyptWFQkjZS2eqz70eeXAj1FvQvhamYTDusyYCVqUt84LrQQOyFXUyBf4ID1yD4oGdBSYi93JqkiP-2FQOfRf_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCD1lC2RXH5s8R8h5AYhBhtkroXiCBI-2Bi-2FZ-2FTPcivjgzgfsXiFqf1vFDrKRS3GeHZx6-2FOvlmys-2BeOo2PcHoJYrvvsXsuw0-2BUtCfSrbm-2BffKJyW0z-2Fn726pTaTSE-2BB4hNU8w8vFGevyI4HdiCgVn6j3HAT10W53fjJArwVrEjqLwzYrkkm77sQi1EnD7mXIe4eW"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Thin Reinforced Sulfonated Poly(phenylene sulfone) Membranes for Durable Water Electrolysis: Suppressed Swelling and Enhanced Stability Over 2000 Hours</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Clara Schare, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Giorgi Titvinidze, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Christian Piesold, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Edgar Cruz Ortiz, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Nodar Dumbadze, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Michael Schuster, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Klaus-Dieter Kreuer, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Carolin Klose, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+ Andreas Münchinger</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e05888
+            |
+        First Published: 20 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxBaPv2pY3SZyPcCVNbmUfJOCaLx4KyT68uJUdI8RbzTZUPUxsXMvcc4SxMRJGeCa0eDTWc6Vlq0uWYqHRCNo2YQ-3D-3Dr7D4_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCLQf6eEfgd1eIgSJSity-2BeshEB1kL3YJtnP4PSpmx-2B6mjghsnk9S-2F-2F1WWemPkpAqcIijYT3RbrZ0XxWNAXNOsXxs21WmWYZG2aZoTYRVr9OaoaLwG6ZTMKzQGE8e3LpEJXbLOwS5tG3ThurTcdwg2xH4ek6A5oKhVD-2Fhgzb2sw-2BjTXrw66dt4c-2BrxXSWPwdm5" style="display: inline-block;"><img width="150" alt="Thin Reinforced Sulfonated Poly(phenylene sulfone) Membranes for Durable Water Electrolysis: Suppressed Swelling and Enhanced Stability Over 2000 Hours" class="image" src="http://onlinelibrary.wiley.com/cms/asset/61d759e3-000e-4761-ab5a-d536aeecf776/aenm70679-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">Hydrocarbon membranes have the potential to significantly enhance the efficiency of water electrolyzers. However, their application is often limited by insufficient stability resulting from excessive swelling. This work presents a strategy to achieve efficient, safe and stable operation of a 24 µm thin hydrocarbon membrane by combining a modified polymer structure with a reinforcement layer.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBUpfYVcsFtvkIrhoF6-2FX7eHkkEWNylLpbH6pC-2B7np8-2FPzjZ-2FuwZ7rQ2nTysr8meLkplpz4-2FGI5YDpKrXvnBBQEIyGKLk4UWvPs2s5WP8-2B3cYVN9B_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKC4y1lHgNkLH08cy3FJ2K-2BiyMN8oL2fFv9WQUpIV8ziyb-2BJVKtZJUBynJ9IzSwSUGD0xlsj4Y7p1TU7CvcD2k-2FZ-2FqW1-2F2Ud3bTt91Bs-2BC4Grhsj-2FZW8qTt3dxQgOqc0vd0hxeLUg4i83pNe4pEJJ9Y0rM1LSmdJYhleFc2qOSKE5xE9p-2BNK4BiVunUCJ2cQ6X4"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">In Situ TEM Reveals the Hard Carbon Sodium Storage Mechanism and Discovers the Sodium Carbide</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Huimin Cao, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Yizhao Zhao, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Zhiyi Huang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Xingxiang Ji, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Shoujuan Wang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Wanqi Duan, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Yuebin Xi, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Yuanwei Sun, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+ Fangong Kong, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+ Yu Liu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+ Huan Wang</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e05191
+            |
+        First Published: 23 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxfir7UthC7EmrG1xAjGmiLS-2FI0Aug9IlSRVXa-2FGyS2QbUeOR9k5RkbHhjxkeog3t4-2BVyO3IJUKm5fEka50OfZeQ-3D-3DmIen_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKC5r-2Bqn7LZvHqxfFixH9INFOPRGDktnBTnoQ-2FTvB-2FLr9c2mkn6qcgBnPqsZY2uivaeDXaeFsX-2BIRMlXpsQ4tfci3HsDp2wxi9GUheMBJttnPRVJBLiSf2WbMpl6kkU-2FX5WIe0OQgBnlZT6OcZRJTYzx-2BGfiQtwcr7NsAknO3eAAtvbdZZtL1N9ADAiNutrSLFq" style="display: inline-block;"><img width="150" alt="In Situ TEM Reveals the Hard Carbon Sodium Storage Mechanism and Discovers the Sodium Carbide" class="image" src="http://onlinelibrary.wiley.com/cms/asset/7576bb86-608e-4a5f-856f-09368952cc00/aenm70687-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">Based on lignin thermal stability, can regulate hard carbon microstructures, topological cavity-rich hard carbon for enhancing sodium storage performance. The sodium storage process of hard carbon cavity-rich structure and the formation of new sodium carbide structure were verified by in situ TEM and GITT.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBTHI8WrE1EPERALGPdGc65obCAmdfiJPFIwWRMc-2FCm-2FMnrUu9nj-2FCyQz5vh-2BrlpUEQGE71tDlq4SXJp5A-2BwAUKrjDCBZLtMM3nnCa-2FyIQWYpiIxI_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKC3LHSMMa3HNbUd-2FXXBEHuJHz2lWGeCCDssDUFcztVfFakevfMA8lplMxEX7hV7cL6RMqZiE8cnVrwFSY8lgWeRcJsv5DQ5TrxHaP5njRkNZOfkB5BsgDAWTHcfQkkW48vva-2FsSAzsyBjv5X5thOTzlTNydpsmuNqu5i4VNQ9uZ-2BxNSDIU-2FCYGYSSYr-2FGTMyLv"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Manipulating Cu Surface Carbophobicity with Pb for Efficient CO‐to‐Ethanol Electroconversion</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Yingjie He, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Yao Tan, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Qiuwen Liu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Bojing Sun, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Qin Chen, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Baixiong Liu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Kang Liu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Min Liu</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e06794
+            |
+        First Published: 23 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom full-width-image-wrapper" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxck9-2FTpcVKjF4q55WZxpxajd7yDkLPPvm-2FIqktFx2vsvU1-2FAk-2FhJyVa1wb1iraTW3lpZdzbcoCvpE0mHRfFSFlw-3D-3D4xKY_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCGHXGZdxQNnOx6dac0xWxAy7q15ZxjaHJqmnB9BdhcD2aZIXDOguapEo2eGLqWDquCCm4rD8cBNfjRYm6GqTGm86vx98Evo57G2VMvVJmYWl2CzBe3jWuiAalEc-2BdW-2FT-2FQg3sfTwUskp1C1cO1e-2BEGkej6xmORRZwFDiE9rJvCxJek3EvSU4rv6ZbuEHEm9Hq" style="display: table;"><img width="150" alt="Manipulating Cu Surface Carbophobicity with Pb for Efficient CO-to-Ethanol Electroconversion" class="image full-width-image" src="http://onlinelibrary.wiley.com/cms/asset/c868b154-2501-43f3-be6d-75dc0a644788/aenm70689-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;width: 100%;max-width: 100%;max-height: none;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">Enhanced carbophobicity of Cu catalyst was obtained via doping impressive electronegativity Pb element, which steered the hydrogenation site at β-C of <sup>*</sup>CH<sub>2</sub>CHO intermediates, preserving the C─O bond and achieving excellent ethanol formation. 
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBTHI8WrE1EPERALGPdGc65q-2FIuMnd3-2Fuhm-2BqmoKrWq5s7jRQTK3m5ZcC-2BSFDH8wDnoxvBQtUOlem0GlLva8tJAhJp939iG0-2Ffcqz1VXjHlrwaGDW_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCm71Zbb39WjMmdWvs9spm-2FJwB1QJIGinD77dfoDDC9-2Bhq2QWhm5fUHhlny5VX1749F5O3YT-2BZoV7qBt1cj2SDVy1ZV6uBKTOJ2P70Cn-2BpL8l0isV6V83cf3Bs-2BBGvTdnsdJbT-2FWV9jLBDUEzYWyNfCHTABZqoARDNIOVMvxBtFdau2S3mbjfuL8iZBXuWCE6V"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Heterocycle‐Bridged Short Sulfur‐Chain Polymers for Polysulfide‐Suppressing Cathodes in Lithium‐Organosulfide Batteries</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Xingkai Ma, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Huan Li, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Junchuan Liang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Yaoda Wang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Tianyu Shen, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Xinmei Song, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Zuoao Wu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Huaizhu Wang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+ Lina Qin, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+ Tianchen Yu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+ Zuoxiu Tie, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+ Zhong Jin</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e06388
+            |
+        First Published: 23 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxYXZzrO7C5Np88o5qvuTRybMMgRT3cmPyJHWawcwi9UMVEqw2Pe1tbeqLn-2FkSkM58-2FWpN-2FJQhfRhz5IqQ85w2mQ-3D-3D0M1Y_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKC0xyXkPwhTKe09IxiKtGE8lmVJEQT8FkX-2BNdStwfNBi02ZJ77FDBp6a1J2JugYUrGfs5iJkShWZJIOHL-2BQl54IBEph354lcOcKGEKqp2eX7uDfWEfNZcYNntsjkKZPi6oatD9N0GonI8EjivyH6EwIHA3oONaMNG6PvzR48dK0rjR0M16PmXfrq3y7lRw9YRD" style="display: inline-block;"><img width="150" alt="Heterocycle-Bridged Short Sulfur-Chain Polymers for Polysulfide-Suppressing Cathodes in Lithium-Organosulfide Batteries" class="image" src="http://onlinelibrary.wiley.com/cms/asset/8f09b77d-bbf0-4212-99bd-c425eb74069e/aenm70688-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">A heterocycle-bridged short sulfur-chain polymer (PPZTS) is rationally designed as a cathode material for Li–S batteries, effectively suppressing polysulfide shuttling and promoting Li<sup>+</sup> diffusion, thereby enabling high capacity, excellent rate performance, and long-term cycling stability.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><span class="doi-access-wrapper"><span class="open-access access-type"><img src="https://advanced.onlinelibrary.wiley.com/pb-assets/images/icon-lock_open.png" style="padding-right: 3px; margin-right: 3px;"/><span class="doi-access"><span class="doi-access" tabindex=0 style="font-family:Open Sans, Verdana; color: #123D80;font-size: 12px;font-weight: 600; padding-right: 3px; margin-right: 3px;">Open Access</span></span></span></span><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBTHI8WrE1EPERALGPdGc65oufN-2FOBOjifChDhhd7zP-2B8-2Fd-2FqQJxy3UWnAW4hkNrCvzBTKsvHKF06x1MY4B0ld-2F2LbTEKY-2F5gm4TFTb1W0mF4XNgj_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCYyMN9VkyAwEJlEfDiyTT96R0UejTV6icbNqZbIU2F9j0EzI4WT7IOz-2BPA97zJ-2B7PZr-2F-2FZp-2BRwORQIAil4nydytjAD-2FU5kmHN1oprreEg4bd7pytyHe-2B-2FejViV0c-2BN0V9RLbRRfFumm0aZNv9owgJbQ1zTGg8apJiDLt30k-2BnJ9387brGt0-2BBQNQbwnVpRUzJ"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Enhanced Fast‐Charging Performance of High‐Mass‐Loading Mn‐Rich Li[Mn1‐<i>x</i>Fe<i>x</i>]PO4 Cathodes via LiF‐Less Cathode–Electrolyte Interphase</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Bonyoung Ku, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Lahyeon Jang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Hyunji Kweon, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Jinho Ahn, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Sunha Hwang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Jihoe Lee, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Myungeun Choi, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Sunyoung Yoo, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+ Kwangho Yoo, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+ Kyu-Young Park, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+ Jongsoon Kim</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e06130
+            |
+        First Published: 24 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxtA0HpjSWkuU4x3vT-2FiHDgLw6NMiS2TDkd07c-2Bw11h0245d0zGFfWW-2B-2BTOI5H-2Fcy69wszEzbneVm3V-2B5W68RHmA-3D-3Dpzlm_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCxEbjU26B2ReH2BYNu-2Fln7jJFMG9JQ5YMqcmZYzrimzgq2NPikRnglie0EXDOLTncXCZJKef6wDoD7kN3j5flKIr36DRyOHP9IELEC-2BT1hoQaLvYZL9s0dAzvDQF6-2BuqTYlfRrZ-2F7icwFFnvtYqkCbhQsInJPVZYawQRwX6wq8IVSJ4QWhpBA6BrLysaf2d3U" style="display: inline-block;"><img width="150" alt="Enhanced Fast-Charging Performance of High-Mass-Loading Mn-Rich Li[Mn1-xFex]PO4 Cathodes via LiF-Less Cathode–Electrolyte Interphase" class="image" src="http://onlinelibrary.wiley.com/cms/asset/bc6135d0-3667-4c98-9295-13804e37df0b/aenm70680-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">LiF-rich@LMFP develops a CEI enriched with electronically and ionically insulating LiF that impedes interfacial charge transfer during fast charging. By suppressing interfacial LiF formation, LiF-less@LMFP accelerates Li<sup>+</sup> exchange and lowers overpotentials, delivering 1.6-fold higher capacity at 5C and ∼87% retention after 100 cycles under practical high-mass-loading conditions, with consistently reliable performance under varied current rates.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBTHI8WrE1EPERALGPdGc65pumN5pnPUzX2MgxPe5hczDAfe-2BDrymt4c5AFt1IHu6Thwl7Lh-2Fe3cQ7-2Fr5jkmuwCbNxSfpxuWpcPjnx1XHWx1yX-C2_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCiTQWNGj4KICcPbJrSSUL-2F8MPbIGnqmzTK-2BvTfV-2F5PJ6UHPYWgxtN95-2F44dwLKUoyIm7a2dNIsmp6oveHteyQZVny4qEhEew2NSRVnA3uRlvTa9Qc9ISeJVNBjT3QC6RQV3EyjxQGFs-2BBzxJaQMSb0TSR-2FIEYLu59OXm1-2BqkjcYzcR-2BTUIR2GYzBw1OTXwIyd"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Double‐Coordination Additives Induced High‐Entropy SEI for Stable Anode‐Less Sodium Metal Batteries</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Zhengda Lv, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Xindan Li, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Wenbin Li, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Jun Luo, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Yunhua Ling, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Yue Sun, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Xiujuan Lu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Shuai Guo, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+ Shaohua Ge, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+ Enhui Wang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+ Mingrui Yang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+ Weihua Chen</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e06756
+            |
+        First Published: 24 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom full-width-image-wrapper" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxEyssOO4wOK445UWZHCqlP4r-2Fn5pXtReMqK8kXgDSY-2FTDgkZHA86kZ05fzydl8lDdsG60CdCn3T4fosVPKKfyGQ-3D-3DgqC0_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKC3j2S5FXw9BA6ANQieJtVPWCVUZ1cu8ZEFK6rZe-2FKEACPPxbRMv4cKY7UeDVAU6NlQ3y6EPtCoyIh4h1F1Ta8xmRx1fCMCD5qy7fR0rU2lqAGMvYp1wm0MpH4uMu3WrZeND2J7c9T2mWpgbRK8bo5-2BK2VzSMRlFCsPFUglnUuCmbuOkLS8XS8fV4toO2FqE2H" style="display: table;"><img width="150" alt="Double-Coordination Additives Induced High-Entropy SEI for Stable Anode-Less Sodium Metal Batteries" class="image full-width-image" src="http://onlinelibrary.wiley.com/cms/asset/f5dc558c-bd3d-496b-a0ca-dd058cc1e7a4/aenm70692-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;width: 100%;max-width: 100%;max-height: none;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">A double-coordination electrolyte strategy is developed to engineer a high-entropy, inorganic-rich SEI. This ultrathin (3.7 nm) mechanically robust shield lowers nucleation barriers, enabling uniform sodium deposition with a remarkable average Coulombic efficiency of 99.58%. Consequently, it realizes anode-less batteries delivering a high energy density of 327.54 Wh kg<sup>−1</sup> with superior stability.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBTHI8WrE1EPERALGPdGc65qxHldORhYKLKleNZb-2BbZB0-2FCOSt400NCFbAuJeGjbXC0HI-2F6T6QSjQiKhQyYBaZevOyVjciA5Z5SaEgeo4-2Bwr4sZTk_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCO5G-2FZT67v795wtxpW3N7oR-2BsVCIPuAqs1w44Rd-2FCP7RuPXfGtKCw46qyU9hA8syZY636rivlhi04oBEUAsIoFMCS9JwRD-2FpHTe1QB-2BUAncxk-2FANB-2FgUuOJFOUZRXuTg7DbVlkR4Sfv-2B-2FAg-2B7QYBUDqVHKp0ceh6vp5rIdJx-2BSWFsYP2Q18jijZwy-2FRXWcjEw"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Wheel‐Hub‐Inspired Silicon Anodes with Superior Stress Tolerance for High‐Energy Lithium‐Ion Batteries</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Xiangze Xin, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Qianhui Yin, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Ziyun Zhao, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Jiangshan Qi, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Tianze Xu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Zhenshen Li, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Fangbing Li, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Fanqi Chen, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+ Shichao Wu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+ Quan-Hong Yang</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e06650
+            |
+        First Published: 27 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxx0t0h-2FGm23lxelg-2FH9eAyfkitWHLoRj16jNwGIp09Tqv-2B6-2BFYNWuNX5xJJ3-2BFedB-2Fcmw2x47V-2B-2BTBjSYh5SfzA-3D-3DpJXC_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCMgN0k1C4SiiE1EQ6SocWRjlGSeCjviZUoluww0w8Z6CtrLAnJOnbWNYrWOywnFYM-2FcB8QZvl84UO6TG-2BBtsNNyQVGSpZh30It4RcGBQA888Sa0v9kd7f42NqOLIsaZytoAXKBbzK9ajJdOAE1NE0MYIhRYz5v5lzP8nou4w2dU3Fzb1zsiPMooP-2F33OgObYz" style="display: inline-block;"><img width="150" alt="Wheel-Hub-Inspired Silicon Anodes with Superior Stress Tolerance for High-Energy Lithium-Ion Batteries" class="image" src="http://onlinelibrary.wiley.com/cms/asset/10fcb118-1b5c-4a2e-bf94-84b5e177e632/aenm70684-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">The wheel-hub-inspired silicon-carbon architecture (WH-Si@C) is realized via enclosed near surface mesopores, simultaneously overcoming internal lithiation expansion stress and external calendering pressure. This stress-tolerant anodes enables crushing strength (372.62 MPa) and a stable interface, achieving outstanding electrochemical performance and offering a practical way to build stable Si anodes for next generation energy storage applications.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBTHI8WrE1EPERALGPdGc65pw7Y39dRI3EPRPpD0nDfk7JwSNQllnwEZ9BvlkRBWGVSuGyqJFBZ2YQDTGCEWboFonx8hOjPRNezVNqL5tV0vPv_NR_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCunREobSrTSBUP1QeQyz9oQhbxVsyVElz8F-2BnOtFRnL4PGwlWRiglUjHrJ0bI-2BNfBolz-2BNANxfDeqS7wGoDxdgm4mMMRoxTFrQOy6Ksv8jzQrwMMrYZWIAOuaHmLHLxlkoA6d76vi-2FWv5yK4kgJe7Yvtw63i-2BYrcXpb0ZN-2FPlQyjGhmdsF5xh7WyKluWYVi6K"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Multi‐Domain Energy Harvesting with Mode‐Dependent Magneto‐Mechano‐Electric Coupling</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Liwei Dong, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Chaoyang Zhao, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Shuai Qu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Xin Li, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Jiashun Li, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Guobiao Hu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Chengjia Han, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Yu Zhang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+ Ping Wang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+ Fan Yang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+ Zhong Lin Wang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+ Yaowen Yang</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e06114
+            |
+        First Published: 26 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxELNScoZni24nq6leq4QF26qMWRQcAcOLDpew-2F8EgtNWT2rhn3zmlX5jbeXl8Tc4xU-2F92rBb7L2l7h2d-2FHz4n4Q-3D-3D3dNo_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKC-2BQQq5p-2BdYURzKxVwD2TGxdC6uPty8cn5THaqAfcarId1BDHF9OwjYl8S3DfCCqi4NRSWXp00SSJNLph8mxbaGs8-2BkPsMZl-2F2ee8JmTU2-2F-2B91jFJVEF3cAqNf5NZAbwUgAG1fgPYo8XQuBwflffbYi6KhczBSHr3omXVnyoH3OtEktrJLTQTOm8xIFwc52fdY" style="display: inline-block;"><img width="150" alt="Multi-Domain Energy Harvesting with Mode-Dependent Magneto-Mechano-Electric Coupling" class="image" src="http://onlinelibrary.wiley.com/cms/asset/e9f41892-44f4-422e-a2e5-726376f208fa/aenm70683-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">This work presents a dual-mode magneto-mechano-electric harvester with a mode decoupling design for simultaneous harvesting of distinct-frequency magnetic field and vibration energy. Dual magnetic coupling and internal resonance significantly enhance performance. An optimized SECE circuit enables efficient extraction of weak electrical energy and ultra-weak-field wireless sensor operation, demonstrating strong potential for real-world rail-side applications.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><span class="doi-access-wrapper"><span class="open-access access-type"><img src="https://advanced.onlinelibrary.wiley.com/pb-assets/images/icon-lock_open.png" style="padding-right: 3px; margin-right: 3px;"/><span class="doi-access"><span class="doi-access" tabindex=0 style="font-family:Open Sans, Verdana; color: #123D80;font-size: 12px;font-weight: 600; padding-right: 3px; margin-right: 3px;">Open Access</span></span></span></span><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBTHI8WrE1EPERALGPdGc65qsZFO1puDLzeZbyKaCiBp7vds0Hpk592BkWc22K6y89JfZdu0T7d7aVQQ67vGg3UOfHhJocPHwZNTuisZB-2BoBbCqiI_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKC3Pdj7zekLV0TaHc1i6AGNk2SlexTnCyExJ9Y3wEJEVEYJ5wuSjSX0hiM2-2Bv-2BRZ-2BPM-2BRzRkxeQjdDnbZPN8Z1IbNETRq0UtI-2F8lWCpGEOmbeiNOFrXwsulv-2BAcmUwis4Bh2S9sxzfwfpfDKoP60-2FnogBS5y6RJeFDEo3zXH4OWMbPOripVK1MXbXMXS5ydC0d"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Selective Ion‐Blocking Strategy for Stabilizing Perovskite Tandem Solar Cells</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Sunwoo Kim, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Hangyeol Choi, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Doyun Im, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Yeonghun Yun, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Won Chang Choi, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Jungchul Yun, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Hyun Seo Park, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Nagyeong Hyeon, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+ Dong Hyun Kim, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+ Gill Sang Han, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+ Junesic Park, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+ Gwang Min Sun, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+ Jun Hong Noh, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Ji-Sang Park, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Yohan Yoon, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Sangwook Lee</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e06634
+            |
+        First Published: 28 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxzzVavN28cxX5Y8KCZPwBbuv7hsXJSgmXcYU-2F-2Bpk7Yiwv7A0FlsF6Cc2W9WI1kvhQ8o2djAmWjWKGXcqK-2F7-2FAdA-3D-3DHp9d_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCygTjVBXW8jpqZI566KwZUsqY-2FRC4lwSWqF1lCCgFTslU2ba-2BNk081KWQO6vbBxpQ0GRq8Nsjp85WsAUycV23yIOzBSOBu0rQzKTSufOejoVL1VvfrhS49RHRAXtsHf81YNYQixVxcJ6I7TwE-2BqrIoGz8b-2BuWzkeEmPn-2FX5ZtRwtKyCcra5XyjCcptRCfdxoH" style="display: inline-block;"><img width="150" alt="Selective Ion-Blocking Strategy for Stabilizing Perovskite Tandem Solar Cells" class="image" src="http://onlinelibrary.wiley.com/cms/asset/bbf6b7b8-62b9-4dd3-b301-3dc647dd868b/aenm70685-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">A selective ion-blocking Li─T interlayer is introduced at LiF-passivated perovskite interfaces to suppress fluorine diffusion while preserving the beneficial interfacial passivation of LiF. This ion-blocking strategy markedly improves the long-term operational stability of both single-junction and monolithic all-perovskite tandem cells under continuous illumination, without any penalty in photovoltaic performance.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBTHI8WrE1EPERALGPdGc65qbjvSV7zC7Eg5hTkSBBeTIybPNje5WaJ4EkmCxTNChTO5M7aHjkI6-2FVJ486htfvguq6vDGysWRyZyLPid6N6j2InO5_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCPqI5cZ2KUi4iCbbiDxGJSedQuE1L9uW8Vm1tEQHlRAnYezwzuwn4rCO-2F55CySDpTT9swJ60UybL4-2BmVQ4CH6bK2KHwYXSNtkil9EfUImHfMGCuOAIdhG6g2aZr3RrXS3PL9s1uXtZ2D8nMP9-2FeMlCejEcBN7kzEdcoQp9YXb4cYr9uNrsoxmewAXOPwIWzme"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">A Stable and Reliable Li–In Alloy Counter Electrode for Sulfide‐Based All‐Solid‐State Batteries</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Gengzhong Lin, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Yicheng Deng, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Guo Tang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Hui Li, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Yuliang Cao, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Yongjin Fang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Xinping Ai</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e06291
+            |
+        First Published: 28 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgx9Kp87O3HsMEubgqaD-2B7lDqxRe1QT7wXP2PAn0UaeJ3ttN0Iy7lX-2BM-2BjJoN5tywVBR7X2ZJMSPNrup-2BRm6-2BENag-3D-3DwkUp_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCWBP9Lfnr3qs-2Fvuc7bYCE4PhZGodziCjhYbXGSJ9IoQOXx9oHNSegZbUTVJ6m0H2pNF9AaT4Ld5JrXjh-2BUKIbDB8dzOvRLG7FJgEJGPCBBnvkSSqDRDeWeRoAaNns22dr50YqLbkg2U75l9vbs5YH-2BBhYCU07U3R2ug6I-2BMOt4FN5AIXSJGC8M17x2m6PS5nc" style="display: inline-block;"><img width="150" alt="A Stable and Reliable Li–In Alloy Counter Electrode for Sulfide-Based All-Solid-State Batteries" class="image" src="http://onlinelibrary.wiley.com/cms/asset/d01a7c43-4c48-46ce-91b5-1972fbfcdc73/aenm70697-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">A homogeneous LiIn/In biphasic alloy counter electrode is successfully fabricated through a chemical pre-lithiation strategy. The as-prepared electrode exhibits superior reaction kinetics and high lithium-extraction capacity, overcoming the limitations of conventional cold-pressed counter electrodes and enabling reliable assessment of initially lithium-free electrodes for sulfide-based all-solid-state batteries.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBUpfYVcsFtvkIrhoF6-2FX7eESi-2FDdanVlBKdAus0aqj74kLuShJJaS6YHycmZhjr3MtvVOBX5OHCFmbo3Z60v0yj9daWsv3BW0gGbmRs0vkr-2F8iZD_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKC5jwQMSH-2FVHtYV430rs060F-2Bp7hrb9EiiKAabdHj7s1nG7xrNQgh5I-2Bw89XwcWE4sbs-2Bxzv2lhtgza2hLH1Kq4z7-2F0tBr4K7txhpgyyEEiCqhCeMe3oRjP5-2B00b-2BjJ04zaGtRL4NlaiHWzxkadwkYaRhreuVTqrlKKP-2FlhoKg4WgmekoKZvVyA7Cntf5lC7s3"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">How Electrolytes Control the Activity and Stability of Fe‐N‐C for Oxygen Reduction Reaction in Acidic Media</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Shaojie Jing, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Zhouhao Zhu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Wencai Liu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Chaogang Ban, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Yucui Xiang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Jing Fan, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Zhiping Zeng, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Jiangping Ma, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+ Li-Yong Gan, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+
+
+ Xiaoyuan Zhou</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e05944
+            |
+        First Published: 28 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom full-width-image-wrapper" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgx1d9ioo-2B2q-2BMWwygMiZxS9RbSfTUeglZvPuAcVXzm-2BbzJR4-2F3PKNyXkpwxU-2BxelVha-2BdwuHj5p-2B4L4Fs5cEY6Rw-3D-3DixwY_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCE2EL9TBe3nxRVTJF13ab6F049op7sUqO0WH-2F45SQJjzjzMM6ZH3IDflqwkrCJ5blS40iq9tKwlQBf4wfqtOGl1K9Z3ewW57ZMZ9bGFKfN6RYlc1XAD-2Bkpl75-2FLi-2FlqvEHHs5EPsjkVH8s8R61rEa5uAB20n2zO7V9OJMxdjRZR-2B3NRWRxGv9vV4Z9hRzMNEH" style="display: table;"><img width="150" alt="How Electrolytes Control the Activity and Stability of Fe-N-C for Oxygen Reduction Reaction in Acidic Media" class="image full-width-image" src="http://onlinelibrary.wiley.com/cms/asset/586810d9-abb8-4a0c-be04-895e63f3bea2/aenm70698-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;width: 100%;max-width: 100%;max-height: none;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">Fe-N-C single-atom catalysts exhibit electrolyte-dependent behavior in acidic ORR. Using grand canonical simulations and experiments, we reveal that electrolyte anions dictate axial coordination: SO<sub>4</sub><sup>2−</sup> forms stable, active SO<sub>4</sub>-Fe<sup>*</sup> sites, while H<sub>2</sub>O-Fe<sup>*</sup> in HClO<sub>4</sub> shows lower activity and stability, highlighting electrolyte identity as the key performance determinant.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+               <div class="issue-item" style="border-bottom: 1px solid #e7e4df; margin-top: 25px;margin-bottom: 25px; padding-top: 0px; padding-bottom: 10px;"><a style="text-decoration: none;display: block;" class="issue-item__title" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tubc0Jyt9qEb7Gapt6bxeMBHHR-2FkDt89UzfbWsIpBzqAM45XOH7BsTqWHhFRpw33Po-2BGwnwcm0SbUHvQINEQA1KELM9hkRFbLLWlvw-2BOAZQpm7TArDdLVxXeWXpVP1m3EKKpyh6xRLLlA-2BcmRn51d961Ikppi6iSOi33jDqXJhwu5RvQV9o9uk2Evwq5h03-2FDloJVjMjU-2BxtHgunfwatVjNfUCOjYJMe4aaOiWkufdulugUroUUxjBAiPY4PEaUyLEdeGVzPaNDiRTHvgIEbe5SBTHI8WrE1EPERALGPdGc65oczBwDsp1pWAgf2f63KJF6CvH-2FzBytacKQaxFSZFgpnkp468TM9qSSOdiStjFrxUt8Cswpq8cXkFCJm8JDw8BnaZ3C_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCP21JFMVDzc6XEdLsxUUzZlV0RIPDYTcWbg8uvroigBycRN5k1laFzF7QZYDhO4vfZ6WibTqkWFhp4iNXYlwmgMvADnwsOFQL2tEqWuUdZk-2FjjGDF7YDm1pmPvm6M6VL3eiCQCr8ZivL3pDMoadg75fJ00C0MRRxB3BZGcgkJZ1gX8x8npcUpSoh0qJpogPs-2B"><h5 style="font-family: Open Sans, Verdana; color:#123D80; font-size:16px; ">Hydroxide/Selenide Heterostructures With Built‐In Electric Fields Enabling Reconstruction for Advanced Quasi‐Solid‐State Supercapacitors</h5></a><span style="float: none; position: static; list-style:none;" class="loa comma loa-authors-trunc">
+                     <div class="comma__list"><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+ Shaoxiong Du, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+ Wang Yang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+ Yao Yao, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+ Chen Zhang, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+ Ruoyao Feng, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+ Wenjie Zhu, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+ Zhenfei Gao, </span><span style="color:#313131;display:inline;margin-left: 0; font-family: Open Sans,  Verdana ;">
+
+
+
+
+
+
+
+ Yongfeng Li</span></div></span><p style="float: none; list-style: none; margin-top:0; color:#313131; font-family: Open Sans,Verdana;" class="rlist--inline separator">e06211
+            |
+        First Published: 28 January 2026</p>
+                  <div class="toc-item__abstract abstract-preview" style="padding:0;">
+                     <div class="left-side-image abstract-preview__visual clearfix"><a title="Link to full-size graphical abstract" class="abstract-preview__zoom" href="http://el.wiley.com/ls/click?upn=u001.eKBOukF1WoXfXY7piqe7Nj8loxG6dBQJcmO8l4yeD4VsiSy7nLSb853XrUbaLIgxK3ROd0gjrSGs6qmj-2Bk-2FbuZ9ULKiO1H37WsNI17bOwvp3HCLcfwM-2F3yu8POU91ZtFcaeoAyp3XDjlopRr4tUSOg-3D-3DOMV4_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCNh7ZGqvu0PqrXJYSW8ZPrHrfzCVp8HiBHgOyfEw2kPdd3R3ddxnt41NSGdeI9S55-2FK2upPxI-2BkuE9TzytWkgCUnpOBGS-2Fl8-2B8BHiLdKWqdD8IvlAOFG3LFC9x59J93Uy4JJfd9P7FTuSpVJsFtWXa9rKm-2FctVmtGYM5gcN1Th5EALCrJsBLvqzggvFj302vw" style="display: inline-block;"><img width="150" alt="Hydroxide/Selenide Heterostructures With Built-In Electric Fields Enabling Reconstruction for Advanced Quasi-Solid-State Supercapacitors" class="image" src="http://onlinelibrary.wiley.com/cms/asset/e14189c8-fdc7-4312-a03b-0b5117d20a48/aenm70696-gra-0001-m.jpg" style="display: block; border: 0px; width: 215px; height: auto; max-width: 300px;"></a>
+                        
+                        <p style="display: inline-block; width: 50%; margin-left: 10px; vertical-align: top;">This work reveals the role of hydroxide/selenide heterostructures for efficient electrochemical activation and optimizing charge transfer kinetics. A detailed analysis is conducted on the mechanisms of BIEF generation, charge redistribution, and accelerated phase transformation. The reconstructed a-NiCoSe@Ni(OH)<sub>2</sub> with abundant oxygen vacancies achieves exceptional areal capacitance in hybrid supercapacitors.
+</p>
+                        </div>
+                  </div>
+                  <div class="content-item-format-links">
+                     <ul class="rlist--inline separator issue-item__links"></ul>
+                  </div>
+               </div>
+            </div>
+         </div>
+      </div>
+      <table style="width:100%">
+         <tr>
+            <td></td>
+            <td></td>
+         </tr>
+      </table><!--${context-attribute: label_abstract}-->
+      <p style="color: #313131; font-family: Open Sans,Verdana ;">
+            You are receiving this content alert because you are subscribed to
+            Advanced Energy Materials as
+            <a href="mailto:journalsearchchan@gmail.com" style="color: #123D80;">journalsearchchan@gmail.com</a>.
+            <br>You can manage all of your Wiley Online Library content alerts at <a style="color:#123D80;" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717TubSbNRHm559GUA8eUUEXxInQuMj4dKjMdfBv4fGkwAwUM-3D86E0_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKC2jAwmh1IvUPYhSletrdRNOccmiRLAw8S8gdQ5hra-2BVuMsfv2Aa7-2Bw-2F3fcXoi4lM3c8Izt6nkacRYADFqIs8UKqlHwYOVSkK2FBz3jYNfP7KK-2FmerV-2F2Bis-2B3-2FbY3DQ3bmVtj0-2B9uZtlEttcQPPXCPk6brMeEOC9bvirE4jWn5kHDDG4gvj6Znc00XmPfVDv1">https://advanced.onlinelibrary.wiley.com</a>.<br><table role="presentation" style="margin-top:21.75pt; margin-bottom:24.75pt">
+            <tr>
+               <td style="color:#313131; font-family:'Open Sans', Verdana; font-size: 8.25pt!important; ">
+                    If you no longer wish to receive these alerts,
+                    <a style="color: #123D80; font-size: 8.25pt; font-family:Open Sans, Verdana, sans-serif; text-decoration: underline;" href="http://el.wiley.com/ls/click?upn=u001.3YBR4Hwqxb0xKz1YXTwZELGa4DRPwSRnhSXJvzjUWtAAlMIqmOgqOicHLT717Tub3UrSeFltJR8tGp-2B-2Fz2e0WDsRKU-2BuAoC-2F6MraH2PO7uirsIYlEeu9wXc9omP2H-2BGO-2BMBvDVHdJnwRbOEYJ0bHwHu5dTUHxD7IxsysGU-2FoHxw-3DeT6A_QQleFN0Y7uml2LhKH0GhFYFN6tqXeGvm2upkkgCGqJp8S6mvRtbIDHqsVM1hL-2BHezJzufkI6yi9MXt6shtbOGrlErpERkUodCZZHzb3rq5GfFwBJQcbstXanElQTcNKCkQQlUR-2Bev4RvqXXNIhQDOSlXO-2BPeLwc-2BDvIZjQFAi1r8-2Be-2FRKjaxDhfkpZYSAN8-2BPO-2B971tLf3rLZY-2F-2FPrbV1Be9kcukU9-2BFDjw-2B1WUgDx6FLzT-2F8pqA6io2DbH8WxJeUgF7X5NRMdfxGVErCDtzLtPuwWXhxoILr496-2BmtvtPXNY711eZNXCdcM5-2F4sI8u8">unsubscribe here</a>.
+                </td>
+            </tr>
+         </table>.
+            <br></p><img src="http://el.wiley.com/wf/open?upn=u001.0lvweWXRQX3dDHlz-2Fw2lJc-2FCNLXcduplxOQA7f51xlCKSJV17iUwTs9D6sbwVHXkOJnIuWSvx-2Fp0YK3kvfMAwpwKFMeC45gRbx24H42TqO8adyP6GF3PsUyUFI-2FK1BKlD00KDEiazwLmH3HaxeCTCt-2B2rPGWN4JIOMIE6KhPJeZfM6hTUo23T8jab9XsRgLcWDdChPimaSBtRNmmv4g-2FjjAzYCpxqJ2cnTWd4P9WzCapHafNK8-2Ff0ugVhA7IeYNnbodxE0lExbS-2FrN5-2BWZUOWzL2tfiFmo-2BM-2BNVQcxNNgKOMeJFzz6sc5rlrUfBdUqJf" alt="" width="1" height="1" border="0" style="height:1px !important;width:1px !important;border-width:0 !important;margin-top:0 !important;margin-bottom:0 !important;margin-right:0 !important;margin-left:0 !important;padding-top:0 !important;padding-bottom:0 !important;padding-right:0 !important;padding-left:0 !important;"/></body>
+</html>

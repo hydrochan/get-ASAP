@@ -1,16 +1,21 @@
 {
   "acs": {
-    "sender": "alerts@acs.org",
+    "sender": "updates@acspubs.org",
     "name": "ACS Publications",
     "journals": ["JACS", "ACS Nano", "ACS Catalysis", "Nano Letters"]
   },
+  "wiley": {
+    "sender": "WileyOnlineLibrary@wiley.com",
+    "name": "Wiley",
+    "journals": ["Angewandte Chemie", "Advanced Materials", "Small"]
+  },
   "elsevier": {
-    "sender": "ealerts@elsevier.com",
+    "sender": "sciencedirect@notification.elsevier.com",
     "name": "Elsevier",
     "journals": ["Applied Catalysis B", "Journal of Catalysis"]
   },
   "science": {
-    "sender": "ScienceAdvances@sciencemag.org",
+    "sender": "announcements@aaas.sciencepubs.org",
     "name": "Science",
     "journals": ["Science", "Science Advances"]
   }
