@@ -39,9 +39,9 @@ created: 2026-04-05
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
 | 03-01-01 | 01 | 1 | PARSE-01,02,03 | integration | `python collect_samples.py` | ❌ W0 | ⬜ pending |
-| 03-02-01 | 02 | 1 | PARSE-01 | unit | `python -m pytest tests/test_acs_parser.py -v` | ❌ W0 | ⬜ pending |
-| 03-02-02 | 02 | 1 | PARSE-02 | unit | `python -m pytest tests/test_elsevier_parser.py -v` | ❌ W0 | ⬜ pending |
-| 03-02-03 | 02 | 1 | PARSE-03 | unit | `python -m pytest tests/test_science_parser.py -v` | ❌ W0 | ⬜ pending |
+| 03-02-01 | 02 | 2 | PARSE-01 | unit | `python -m pytest tests/test_parser_acs.py -v` | ❌ W0 | ⬜ pending |
+| 03-02-02 | 02 | 2 | PARSE-02 | unit | `python -m pytest tests/test_parser_elsevier.py -v` | ❌ W0 | ⬜ pending |
+| 03-02-03 | 02 | 2 | PARSE-03 | unit | `python -m pytest tests/test_parser_science.py -v` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -50,9 +50,9 @@ created: 2026-04-05
 ## Wave 0 Requirements
 
 - [ ] `tests/fixtures/` — 출판사별 실제 메일 HTML fixture 파일 (collect_samples.py로 수집)
-- [ ] `tests/test_acs_parser.py` — ACS 파서 테스트 스텁
-- [ ] `tests/test_elsevier_parser.py` — Elsevier 파서 테스트 스텁
-- [ ] `tests/test_science_parser.py` — Science 파서 테스트 스텁
+- [ ] `tests/test_parser_acs.py` — ACS 파서 테스트 스텁
+- [ ] `tests/test_parser_elsevier.py` — Elsevier 파서 테스트 스텁
+- [ ] `tests/test_parser_science.py` — Science 파서 테스트 스텁
 
 ---
 
