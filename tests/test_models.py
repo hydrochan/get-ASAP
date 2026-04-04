@@ -84,8 +84,8 @@ def test_publishers_journal_lookup():
     # 발신자로 출판사 찾기
     sender_map = {pub["sender"]: pub for pub in publishers.values()}
 
-    # ACS 발신자로 조회
-    acs_pub = sender_map.get("alerts@acs.org")
-    assert acs_pub is not None, "alerts@acs.org 발신자로 ACS 출판사를 조회할 수 있어야 한다"
+    # ACS 발신자로 조회 (실제 확인된 sender: updates@acspubs.org, Plan 01에서 검증)
+    acs_pub = sender_map.get("updates@acspubs.org")
+    assert acs_pub is not None, "updates@acspubs.org 발신자로 ACS 출판사를 조회할 수 있어야 한다"
     assert acs_pub["name"] == "ACS Publications"
     assert len(acs_pub["journals"]) > 0
