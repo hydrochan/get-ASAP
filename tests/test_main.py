@@ -23,11 +23,11 @@ def mock_publishers():
 
 @pytest.fixture
 def mock_paper():
-    """테스트용 PaperMetadata 객체 (DOI와 journal이 비어있어 lookup_doi + infer_journal 호출 유도)"""
+    """테스트용 PaperMetadata 객체 (journal 비어있어 infer_journal 호출 유도)"""
     from models import PaperMetadata
     return PaperMetadata(
         title="Test Paper Title",
-        doi="",        # 비어있어야 lookup_doi가 호출됨
+        doi="",
         journal="",    # 비어있어야 infer_journal이 호출됨
         date="2026-04-04",
     )
@@ -73,7 +73,6 @@ def test_dry_run_does_not_call_save_papers(mock_publishers, mock_paper):
          patch("main.get_new_messages", return_value=["msg_001"]), \
          patch("main.load_parsers", return_value=[mock_parser]), \
          patch("main.extract_body", return_value="<html>test</html>"), \
-         patch("main.lookup_doi", return_value="10.1021/test"), \
          patch("main.infer_journal", return_value="ACS Catalysis"), \
          patch("main.save_papers") as mock_save, \
          patch("main.get_or_create_db", return_value="db_123"), \
@@ -115,7 +114,6 @@ def test_dry_run_does_not_call_mark_processed(mock_publishers, mock_paper):
          patch("main.get_new_messages", return_value=["msg_001"]), \
          patch("main.load_parsers", return_value=[mock_parser]), \
          patch("main.extract_body", return_value="<html>test</html>"), \
-         patch("main.lookup_doi", return_value="10.1021/test"), \
          patch("main.infer_journal", return_value="ACS Catalysis"), \
          patch("main.save_papers"), \
          patch("main.get_or_create_db", return_value="db_123"), \
@@ -134,7 +132,7 @@ def test_dry_run_does_not_call_mark_processed(mock_publishers, mock_paper):
 def test_full_pipeline_order(mock_publishers, mock_paper):
     """dry_run=False 시 전체 파이프라인 순서 검증:
     get_gmail_service -> build_query -> get_new_messages ->
-    extract_body -> parser.parse -> lookup_doi -> save_papers ->
+    extract_body -> parser.parse -> save_papers ->
     mark_processed -> save_state
     """
     call_order = []
@@ -169,7 +167,6 @@ def test_full_pipeline_order(mock_publishers, mock_paper):
          patch("main.get_new_messages", side_effect=track("get_new_messages", ["msg_001"])), \
          patch("main.load_parsers", side_effect=track("load_parsers", [mock_parser])), \
          patch("main.extract_body", side_effect=track("extract_body", "<html>test</html>")), \
-         patch("main.lookup_doi", side_effect=track("lookup_doi", "10.1021/test")), \
          patch("main.infer_journal", return_value="ACS Catalysis"), \
          patch("main.save_papers", side_effect=track("save_papers", {"saved": 1, "skipped": 0, "failed": 0})), \
          patch("main.get_or_create_db", side_effect=track("get_or_create_db", "db_123")), \
@@ -186,7 +183,6 @@ def test_full_pipeline_order(mock_publishers, mock_paper):
     assert "get_new_messages" in call_order
     assert "extract_body" in call_order
     assert "parse" in call_order
-    assert "lookup_doi" in call_order
     assert "save_papers" in call_order
     assert "mark_processed" in call_order
     assert "save_state" in call_order
@@ -242,7 +238,6 @@ def test_single_mail_error_is_skipped(mock_publishers, mock_paper):
          patch("main.get_new_messages", return_value=["msg_001", "msg_002"]), \
          patch("main.load_parsers", return_value=[mock_parser]), \
          patch("main.extract_body", return_value="<html>test</html>"), \
-         patch("main.lookup_doi", return_value="10.1021/test"), \
          patch("main.infer_journal", return_value="ACS Catalysis"), \
          patch("main.save_papers", return_value={"saved": 1, "skipped": 0, "failed": 0}), \
          patch("main.get_or_create_db", return_value="db_123"), \
@@ -254,7 +249,7 @@ def test_single_mail_error_is_skipped(mock_publishers, mock_paper):
         # 에러가 있어도 전체 파이프라인이 계속 진행되어야 한다
         result = run_pipeline(dry_run=False)
 
-    # 두 번째 메일은 정상 처리됨 → 1건 추출
+    # 두 번째 메일은 정상 처리됨 -> 1건 추출
     assert result["extracted"] == 1
 
 

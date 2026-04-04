@@ -1,7 +1,7 @@
 """Gmail ASAP 파이프라인 오케스트레이터 (per D-01, D-02, D-03)
 
 전체 실행 흐름:
-  Gmail 메일 수신 -> 출판사별 파싱 -> CrossRef DOI 조회 -> Notion 저장 -> 메일 라벨 마킹
+  Gmail 메일 수신 -> 출판사별 파싱 -> Notion 저장 -> 메일 라벨 마킹
 
 사용법:
   python main.py                  # 전체 파이프라인 실행
@@ -26,7 +26,6 @@ from gmail_client import (
     mark_processed,
     save_state,
 )
-from crossref_client import lookup_doi
 from notion_client_mod import get_or_create_db, save_papers
 from parser_registry import load_parsers
 
@@ -252,14 +251,10 @@ def run_pipeline(dry_run: bool = False) -> dict:
             papers = parser.parse(body)
             logger.debug("메일 %s: %d건 추출", msg_id, len(papers))
 
-            # 각 paper의 누락 필드 보완
-            # 출판사의 DOI prefix를 가져와 CrossRef 검증에 사용
-            expected_doi_prefix = publishers[pub_key].get("doi_prefix", "")
+            # 각 paper의 누락 필드 보완 (저널명만 — DOI는 ASAP 특성상 미등록이 많아 조회하지 않음)
             for paper in papers:
                 if not paper.journal:
                     paper.journal = infer_journal(sender, subject, publishers)
-                if not paper.doi:
-                    paper.doi = lookup_doi(paper.title, doi_prefix=expected_doi_prefix)
 
             all_papers.extend(papers)
             processed_msg_ids.append(msg_id)
