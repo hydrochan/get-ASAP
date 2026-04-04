@@ -57,12 +57,29 @@ def lookup_doi(title: str, timeout: int = 10) -> str:
             logger.warning("CrossRef 조회 결과 없음: %r", title[:80])
             return ""
 
-        # 첫 번째 결과의 DOI 반환
-        doi = items[0].get("DOI", "")
-        if doi and doi.startswith("10."):
-            return doi
-        logger.warning("CrossRef DOI 형식 이상: %r", doi)
-        return ""
+        # 첫 번째 결과의 제목과 입력 제목을 비교하여 정확도 검증
+        item = items[0]
+        doi = item.get("DOI", "")
+        if not doi or not doi.startswith("10."):
+            logger.warning("CrossRef DOI 형식 이상: %r", doi)
+            return ""
+
+        # CrossRef 결과의 제목과 입력 제목의 유사도 검증
+        cr_titles = item.get("title", [])
+        if cr_titles:
+            cr_title = cr_titles[0].lower().strip()
+            input_title = title.lower().strip()
+            # 간단한 유사도: 입력 제목의 처음 50자가 CrossRef 제목에 포함되는지 확인
+            prefix = re.sub(r'[^a-z0-9 ]', '', input_title)[:50].strip()
+            cr_clean = re.sub(r'[^a-z0-9 ]', '', cr_title)
+            if prefix and prefix not in cr_clean:
+                logger.warning(
+                    "CrossRef 제목 불일치 - 입력: %r / CrossRef: %r / DOI: %s",
+                    title[:60], cr_titles[0][:60], doi
+                )
+                return ""
+
+        return doi
 
     except Exception as e:
         logger.warning("CrossRef API 조회 실패 (title=%r): %s", title[:80], e)

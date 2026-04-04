@@ -321,7 +321,12 @@ def infer_journal(sender: str, subject: str, publishers: dict) -> str:
         return ""
 
     # subject에서 저널명 탐색 (대소문자 구분 없이 검색)
-    for journal_name in matched_publisher.get("journals", []):
+    # 긴 이름 먼저 매칭 (예: "Science Advances"가 "Science"보다 우선)
+    journals_sorted = sorted(
+        matched_publisher.get("journals", []),
+        key=len, reverse=True
+    )
+    for journal_name in journals_sorted:
         if journal_name.lower() in subject.lower():
             return journal_name
 
