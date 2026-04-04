@@ -80,7 +80,7 @@ class WileyParser(BaseParser):
 
                 # DOI가 없으면 CrossRef API로 제목 조회
                 if not doi:
-                    doi = crossref_client.lookup_doi(title)
+                    doi = crossref_client.lookup_doi(title, doi_prefix="10.1002/")
 
                 # DOI 중복 체크
                 if doi:

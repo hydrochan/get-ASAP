@@ -253,11 +253,13 @@ def run_pipeline(dry_run: bool = False) -> dict:
             logger.debug("메일 %s: %d건 추출", msg_id, len(papers))
 
             # 각 paper의 누락 필드 보완
+            # 출판사의 DOI prefix를 가져와 CrossRef 검증에 사용
+            expected_doi_prefix = publishers[pub_key].get("doi_prefix", "")
             for paper in papers:
                 if not paper.journal:
                     paper.journal = infer_journal(sender, subject, publishers)
                 if not paper.doi:
-                    paper.doi = lookup_doi(paper.title)
+                    paper.doi = lookup_doi(paper.title, doi_prefix=expected_doi_prefix)
 
             all_papers.extend(papers)
             processed_msg_ids.append(msg_id)

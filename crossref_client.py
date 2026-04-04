@@ -21,7 +21,7 @@ DOI_RE = re.compile(r'10\.\d{4,9}/[^\s"<>#?&]+')
 _MAILTO = "asap-pipeline@example.com"
 
 
-def lookup_doi(title: str, timeout: int = 10) -> str:
+def lookup_doi(title: str, doi_prefix: str = "", timeout: int = 10) -> str:
     """논문 제목으로 CrossRef API에서 DOI를 조회한다.
 
     CrossRef의 /works?query.title=TITLE&rows=1 엔드포인트를 사용하여
@@ -29,6 +29,7 @@ def lookup_doi(title: str, timeout: int = 10) -> str:
 
     Args:
         title: 검색할 논문 제목 (영어 제목 권장)
+        doi_prefix: 예상되는 DOI prefix (예: "10.1021/"). 있으면 결과 검증에 사용.
         timeout: HTTP 요청 타임아웃 (초)
 
     Returns:
@@ -78,6 +79,14 @@ def lookup_doi(title: str, timeout: int = 10) -> str:
                     title[:60], cr_titles[0][:60], doi
                 )
                 return ""
+
+        # DOI prefix 검증: 출판사별 DOI 패턴과 일치하는지 확인
+        if doi_prefix and not doi.startswith(doi_prefix):
+            logger.warning(
+                "CrossRef DOI prefix 불일치 - 예상: %s / 실제: %s (제목: %r)",
+                doi_prefix, doi[:20], title[:60]
+            )
+            return ""
 
         return doi
 
