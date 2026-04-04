@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-04-04T16:59:26.500Z"
+status: verifying
+stopped_at: "Checkpoint 04-02: Task 2 human-verify 대기 중"
+last_updated: "2026-04-04T17:07:23.753Z"
 last_activity: 2026-04-04
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-03)
 
 Phase: 04 (notion) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-04
 
 Progress: [░░░░░░░░░░] 0%
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 03-parser-impl P01 | 2 | 1 tasks | 1 files |
 | Phase 03-parser-impl P02 | 8 | 3 tasks | 11 files |
 | Phase 04-notion P01 | 4 | 2 tasks | 4 files |
+| Phase 04-notion P02 | 4 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,8 @@ Recent decisions affecting current work:
 - [Phase 04-notion]: notion_client_mod.py 파일명 사용 — SDK 패키지 notion_client와 이름 충돌 방지
 - [Phase 04-notion]: save_papers에서 data_source_id 1회 획득 후 캐싱 — 배치 저장 시 API 호출 낭비 방지
 - [Phase 04-notion]: NOTION_PARENT_PAGE_ID 환경변수 추가 — NOTION_DATABASE_ID 없을 때 DB 자동 생성 지원
+- [Phase 04-notion]: em dash -> 하이픈 변경: Windows cp949 콘솔 UnicodeEncodeError 방지
+- [Phase 04-notion]: 통합 테스트로 생성된 DB ID(d26e7ce9-...)를 .env NOTION_DATABASE_ID에 저장 권장
 
 ### Pending Todos
 
@@ -100,6 +103,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-04T16:59:26.490Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-04-04T17:07:23.745Z
+Stopped at: Checkpoint 04-02: Task 2 human-verify 대기 중
 Resume file: None
