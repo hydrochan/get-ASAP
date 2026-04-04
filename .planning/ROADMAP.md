@@ -56,7 +56,10 @@ Plans:
   2. Elsevier ASAP 메일에서 논문 제목과 DOI를 추출하여 PaperMetadata 객체로 반환한다
   3. Science ASAP 메일에서 논문 제목과 DOI를 추출하여 PaperMetadata 객체로 반환한다
   4. 파싱에 실패한 메일은 건너뛰고 로그에 기록되며 전체 파이프라인은 계속 실행된다
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 03-01-PLAN.md — 메일 샘플 수집 스크립트 + fixture 확보 + sender 검증 (PARSE-01, PARSE-02, PARSE-03)
+- [ ] 03-02-PLAN.md — TDD 출판사 파서 구현: ACS, Elsevier, Science (PARSE-01, PARSE-02, PARSE-03)
 
 ### Phase 4: Notion 통합 및 중복 방지
 **Goal**: 추출된 논문 메타데이터가 Notion DB에 정확하게 저장되고 동일 논문이 중복 저장되지 않는다
@@ -87,6 +90,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 |-------|----------------|--------|-----------|
 | 1. 인증 및 환경 설정 | 2/2 | Complete |  |
 | 2. 메일 감지 프레임워크 | 2/2 | Complete   | 2026-04-03 |
-| 3. 출판사 파서 구현 | 0/TBD | Not started | - |
+| 3. 출판사 파서 구현 | 0/2 | Planned | - |
 | 4. Notion 통합 및 중복 방지 | 0/TBD | Not started | - |
 | 5. 오라클 클라우드 배포 | 0/TBD | Not started | - |
