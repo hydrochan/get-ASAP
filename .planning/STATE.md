@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 5 context gathered
-last_updated: "2026-04-04T17:25:36.628Z"
+status: executing
+stopped_at: Completed 05-deploy-05-01-PLAN.md
+last_updated: "2026-04-04T17:43:42.685Z"
 last_activity: 2026-04-04
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 10
+  completed_plans: 9
   percent: 0
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-03)
 
 **Core value:** Gmail ASAP 메일에서 논문 정보를 자동 수집하여 Notion DB에 "대기중" 상태로 정확하게 저장하는 것
-**Current focus:** Phase 04 — notion
+**Current focus:** Phase 05 — deploy
 
 ## Current Position
 
-Phase: 5
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 05 (deploy) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-04-04
 
 Progress: [░░░░░░░░░░] 0%
@@ -61,6 +61,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 03-parser-impl P02 | 8 | 3 tasks | 11 files |
 | Phase 04-notion P01 | 4 | 2 tasks | 4 files |
 | Phase 04-notion P02 | 4 | 1 tasks | 1 files |
+| Phase 05-deploy P01 | 4 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,8 @@ Recent decisions affecting current work:
 - [Phase 04-notion]: NOTION_PARENT_PAGE_ID 환경변수 추가 — NOTION_DATABASE_ID 없을 때 DB 자동 생성 지원
 - [Phase 04-notion]: em dash -> 하이픈 변경: Windows cp949 콘솔 UnicodeEncodeError 방지
 - [Phase 04-notion]: 통합 테스트로 생성된 DB ID(d26e7ce9-...)를 .env NOTION_DATABASE_ID에 저장 권장
+- [Phase 05-deploy]: main.py는 모든 외부 모듈을 import해 단일 진입점으로 전체 파이프라인 조합
+- [Phase 05-deploy]: dry_run=True 시 get_or_create_label 호출 자체를 스킵하여 불필요한 API 요청 방지
 
 ### Pending Todos
 
@@ -103,6 +106,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-04T17:25:36.619Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-deploy/05-CONTEXT.md
+Last session: 2026-04-04T17:43:42.676Z
+Stopped at: Completed 05-deploy-05-01-PLAN.md
+Resume file: None

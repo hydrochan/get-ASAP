@@ -33,8 +33,8 @@
 
 ### Deployment
 
-- [ ] **DEPLOY-01**: 오라클 클라우드 Ubuntu에서 cron으로 주기적 자동 실행할 수 있다
-- [ ] **DEPLOY-02**: 실행 결과를 로그 파일에 기록할 수 있다 (성공/실패/추출 건수)
+- [x] **DEPLOY-01**: 오라클 클라우드 Ubuntu에서 cron으로 주기적 자동 실행할 수 있다
+- [x] **DEPLOY-02**: 실행 결과를 로그 파일에 기록할 수 있다 (성공/실패/추출 건수)
 
 ## v2 Requirements (Deferred)
 
@@ -69,8 +69,8 @@
 | NOTION-01 | Phase 4 | Complete |
 | NOTION-02 | Phase 4 | Complete |
 | NOTION-03 | Phase 4 | Complete |
-| DEPLOY-01 | Phase 5 | Pending |
-| DEPLOY-02 | Phase 5 | Pending |
+| DEPLOY-01 | Phase 5 | Complete |
+| DEPLOY-02 | Phase 5 | Complete |
 
 ---
 *15 requirements | 5 categories | Created 2026-04-03*

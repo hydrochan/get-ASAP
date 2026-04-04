@@ -82,9 +82,9 @@ Plans:
   1. crontab에 설정된 스케줄로 main.py가 자동 실행된다 (수동 개입 없음)
   2. 각 실행 후 성공/실패/추출 건수가 로그 파일에 기록된다
   3. 서버 재부팅 후에도 cron 작업이 자동으로 재시작된다
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
-- [ ] 05-01-PLAN.md — main.py 파이프라인 오케스트레이터 + 로깅 (DEPLOY-01, DEPLOY-02)
+- [x] 05-01-PLAN.md — main.py 파이프라인 오케스트레이터 + 로깅 (DEPLOY-01, DEPLOY-02)
 - [ ] 05-02-PLAN.md — deploy.sh 배포 스크립트 + 로컬 dry-run 검증 (DEPLOY-01)
 
 ## Progress
@@ -98,4 +98,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 2. 메일 감지 프레임워크 | 2/2 | Complete   | 2026-04-03 |
 | 3. 출판사 파서 구현 | 2/2 | Complete   | 2026-04-04 |
 | 4. Notion 통합 및 중복 방지 | 2/2 | Complete   | 2026-04-04 |
-| 5. 오라클 클라우드 배포 | 0/2 | Not started | - |
+| 5. 오라클 클라우드 배포 | 1/2 | In Progress|  |
