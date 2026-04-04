@@ -64,8 +64,11 @@ def _find_publisher_key(sender: str, publishers: dict) -> str | None:
     Returns:
         매칭된 publisher key (예: "acs"), 없으면 None
     """
+    # sender는 "Display Name <email>" 형식일 수 있으므로 이메일 부분만 추출하여 비교
+    sender_lower = sender.lower()
     for key, pub_data in publishers.items():
-        if pub_data.get("sender") == sender:
+        pub_sender = pub_data.get("sender", "").lower()
+        if pub_sender in sender_lower:
             return key
     return None
 
@@ -214,7 +217,7 @@ def run_pipeline(dry_run: bool = False) -> dict:
 
     # 8. 파서 로드 및 publisher key로 매핑
     parsers = load_parsers()
-    parser_map = {p.publisher: p for p in parsers}
+    parser_map = {p.publisher_name: p for p in parsers}
 
     # 9. 각 메일에서 논문 추출
     all_papers = []
@@ -237,10 +240,11 @@ def run_pipeline(dry_run: bool = False) -> dict:
                 logger.warning("알 수 없는 발신자, 스킵: %s", sender)
                 continue
 
-            # 해당 출판사 파서 찾기
-            parser = parser_map.get(pub_key)
+            # 해당 출판사 파서 찾기 (publishers.json의 name 필드로 매칭)
+            pub_name = publishers[pub_key].get("name", "")
+            parser = parser_map.get(pub_name)
             if parser is None:
-                logger.warning("파서 없음 (publisher=%s), 스킵: %s", pub_key, msg_id)
+                logger.warning("파서 없음 (publisher=%s), 스킵: %s", pub_name, msg_id)
                 continue
 
             # 메일 본문 추출 및 파싱

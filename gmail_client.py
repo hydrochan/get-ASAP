@@ -308,10 +308,11 @@ def infer_journal(sender: str, subject: str, publishers: dict) -> str:
     Returns:
         추론된 저널명 또는 출판사명 (폴백)
     """
-    # sender로 출판사 찾기
+    # sender로 출판사 찾기 (Display Name <email> 형식 대응)
     matched_publisher = None
+    sender_lower = sender.lower()
     for pub_key, pub_data in publishers.items():
-        if pub_data.get("sender") == sender:
+        if pub_data.get("sender", "").lower() in sender_lower:
             matched_publisher = pub_data
             break
 
@@ -324,5 +325,15 @@ def infer_journal(sender: str, subject: str, publishers: dict) -> str:
         if journal_name.lower() in subject.lower():
             return journal_name
 
-    # 저널명 매칭 실패 → 출판사명 반환 (폴백)
+    # 저널명 매칭 실패 → From 헤더의 Display Name에서 추출 시도 (폴백 1)
+    # 예: "Advanced Energy Materials <WileyOnlineLibrary@wiley.com>" → "Advanced Energy Materials"
+    import re
+    display_match = re.match(r'^(.+?)\s*<', sender)
+    if display_match:
+        display_name = display_match.group(1).strip().strip('"')
+        # display name이 출판사명과 다르면 저널명일 가능성 높음
+        if display_name != matched_publisher.get("name", ""):
+            return display_name
+
+    # 최종 폴백 → 출판사명 반환
     return matched_publisher.get("name", "")
