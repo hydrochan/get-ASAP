@@ -85,7 +85,7 @@ Plans:
 **Plans:** 1/2 plans executed
 Plans:
 - [x] 05-01-PLAN.md — main.py 파이프라인 오케스트레이터 + 로깅 (DEPLOY-01, DEPLOY-02)
-- [ ] 05-02-PLAN.md — deploy.sh 배포 스크립트 + 로컬 dry-run 검증 (DEPLOY-01)
+- [x] 05-02-PLAN.md — deploy.sh 배포 스크립트 + 로컬 dry-run 검증 (DEPLOY-01)
 
 ## Progress
 
