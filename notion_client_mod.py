@@ -219,7 +219,7 @@ def save_papers(papers: list[PaperMetadata], database_id: str) -> dict:
     total = len(papers)
 
     for i, paper in enumerate(papers):
-        logging.info(f"저장 중: {i + 1}/{total} — {paper.title[:50]}")
+        logging.info(f"저장 중: {i + 1}/{total} - {paper.title[:50]}")
 
         # save_paper 내부에서 중복 검사 + 저장 수행
         # True: 저장 성공, False: 중복 스킵 또는 API 실패
