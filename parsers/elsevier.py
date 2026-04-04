@@ -2,7 +2,6 @@
 import logging
 import re
 from bs4 import BeautifulSoup
-import crossref_client
 from models import PaperMetadata
 from parsers.base import BaseParser
 
@@ -61,10 +60,6 @@ class ElsevierParser(BaseParser):
                 m = DOI_RE.search(href)
                 if m:
                     doi = m.group().rstrip(".,;)")
-
-                # DOI가 없으면 CrossRef API로 제목 조회
-                if not doi:
-                    doi = crossref_client.lookup_doi(title, doi_prefix="10.1016/")
 
                 # DOI 중복 체크 (DOI 있는 경우)
                 if doi:
