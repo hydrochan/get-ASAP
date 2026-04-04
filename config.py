@@ -15,7 +15,8 @@ GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
 
 # Notion 설정
 NOTION_TOKEN = os.getenv("NOTION_TOKEN")
-NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
+NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")  # 없으면 NOTION_PARENT_PAGE_ID로 자동 생성
+NOTION_PARENT_PAGE_ID = os.getenv("NOTION_PARENT_PAGE_ID")
 
 # 실행 설정
 CHECK_INTERVAL_HOURS = int(os.getenv("CHECK_INTERVAL_HOURS", "6"))
