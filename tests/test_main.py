@@ -50,7 +50,7 @@ def mock_paper_no_doi():
 def test_dry_run_does_not_call_save_papers(mock_publishers, mock_paper):
     """dry_run=True 시 save_papers가 호출되지 않아야 한다"""
     mock_parser = MagicMock()
-    mock_parser.publisher = "acs"
+    mock_parser.publisher_name = "ACS Publications"
     mock_parser.parse.return_value = [mock_paper]
 
     mock_msg = {
@@ -92,7 +92,7 @@ def test_dry_run_does_not_call_save_papers(mock_publishers, mock_paper):
 def test_dry_run_does_not_call_mark_processed(mock_publishers, mock_paper):
     """dry_run=True 시 mark_processed가 호출되지 않아야 한다"""
     mock_parser = MagicMock()
-    mock_parser.publisher = "acs"
+    mock_parser.publisher_name = "ACS Publications"
     mock_parser.parse.return_value = [mock_paper]
 
     mock_msg = {
@@ -140,7 +140,7 @@ def test_full_pipeline_order(mock_publishers, mock_paper):
     call_order = []
 
     mock_parser = MagicMock()
-    mock_parser.publisher = "acs"
+    mock_parser.publisher_name = "ACS Publications"
     mock_parser.parse.side_effect = lambda x: (call_order.append("parse"), [mock_paper])[1]
 
     mock_msg = {
@@ -208,7 +208,7 @@ def test_full_pipeline_order(mock_publishers, mock_paper):
 def test_single_mail_error_is_skipped(mock_publishers, mock_paper):
     """개별 메일 파싱 에러 시 해당 메일만 스킵하고 다음 메일은 정상 처리"""
     mock_parser = MagicMock()
-    mock_parser.publisher = "acs"
+    mock_parser.publisher_name = "ACS Publications"
 
     # 첫 번째 메일: 파싱 에러 발생
     # 두 번째 메일: 정상 처리
