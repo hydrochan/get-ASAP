@@ -23,12 +23,12 @@ def mock_publishers():
 
 @pytest.fixture
 def mock_paper():
-    """테스트용 PaperMetadata 객체"""
+    """테스트용 PaperMetadata 객체 (DOI와 journal이 비어있어 lookup_doi + infer_journal 호출 유도)"""
     from models import PaperMetadata
     return PaperMetadata(
         title="Test Paper Title",
-        doi="10.1021/test.doi",
-        journal="ACS Catalysis",
+        doi="",        # 비어있어야 lookup_doi가 호출됨
+        journal="",    # 비어있어야 infer_journal이 호출됨
         date="2026-04-04",
     )
 
