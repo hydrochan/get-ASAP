@@ -19,9 +19,9 @@
 
 ### Parsing
 
-- [ ] **PARSE-01**: ACS 출판사 ASAP 메일에서 논문 제목과 DOI를 추출할 수 있다
-- [ ] **PARSE-02**: Elsevier 출판사 ASAP 메일에서 논문 제목과 DOI를 추출할 수 있다
-- [ ] **PARSE-03**: Science 출판사 ASAP 메일에서 논문 제목과 DOI를 추출할 수 있다
+- [x] **PARSE-01**: ACS 출판사 ASAP 메일에서 논문 제목과 DOI를 추출할 수 있다
+- [x] **PARSE-02**: Elsevier 출판사 ASAP 메일에서 논문 제목과 DOI를 추출할 수 있다
+- [x] **PARSE-03**: Science 출판사 ASAP 메일에서 논문 제목과 DOI를 추출할 수 있다
 - [x] **PARSE-04**: 출판사별 파서가 모듈화되어 새 출판사 추가가 파일 하나 추가로 가능하다 (Strategy Pattern)
 - [x] **PARSE-05**: 메일에서 저널명을 자동 추출할 수 있다 (발신자/제목에서 추론)
 
@@ -63,9 +63,9 @@
 | MAIL-03 | Phase 2 | Complete |
 | PARSE-04 | Phase 2 | Complete |
 | PARSE-05 | Phase 2 | Complete |
-| PARSE-01 | Phase 3 | Pending |
-| PARSE-02 | Phase 3 | Pending |
-| PARSE-03 | Phase 3 | Pending |
+| PARSE-01 | Phase 3 | Complete |
+| PARSE-02 | Phase 3 | Complete |
+| PARSE-03 | Phase 3 | Complete |
 | NOTION-01 | Phase 4 | Pending |
 | NOTION-02 | Phase 4 | Pending |
 | NOTION-03 | Phase 4 | Pending |

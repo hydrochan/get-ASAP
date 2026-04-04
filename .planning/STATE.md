@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 3 context gathered
-last_updated: "2026-04-04T15:01:31.792Z"
-last_activity: 2026-04-03
+status: executing
+stopped_at: "Completed 03-01-PLAN.md (checkpoint:human-verify at Task 2)"
+last_updated: "2026-04-04T15:43:18.680Z"
+last_activity: 2026-04-04
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 6
+  completed_plans: 5
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-03)
 
 **Core value:** Gmail ASAP 메일에서 논문 정보를 자동 수집하여 Notion DB에 "대기중" 상태로 정확하게 저장하는 것
-**Current focus:** Phase 02 — mail-detection
+**Current focus:** Phase 03 — parser-impl
 
 ## Current Position
 
-Phase: 02 (mail-detection) — EXECUTING
+Phase: 03 (parser-impl) — EXECUTING
 Plan: 2 of 2
-Status: Phase complete — ready for verification
-Last activity: 2026-04-03
+Status: Ready to execute
+Last activity: 2026-04-04
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -57,6 +57,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-auth-env-setup P02 | 15 | 2 tasks | 3 files |
 | Phase 02-mail-detection P01 | 3 | 2 tasks | 8 files |
 | Phase 02-mail-detection P02 | 10 | 1 tasks | 2 files |
+| Phase 03-parser-impl P01 | 2 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,8 @@ Recent decisions affecting current work:
 - [Phase 02-mail-detection]: publishers.json 발신자 이메일은 플레이스홀더 -- Phase 3 시작 전 실제 메일에서 확인 후 수정 필요
 - [Phase 02-mail-detection]: historyId 404 폴백: state['historyId'] = None 후 재귀 호출로 전체 동기화 트리거
 - [Phase 02-mail-detection]: base64url 패딩: Gmail API는 패딩 없이 반환 → '==' 추가로 파이썬 urlsafe_b64decode 호환
+- [Phase 03-parser-impl]: collect_samples.py는 프로젝트 루트에 배치 (플랫 구조 유지)
+- [Phase 03-parser-impl]: publishers.json sender 불일치 시 자동 수정 후 저장 (수동 오류 방지)
 
 ### Pending Todos
 
@@ -90,6 +93,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-04T15:01:31.785Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-parser-impl/03-CONTEXT.md
+Last session: 2026-04-04T15:43:18.671Z
+Stopped at: Completed 03-01-PLAN.md (checkpoint:human-verify at Task 2)
+Resume file: None
