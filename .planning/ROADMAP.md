@@ -69,7 +69,10 @@ Plans:
   1. Notion에 논문 DB가 생성되고 제목, DOI, 저널명, 날짜, 상태 속성이 존재한다
   2. 추출된 논문 데이터가 Notion DB 페이지로 저장되고 상태가 "대기중"으로 설정된다
   3. 동일 DOI를 가진 논문을 재처리해도 Notion DB에 중복 페이지가 생성되지 않는다
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 04-01-PLAN.md — TDD notion_client_mod 구현: DB 생성 + 페이지 저장 + 중복 방지 (NOTION-01, NOTION-02, NOTION-03)
+- [ ] 04-02-PLAN.md — 실제 Notion API 통합 테스트 + 사용자 검증 (NOTION-01, NOTION-02, NOTION-03)
 
 ### Phase 5: 오라클 클라우드 배포
 **Goal**: 오라클 클라우드 Ubuntu에서 파이프라인이 완전 자동으로 주기 실행되고 결과가 로그에 기록된다
@@ -91,5 +94,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. 인증 및 환경 설정 | 2/2 | Complete |  |
 | 2. 메일 감지 프레임워크 | 2/2 | Complete   | 2026-04-03 |
 | 3. 출판사 파서 구현 | 2/2 | Complete   | 2026-04-04 |
-| 4. Notion 통합 및 중복 방지 | 0/TBD | Not started | - |
+| 4. Notion 통합 및 중복 방지 | 0/2 | In progress | - |
 | 5. 오라클 클라우드 배포 | 0/TBD | Not started | - |
