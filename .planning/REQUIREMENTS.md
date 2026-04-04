@@ -27,9 +27,9 @@
 
 ### Notion Storage
 
-- [ ] **NOTION-01**: Notion에 논문 DB를 새로 생성할 수 있다 (제목, DOI, 저널명, 날짜, 상태 속성)
-- [ ] **NOTION-02**: 추출된 논문 데이터를 Notion DB에 페이지로 저장할 수 있다 (상태="대기중")
-- [ ] **NOTION-03**: DOI 기반으로 중복 논문 저장을 방지할 수 있다
+- [x] **NOTION-01**: Notion에 논문 DB를 새로 생성할 수 있다 (제목, DOI, 저널명, 날짜, 상태 속성)
+- [x] **NOTION-02**: 추출된 논문 데이터를 Notion DB에 페이지로 저장할 수 있다 (상태="대기중")
+- [x] **NOTION-03**: DOI 기반으로 중복 논문 저장을 방지할 수 있다
 
 ### Deployment
 
@@ -66,9 +66,9 @@
 | PARSE-01 | Phase 3 | Complete |
 | PARSE-02 | Phase 3 | Complete |
 | PARSE-03 | Phase 3 | Complete |
-| NOTION-01 | Phase 4 | Pending |
-| NOTION-02 | Phase 4 | Pending |
-| NOTION-03 | Phase 4 | Pending |
+| NOTION-01 | Phase 4 | Complete |
+| NOTION-02 | Phase 4 | Complete |
+| NOTION-03 | Phase 4 | Complete |
 | DEPLOY-01 | Phase 5 | Pending |
 | DEPLOY-02 | Phase 5 | Pending |
 

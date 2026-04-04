@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 4 context gathered
-last_updated: "2026-04-04T16:22:42.950Z"
+status: executing
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-04-04T16:59:26.500Z"
 last_activity: 2026-04-04
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 8
+  completed_plans: 7
   percent: 0
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-03)
 
 **Core value:** Gmail ASAP 메일에서 논문 정보를 자동 수집하여 Notion DB에 "대기중" 상태로 정확하게 저장하는 것
-**Current focus:** Phase 03 — parser-impl
+**Current focus:** Phase 04 — notion
 
 ## Current Position
 
-Phase: 4
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 04 (notion) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-04-04
 
 Progress: [░░░░░░░░░░] 0%
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02-mail-detection P02 | 10 | 1 tasks | 2 files |
 | Phase 03-parser-impl P01 | 2 | 1 tasks | 1 files |
 | Phase 03-parser-impl P02 | 8 | 3 tasks | 11 files |
+| Phase 04-notion P01 | 4 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,9 @@ Recent decisions affecting current work:
 - [Phase 03-parser-impl]: publishers.json sender 불일치 시 자동 수정 후 저장 (수동 오류 방지)
 - [Phase 03-parser-impl]: CrossRef API를 DOI 폴백으로 채택 - Elsevier/Science/Wiley HTML에 DOI 없음
 - [Phase 03-parser-impl]: ACS는 DOI: 10.xxx 텍스트 직접 추출, 나머지 3개 출판사는 CrossRef 폴백
+- [Phase 04-notion]: notion_client_mod.py 파일명 사용 — SDK 패키지 notion_client와 이름 충돌 방지
+- [Phase 04-notion]: save_papers에서 data_source_id 1회 획득 후 캐싱 — 배치 저장 시 API 호출 낭비 방지
+- [Phase 04-notion]: NOTION_PARENT_PAGE_ID 환경변수 추가 — NOTION_DATABASE_ID 없을 때 DB 자동 생성 지원
 
 ### Pending Todos
 
@@ -96,6 +100,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-04T16:22:42.940Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-notion/04-CONTEXT.md
+Last session: 2026-04-04T16:59:26.490Z
+Stopped at: Completed 04-01-PLAN.md
+Resume file: None
