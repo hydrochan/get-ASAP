@@ -79,7 +79,9 @@ completed: 2026-04-04
 
 ## Deviations from Plan
 
-None - plan executed exactly as written.
+- **출판사 확장**: ACS, Elsevier, Science 3개 → ACS, Wiley, Elsevier, Science 4개로 확장 (Wiley 메일 존재 확인)
+- **publishers.json sender 전면 수정**: 초기 sender 이메일이 모두 플레이스홀더였음. 실제 발신자 주소로 전면 수정
+- **token.json 재인증**: gmail.modify scope 변경 후 token 재생성 필요했음
 
 ## Issues Encountered
 
