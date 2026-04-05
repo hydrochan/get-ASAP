@@ -26,7 +26,7 @@
   "cellpress": {
     "sender": ["cellpress@notification.elsevier.com"],
     "name": "Cell Press",
-    "journals": ["Cell", "Joule", "Chem", "Chem Catalysis", "Cell Reports Physical Science"],
+    "journals": ["Cell", "Joule", "Chem", "Chem Catalysis", "Cell Reports Physical Science", "iScience"],
     "doi_prefix": "10.1016/"
   },
   "science": {

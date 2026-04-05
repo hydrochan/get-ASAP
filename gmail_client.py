@@ -338,14 +338,21 @@ def infer_journal(sender: str, subject: str, publishers: dict) -> str:
         if journal_name.lower() in subject.lower():
             return journal_name
 
-    # 저널명 매칭 실패 → From 헤더의 Display Name에서 추출 시도 (폴백 1)
-    # 예: "Advanced Energy Materials <WileyOnlineLibrary@wiley.com>" → "Advanced Energy Materials"
+    # 저널명 매칭 실패 → Subject에서 저널명 직접 추출 (폴백 1)
+    # ACS e-Alerts 패턴: "These new articles for {저널명} are available online."
     import re
+    subject_match = re.search(r'(?:new articles for|new issue of)\s+(.+?)\s+(?:are available|is available)', subject, re.IGNORECASE)
+    if subject_match:
+        return subject_match.group(1).strip()
+
+    # From 헤더의 Display Name에서 추출 시도 (폴백 2)
+    # 예: "Advanced Energy Materials <WileyOnlineLibrary@wiley.com>" → "Advanced Energy Materials"
     display_match = re.match(r'^(.+?)\s*<', sender)
     if display_match:
         display_name = display_match.group(1).strip().strip('"')
-        # display name이 출판사명과 다르면 저널명일 가능성 높음
-        if display_name != matched_publisher.get("name", ""):
+        # display name이 출판사명이나 서비스명이면 스킵
+        skip_names = {matched_publisher.get("name", ""), "ACS e-Alerts Service"}
+        if display_name not in skip_names:
             return display_name
 
     # 최종 폴백 → 출판사명 반환
