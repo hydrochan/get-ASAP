@@ -2,7 +2,7 @@
   "acs": {
     "sender": ["updates@acspubs.org", "journalalerts@acs.org"],
     "name": "ACS Publications",
-    "journals": ["JACS", "ACS Nano", "ACS Catalysis", "Nano Letters", "ACS Applied Nano Materials", "ACS Energy Letters", "ACS Applied Materials"],
+    "journals": ["JACS", "Journal of the American Chemical Society", "ACS Nano", "ACS Catalysis", "Nano Letters", "ACS Applied Nano Materials", "ACS Energy Letters", "ACS Applied Materials", "Industrial & Engineering Chemistry Research", "Environmental Science & Technology", "Energy & Fuels", "Chemistry of Materials", "Chemical Reviews", "Analytical Chemistry"],
     "doi_prefix": "10.1021/"
   },
   "wiley": {
