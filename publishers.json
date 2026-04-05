@@ -20,7 +20,7 @@
   "nature": {
     "sender": ["ealert@nature.com"],
     "name": "Nature",
-    "journals": ["Nature", "Nature Catalysis", "Nature Energy", "Nature Materials", "Nature Chemistry", "Nature Nanotechnology", "Nature Physics", "Nature Communications", "Nature Sustainability", "Nature Reviews Chemistry", "Nature Reviews Materials"],
+    "journals": ["Nature", "Nature Catalysis", "Nature Chemical Engineering", "Nature Chemistry", "Nature Communications", "Nature Energy", "Nature Materials", "Nature Methods", "Nature Nanotechnology", "Nature Photonics", "Nature Physics", "Nature Reviews Chemistry", "Nature Reviews Materials", "Nature Sustainability", "npj Nanophotonics"],
     "doi_prefix": "10.1038/"
   },
   "cellpress": {
