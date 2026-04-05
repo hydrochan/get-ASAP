@@ -7,19 +7,13 @@ from parsers.base import BaseParser
 
 logger = logging.getLogger(__name__)
 
-_SKIP_TITLES = {
-    "issue information", "front cover", "back cover", "masthead",
-    "table of contents", "amendments & corrections",
-    "option for transparent peer review",
-}
-
 
 class NatureParser(BaseParser):
     """Nature 메일 파서.
 
     Nature 메일 HTML 구조:
-    - 논문 제목: <td> 안의 <div> 안 <a> 태그 텍스트
-    - 링크: springernature.com 트래킹 URL
+    - 섹션 구분: <h2> 태그 (Editorial, News & Views, Articles, ...)
+    - Articles 섹션 내 논문 제목: <td> > <div> > <a>
     - 발신자: ealert@nature.com
     """
 
@@ -36,28 +30,49 @@ class NatureParser(BaseParser):
             papers = []
             seen_titles = set()
 
-            # Nature 메일: <td> > <div> > <a> 패턴 (springernature.com 링크)
-            for td in soup.find_all("td"):
-                div = td.find("div", recursive=False)
-                if not div:
-                    continue
-                a_tag = div.find("a", recursive=False)
-                if not a_tag:
-                    continue
-                title = self._clean_text(a_tag)
-                if not title or len(title) < 10:
-                    continue
-                if title.lower() in _SKIP_TITLES:
-                    continue
-                if title in seen_titles:
-                    continue
-                seen_titles.add(title)
+            # Articles/Letters 섹션의 <h2> 찾기
+            article_sections = []
+            for h2 in soup.find_all("h2"):
+                section_name = h2.get_text(strip=True).lower()
+                if section_name in ("articles", "letters"):
+                    article_sections.append(h2)
 
-                papers.append(PaperMetadata(
-                    title=title,
-                    journal="",
-                    date="",
-                ))
+            if not article_sections:
+                logger.debug("Nature 메일에 Articles/Letters 섹션 없음")
+                return []
+
+            # 각 섹션에서 다음 <h2> 전까지의 <a> 태그 추출
+            for section_h2 in article_sections:
+                current = section_h2
+                while True:
+                    current = current.find_next()
+                    if current is None:
+                        break
+                    # 다음 h2를 만나면 섹션 끝
+                    if current.name == "h2":
+                        break
+                    # <td> > <div> > <a> 패턴 매칭
+                    if current.name != "a":
+                        continue
+                    parent = current.parent
+                    if not parent or parent.name != "div":
+                        continue
+                    gp = parent.parent
+                    if not gp or gp.name != "td":
+                        continue
+
+                    title = self._clean_text(current)
+                    if not title or len(title) < 10:
+                        continue
+                    if title in seen_titles:
+                        continue
+                    seen_titles.add(title)
+
+                    papers.append(PaperMetadata(
+                        title=title,
+                        journal="",
+                        date="",
+                    ))
 
             return papers
 

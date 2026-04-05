@@ -343,6 +343,8 @@ def infer_journal(sender: str, subject: str, publishers: dict) -> str:
     subject_patterns = [
         # ACS e-Alerts: "These new articles for {저널명} are available online."
         r'(?:new articles for|new issue of)\s+(.+?)\s+(?:are available|is available)',
+        # Nature: "Nature Materials Contents: Volume 25 Number 4"
+        r'^(.+?)\s+Contents:\s+Volume',
         # Elsevier: "{저널명}: Alert 05 April" / "{저널명}: Environment and Energy: Alert..."
         r'^(.+?):\s+(?:Alert|Volume)',
         # Wiley: "Early View Alert: {저널명}"
@@ -361,7 +363,7 @@ def infer_journal(sender: str, subject: str, publishers: dict) -> str:
     # 예: "Advanced Energy Materials <WileyOnlineLibrary@wiley.com>" → "Advanced Energy Materials"
     # 서비스명은 저널이 아니므로 제외
     _SERVICE_NAMES = {"ScienceDirect Message Center", "ACS e-Alerts Service",
-                      "AAAS Science Advances"}
+                      "AAAS Science Advances", "Nature Portfolio eAlerts"}
     display_match = re.match(r'^(.+?)\s*<', sender)
     if display_match:
         display_name = display_match.group(1).strip().strip('"')
