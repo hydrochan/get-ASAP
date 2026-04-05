@@ -338,21 +338,34 @@ def infer_journal(sender: str, subject: str, publishers: dict) -> str:
         if journal_name.lower() in subject.lower():
             return journal_name
 
-    # 저널명 매칭 실패 → Subject에서 저널명 직접 추출 (폴백 1)
-    # ACS e-Alerts 패턴: "These new articles for {저널명} are available online."
+    # 저널명 매칭 실패 → Subject 패턴에서 직접 추출 (폴백 1)
     import re
-    subject_match = re.search(r'(?:new articles for|new issue of)\s+(.+?)\s+(?:are available|is available)', subject, re.IGNORECASE)
-    if subject_match:
-        return subject_match.group(1).strip()
+    subject_patterns = [
+        # ACS e-Alerts: "These new articles for {저널명} are available online."
+        r'(?:new articles for|new issue of)\s+(.+?)\s+(?:are available|is available)',
+        # Elsevier: "{저널명}: Alert 05 April" / "{저널명}: Environment and Energy: Alert..."
+        r'^(.+?):\s+(?:Alert|Volume)',
+        # Wiley: "Early View Alert: {저널명}"
+        r'Early View Alert:\s+(.+)',
+        # Science: "{저널명} Notification for..."
+        r'^(.+?)\s+Notification for',
+        # Cell Press: "{저널명} Online Now E-mail Alert"
+        r'^(.+?)\s+Online Now',
+    ]
+    for pattern in subject_patterns:
+        m = re.search(pattern, subject, re.IGNORECASE)
+        if m:
+            return m.group(1).strip()
 
     # From 헤더의 Display Name에서 추출 시도 (폴백 2)
     # 예: "Advanced Energy Materials <WileyOnlineLibrary@wiley.com>" → "Advanced Energy Materials"
+    # 서비스명은 저널이 아니므로 제외
+    _SERVICE_NAMES = {"ScienceDirect Message Center", "ACS e-Alerts Service",
+                      "AAAS Science Advances"}
     display_match = re.match(r'^(.+?)\s*<', sender)
     if display_match:
         display_name = display_match.group(1).strip().strip('"')
-        # display name이 출판사명이나 서비스명이면 스킵
-        skip_names = {matched_publisher.get("name", ""), "ACS e-Alerts Service"}
-        if display_name not in skip_names:
+        if display_name not in _SERVICE_NAMES and display_name != matched_publisher.get("name", ""):
             return display_name
 
     # 최종 폴백 → 출판사명 반환
