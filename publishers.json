@@ -1,24 +1,36 @@
 {
   "acs": {
-    "sender": "updates@acspubs.org",
+    "sender": ["updates@acspubs.org", "journalalerts@acs.org"],
     "name": "ACS Publications",
     "journals": ["JACS", "ACS Nano", "ACS Catalysis", "Nano Letters", "ACS Applied Nano Materials", "ACS Energy Letters", "ACS Applied Materials"],
     "doi_prefix": "10.1021/"
   },
   "wiley": {
-    "sender": "WileyOnlineLibrary@wiley.com",
+    "sender": ["WileyOnlineLibrary@wiley.com"],
     "name": "Wiley",
     "journals": ["Angewandte Chemie", "Advanced Materials", "Advanced Energy Materials", "Advanced Functional Materials", "Small", "ChemSusChem", "Chemistry"],
     "doi_prefix": "10.1002/"
   },
   "elsevier": {
-    "sender": "sciencedirect@notification.elsevier.com",
+    "sender": ["sciencedirect@notification.elsevier.com"],
     "name": "Elsevier",
     "journals": ["Applied Catalysis A", "Applied Catalysis B", "Journal of Catalysis", "Chemical Engineering Journal", "Electrochimica Acta"],
     "doi_prefix": "10.1016/"
   },
+  "nature": {
+    "sender": ["ealert@nature.com"],
+    "name": "Nature",
+    "journals": ["Nature", "Nature Catalysis", "Nature Energy", "Nature Materials", "Nature Chemistry", "Nature Nanotechnology"],
+    "doi_prefix": "10.1038/"
+  },
+  "cellpress": {
+    "sender": ["cellpress@notification.elsevier.com"],
+    "name": "Cell Press",
+    "journals": ["Cell", "Joule", "Chem", "Chem Catalysis", "Cell Reports Physical Science"],
+    "doi_prefix": "10.1016/"
+  },
   "science": {
-    "sender": "announcements@aaas.sciencepubs.org",
+    "sender": ["announcements@aaas.sciencepubs.org"],
     "name": "Science",
     "journals": ["Science", "Science Advances"],
     "doi_prefix": "10.1126/"

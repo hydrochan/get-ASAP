@@ -66,9 +66,13 @@ def _find_publisher_key(sender: str, publishers: dict) -> str | None:
     # sender는 "Display Name <email>" 형식일 수 있으므로 이메일 부분만 추출하여 비교
     sender_lower = sender.lower()
     for key, pub_data in publishers.items():
-        pub_sender = pub_data.get("sender", "").lower()
-        if pub_sender in sender_lower:
-            return key
+        senders = pub_data.get("sender", [])
+        # 하위 호환: 문자열이면 리스트로 변환
+        if isinstance(senders, str):
+            senders = [senders]
+        for pub_sender in senders:
+            if pub_sender.lower() in sender_lower:
+                return key
     return None
 
 

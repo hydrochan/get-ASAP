@@ -18,10 +18,15 @@ def build_query(publishers: dict) -> str:
     Returns:
         Gmail 검색 쿼리 문자열 예: "from:alerts@acs.org OR from:ealerts@elsevier.com"
     """
-    # 각 출판사의 sender 이메일을 "from:XXX" 형식으로 변환
-    from_filters = [f"from:{pub['sender']}" for pub in publishers.values()]
+    # 각 출판사의 sender 이메일을 "from:XXX" 형식으로 변환 (배열 지원)
+    from_filters = []
+    for pub in publishers.values():
+        senders = pub["sender"]
+        if isinstance(senders, str):
+            senders = [senders]
+        for s in senders:
+            from_filters.append(f"from:{s}")
 
-    # 단일 출판사이면 OR 없이 단독 쿼리 반환
     return " OR ".join(from_filters)
 
 
@@ -308,11 +313,14 @@ def infer_journal(sender: str, subject: str, publishers: dict) -> str:
     Returns:
         추론된 저널명 또는 출판사명 (폴백)
     """
-    # sender로 출판사 찾기 (Display Name <email> 형식 대응)
+    # sender로 출판사 찾기 (Display Name <email> 형식 대응, 배열 지원)
     matched_publisher = None
     sender_lower = sender.lower()
     for pub_key, pub_data in publishers.items():
-        if pub_data.get("sender", "").lower() in sender_lower:
+        senders = pub_data.get("sender", [])
+        if isinstance(senders, str):
+            senders = [senders]
+        if any(s.lower() in sender_lower for s in senders):
             matched_publisher = pub_data
             break
 

@@ -22,40 +22,69 @@ class ACSParser(BaseParser):
     publisher_name = "ACS Publications"
 
     def can_parse(self, sender: str, subject: str) -> bool:
-        return sender == "updates@acspubs.org"
+        sender_lower = sender.lower()
+        return "acspubs.org" in sender_lower or "acs.org" in sender_lower
 
     def parse(self, message_body: str) -> list[PaperMetadata]:
         if not message_body or not message_body.strip():
             return []
         try:
             soup = BeautifulSoup(message_body, "lxml")
-            papers = []
-            seen_titles = set()
 
-            for block in soup.select("table.tolkien-column-9"):
-                title_tag = block.select_one("h5 a")
-                if not title_tag:
-                    continue
-                title = self._clean_text(title_tag)
-                if not title or len(title) < 10:
-                    continue
-                if title.lower() in _SKIP_TITLES:
-                    continue
-                if title in seen_titles:
-                    continue
-                seen_titles.add(title)
+            # 포맷 1: updates@acspubs.org (tolkien 템플릿)
+            papers = self._parse_tolkien(soup)
+            if papers:
+                return papers
 
-                papers.append(PaperMetadata(
-                    title=title,
-                    journal="",
-                    date="",
-                ))
-
-            return papers
+            # 포맷 2: journalalerts@acs.org (strong > a 템플릿)
+            return self._parse_ealerts(soup)
 
         except Exception as e:
             logger.warning("ACS 파싱 실패: %s", e)
             return []
+
+    def _parse_tolkien(self, soup) -> list[PaperMetadata]:
+        """updates@acspubs.org 포맷: table.tolkien-column-9 > h5 a"""
+        papers = []
+        seen_titles = set()
+
+        for block in soup.select("table.tolkien-column-9"):
+            title_tag = block.select_one("h5 a")
+            if not title_tag:
+                continue
+            title = self._clean_text(title_tag)
+            if not self._is_valid_title(title, seen_titles):
+                continue
+            seen_titles.add(title)
+            papers.append(PaperMetadata(title=title, journal="", date=""))
+
+        return papers
+
+    def _parse_ealerts(self, soup) -> list[PaperMetadata]:
+        """journalalerts@acs.org 포맷: strong > a (제목)"""
+        papers = []
+        seen_titles = set()
+
+        for strong in soup.find_all("strong"):
+            a_tag = strong.find("a")
+            if not a_tag:
+                continue
+            title = self._clean_text(a_tag)
+            if not self._is_valid_title(title, seen_titles):
+                continue
+            seen_titles.add(title)
+            papers.append(PaperMetadata(title=title, journal="", date=""))
+
+        return papers
+
+    def _is_valid_title(self, title: str, seen: set) -> bool:
+        if not title or len(title) < 10:
+            return False
+        if title.lower() in _SKIP_TITLES:
+            return False
+        if title in seen:
+            return False
+        return True
 
     @staticmethod
     def _clean_text(tag) -> str:
