@@ -37,15 +37,6 @@ def test_wiley_parse_extracts_papers(parser, wiley_html):
     assert len(papers) > 0
 
 
-def test_wiley_parse_doi_format(parser, wiley_html):
-    """추출된 DOI가 있는 경우 '10.'으로 시작해야 한다 (CrossRef 제거 후 빈 DOI 허용)"""
-    papers = parser.parse(wiley_html)
-    assert len(papers) > 0
-    for paper in papers:
-        # CrossRef 제거 후 DOI가 없을 수 있음. 있으면 형식 확인
-        assert paper.doi == "" or paper.doi.startswith("10."), f"잘못된 DOI 형식: {paper.doi!r}"
-
-
 def test_wiley_parse_title_not_empty(parser, wiley_html):
     """추출된 모든 논문 제목이 빈 문자열이 아니어야 한다"""
     papers = parser.parse(wiley_html)

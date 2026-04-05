@@ -7,50 +7,46 @@ import pytest
 # ─── Test 1: 기본 필드 생성 ───────────────────────────────────────────────────
 
 def test_paper_metadata_creation():
-    """PaperMetadata 생성 시 title, doi, journal, date 필드에 접근 가능해야 한다"""
+    """PaperMetadata 생성 시 title, journal, date 필드에 접근 가능해야 한다"""
     from models import PaperMetadata
     paper = PaperMetadata(
         title="Test Paper",
-        doi="10.1234/test",
         journal="JACS",
         date="2026-04-03",
     )
     assert paper.title == "Test Paper"
-    assert paper.doi == "10.1234/test"
     assert paper.journal == "JACS"
     assert paper.date == "2026-04-03"
 
 
-# ─── Test 2: 선택 필드 기본값 ────────────────────────────────────────────────
+# ─── Test 2: 필드 타입 검증 ─────────────────────────────────────────────────
 
-def test_paper_metadata_optional_fields():
-    """authors와 url은 기본값이 None이어야 한다"""
+def test_paper_metadata_field_types():
+    """PaperMetadata 필드가 문자열 타입이어야 한다"""
     from models import PaperMetadata
     paper = PaperMetadata(
-        title="Optional Test",
-        doi="10.1234/opt",
+        title="Type Test",
         journal="ACS Nano",
         date="2026-04-03",
     )
-    assert paper.authors is None
-    assert paper.url is None
+    assert isinstance(paper.title, str)
+    assert isinstance(paper.journal, str)
+    assert isinstance(paper.date, str)
 
 
-# ─── Test 3: 선택 필드 설정 ─────────────────────────────────────────────────
+# ─── Test 3: 빈 문자열 허용 ─────────────────────────────────────────────────
 
-def test_paper_metadata_with_authors():
-    """authors 리스트와 url을 명시적으로 설정할 수 있어야 한다"""
+def test_paper_metadata_empty_strings():
+    """journal, date는 빈 문자열로 초기화 가능해야 한다 (파서 중간 상태)"""
     from models import PaperMetadata
     paper = PaperMetadata(
-        title="Full Paper",
-        doi="10.1234/full",
-        journal="Nature",
-        date="2026-04-03",
-        authors=["Kim", "Lee"],
-        url="https://doi.org/10.1234/full",
+        title="Partial Paper",
+        journal="",
+        date="",
     )
-    assert paper.authors == ["Kim", "Lee"]
-    assert paper.url == "https://doi.org/10.1234/full"
+    assert paper.title == "Partial Paper"
+    assert paper.journal == ""
+    assert paper.date == ""
 
 
 # ─── Test 4: publishers.json 스키마 검증 ────────────────────────────────────

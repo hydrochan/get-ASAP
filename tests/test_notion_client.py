@@ -14,7 +14,6 @@ def make_paper(**kwargs) -> PaperMetadata:
     """테스트용 PaperMetadata 헬퍼 함수"""
     defaults = {
         "title": "Test Paper",
-        "doi": "10.1021/test.2025",
         "journal": "JACS",
         "date": "2025-01-15",
     }
@@ -28,7 +27,7 @@ class TestCreatePaperDb:
     """create_paper_db — Notion DB 생성 (NOTION-01)"""
 
     def test_create_paper_db(self):
-        """databases.create 호출 시 initial_data_source.properties에 7개 속성 포함, title="get-ASAP Papers" (D-01, D-02)"""
+        """databases.create 호출 시 initial_data_source.properties에 4개 속성 포함, title="get-ASAP Papers" (D-01, D-02)"""
         from notion_client_mod import create_paper_db
 
         mock_client = MagicMock()
@@ -49,10 +48,10 @@ class TestCreatePaperDb:
         title_text = title[0]["text"]["content"] if title else ""
         assert title_text == "get-ASAP Papers", f"DB 제목이 잘못됨: {title_text}"
 
-        # initial_data_source.properties 확인
+        # initial_data_source.properties 확인 (Title, Journal, Date, Status만)
         initial_ds = kwargs.get("initial_data_source", {})
         props = initial_ds.get("properties", {})
-        expected_keys = {"Title", "DOI", "Journal", "Date", "Status", "URL", "Authors"}
+        expected_keys = {"Title", "Journal", "Date", "Status"}
         assert expected_keys == set(props.keys()), f"속성 키 불일치: {set(props.keys())}"
 
 
@@ -134,21 +133,15 @@ class TestBuildProperties:
     """_build_properties — PaperMetadata → Notion properties 딕셔너리 변환"""
 
     def test_build_properties(self):
-        """PaperMetadata → Notion properties 딕셔너리 변환 (필수 4필드 + 선택 필드)"""
+        """PaperMetadata → Notion properties 딕셔너리 변환 (Title, Journal, Status, Date)"""
         from notion_client_mod import _build_properties
 
-        paper = make_paper(
-            authors=["Kim, J.", "Lee, S."],
-            url="https://pubs.acs.org/doi/10.1021/test.2025",
-        )
+        paper = make_paper()
         props = _build_properties(paper)
 
         # 필수 필드 확인
         assert "Title" in props
         assert props["Title"]["title"][0]["text"]["content"] == "Test Paper"
-
-        assert "DOI" in props
-        assert props["DOI"]["rich_text"][0]["text"]["content"] == "10.1021/test.2025"
 
         assert "Journal" in props
         assert props["Journal"]["select"]["name"] == "JACS"
@@ -159,26 +152,21 @@ class TestBuildProperties:
         assert "Date" in props
         assert props["Date"]["date"]["start"] == "2025-01-15"
 
-        # 선택 필드 확인
-        assert "URL" in props
-        assert props["URL"]["url"] == "https://pubs.acs.org/doi/10.1021/test.2025"
-
-        assert "Authors" in props
-        assert "Kim, J." in props["Authors"]["rich_text"][0]["text"]["content"]
-
-    def test_build_properties_optional_fields_none(self):
-        """authors=None, url=None일 때 해당 필드 미포함"""
-        from notion_client_mod import _build_properties
-
-        paper = make_paper(authors=None, url=None)
-        props = _build_properties(paper)
-
+        # DOI, URL, Authors 없음
+        assert "DOI" not in props
         assert "URL" not in props
         assert "Authors" not in props
+
+    def test_build_properties_empty_journal(self):
+        """journal이 빈 문자열일 때 Journal 필드 미포함"""
+        from notion_client_mod import _build_properties
+
+        paper = make_paper(journal="")
+        props = _build_properties(paper)
+
+        assert "Journal" not in props
         # 필수 필드는 여전히 포함
         assert "Title" in props
-        assert "DOI" in props
-        assert "Journal" in props
         assert "Status" in props
 
 
@@ -235,8 +223,8 @@ class TestSavePaper:
         status = create_kwargs["properties"]["Status"]["select"]["name"]
         assert status == "대기중"
 
-    def test_save_paper_skips_duplicate_doi(self):
-        """DOI 일치하는 기존 페이지 있으면 False 반환 + logging.info (D-03, D-05)"""
+    def test_save_paper_skips_duplicate_title(self):
+        """제목 일치하는 기존 페이지 있으면 False 반환 + logging.info (D-03, D-05)"""
         from notion_client_mod import save_paper
 
         paper = make_paper()
@@ -250,21 +238,10 @@ class TestSavePaper:
         mock_client.pages.create.assert_not_called()
         mock_log.info.assert_called()
 
-    def test_save_paper_skips_duplicate_title(self):
-        """DOI 빈 문자열 + 제목 일치 시 False 반환 (D-04)"""
-        from notion_client_mod import save_paper
-
-        paper = make_paper(doi="")  # DOI 없음 → 제목 기반 중복 검사
-        mock_client = self._make_client_with_dup()
-
-        with patch("notion_client_mod.get_notion_client", return_value=mock_client):
-            result = save_paper(paper, "db-id-123", "ds-id-456")
-
         # 제목 기반 필터 사용 확인
         query_call = mock_client.data_sources.query.call_args
         filter_arg = query_call.kwargs.get("filter") or query_call[1].get("filter") or query_call[0][1]
         assert "title" in filter_arg, f"제목 기반 필터 사용 안 함: {filter_arg}"
-        assert result is False
 
 
 # ─── 배치 저장 테스트 ────────────────────────────────────────────────────────
@@ -277,9 +254,9 @@ class TestSavePapers:
         from notion_client_mod import save_papers
 
         papers = [
-            make_paper(doi="10.1021/a", title="Paper A"),
-            make_paper(doi="10.1021/b", title="Paper B"),
-            make_paper(doi="10.1021/c", title="Paper C"),
+            make_paper(title="Paper A"),
+            make_paper(title="Paper B"),
+            make_paper(title="Paper C"),
         ]
 
         mock_client = MagicMock()
@@ -307,8 +284,8 @@ class TestSavePapers:
         from notion_client_mod import save_papers
 
         papers = [
-            make_paper(doi="10.1021/a", title="Paper A"),
-            make_paper(doi="10.1021/b", title="Paper B"),
+            make_paper(title="Paper A"),
+            make_paper(title="Paper B"),
         ]
 
         mock_client = MagicMock()
