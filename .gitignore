@@ -20,6 +20,12 @@ logs/
 # State (증분 동기화 상태 파일)
 state.json
 
+# Planning (GSD workflow artifacts)
+.planning/
+
+# Claude Code
+.claude/
+
 # OS
 .DS_Store
 Thumbs.db
