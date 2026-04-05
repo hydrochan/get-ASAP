@@ -37,14 +37,6 @@ def test_acs_parse_extracts_papers(parser, acs_html):
     assert len(papers) > 0
 
 
-def test_acs_parse_doi_format(parser, acs_html):
-    """추출된 모든 DOI가 '10.'으로 시작해야 한다"""
-    papers = parser.parse(acs_html)
-    assert len(papers) > 0
-    for paper in papers:
-        assert paper.doi.startswith("10."), f"잘못된 DOI 형식: {paper.doi!r}"
-
-
 def test_acs_parse_title_not_empty(parser, acs_html):
     """추출된 모든 논문 제목이 빈 문자열이 아니어야 한다"""
     papers = parser.parse(acs_html)
@@ -53,11 +45,11 @@ def test_acs_parse_title_not_empty(parser, acs_html):
         assert paper.title.strip() != "", "빈 제목이 있음"
 
 
-def test_acs_parse_no_duplicate_doi(parser, acs_html):
-    """반환된 논문 목록에 DOI 중복이 없어야 한다"""
+def test_acs_parse_no_duplicate_title(parser, acs_html):
+    """반환된 논문 목록에 제목 중복이 없어야 한다"""
     papers = parser.parse(acs_html)
-    dois = [p.doi for p in papers]
-    assert len(dois) == len(set(dois)), "DOI 중복 발생"
+    titles = [p.title for p in papers]
+    assert len(titles) == len(set(titles)), "제목 중복 발생"
 
 
 def test_acs_parse_failure_returns_empty(parser):

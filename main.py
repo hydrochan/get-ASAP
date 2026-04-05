@@ -272,7 +272,6 @@ def run_pipeline(dry_run: bool = False) -> dict:
         print(f"\n[DRY RUN] 추출된 논문 {len(all_papers)}건:")
         for paper in all_papers:
             print(f"  - 제목: {paper.title}")
-            print(f"    DOI:   {paper.doi or '(없음)'}")
             print(f"    저널:  {paper.journal or '(없음)'}")
             print()
 

@@ -27,7 +27,6 @@ def mock_paper():
     from models import PaperMetadata
     return PaperMetadata(
         title="Test Paper Title",
-        doi="",
         journal="",    # 비어있어야 infer_journal이 호출됨
         date="2026-04-04",
     )
@@ -35,11 +34,10 @@ def mock_paper():
 
 @pytest.fixture
 def mock_paper_no_doi():
-    """DOI가 없는 테스트용 PaperMetadata 객체"""
+    """DOI 없는 테스트용 PaperMetadata 객체"""
     from models import PaperMetadata
     return PaperMetadata(
         title="Test Paper No DOI",
-        doi="",
         journal="",
         date="2026-04-04",
     )
