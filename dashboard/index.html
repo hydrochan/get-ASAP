@@ -186,8 +186,20 @@
 
       <!-- 저널 × 키워드 히트맵 -->
       <section class="card p-6">
-        <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Journal &times; Keyword Matrix</h2>
-        <div id="heatmap-container" class="overflow-x-auto">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Journal &times; Keyword Matrix</h2>
+          <div class="flex items-center gap-2">
+            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
+              <button id="hm-ngram-1" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setHeatmapNgram(1)">Unigram</button>
+              <button id="hm-ngram-2" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapNgram(2)">Bigram</button>
+              <button id="hm-ngram-both" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapNgram(0)">Both</button>
+            </div>
+            <button id="hm-expand-btn" class="px-3 py-1 text-[10px] font-bold border border-slate-200 rounded text-slate-500 hover:bg-slate-50 transition-colors" onclick="toggleHeatmapExpand()">
+              Expand All
+            </button>
+          </div>
+        </div>
+        <div id="heatmap-container" class="overflow-x-auto" style="max-height:500px; overflow-y:auto">
           <table id="heatmap-table" class="text-xs w-full"></table>
         </div>
       </section>
@@ -728,21 +740,49 @@
     }
 
     // 히트맵
+    let heatmapNgram = 1;
+    let heatmapExpanded = false;
+
+    function _getHeatmapKw(papers) {
+      if (heatmapNgram === 1) return extractKeywords(papers);
+      if (heatmapNgram === 2) return extractBigrams(papers);
+      return { ...extractKeywords(papers), ...extractBigrams(papers) };
+    }
+
+    window.setHeatmapNgram = function(mode) {
+      heatmapNgram = mode;
+      ['hm-ngram-1','hm-ngram-2','hm-ngram-both'].forEach(id => {
+        const btn = document.getElementById(id);
+        const isActive = (id==='hm-ngram-1'&&mode===1)||(id==='hm-ngram-2'&&mode===2)||(id==='hm-ngram-both'&&mode===0);
+        btn.className = isActive ? 'px-2.5 py-1 bg-navy-800 text-white' : 'px-2.5 py-1 text-slate-500 hover:bg-slate-50';
+      });
+      renderHeatmap();
+    };
+
+    window.toggleHeatmapExpand = function() {
+      heatmapExpanded = !heatmapExpanded;
+      document.getElementById('hm-expand-btn').textContent = heatmapExpanded ? 'Collapse' : 'Expand All';
+      document.getElementById('heatmap-container').style.maxHeight = heatmapExpanded ? 'none' : '500px';
+      renderHeatmap();
+    };
+
     function renderHeatmap() {
       const journalFreq = {};
       for (const p of filteredPapers) {
         if (p.journal) journalFreq[p.journal] = (journalFreq[p.journal]||0)+1;
       }
-      const topJ = Object.entries(journalFreq).sort((a,b)=>b[1]-a[1]).slice(0,10).map(e=>e[0]);
-      const globalKw = getKeywordsForMode(filteredPapers);
-      const topKws = Object.entries(globalKw).sort((a,b)=>b[1]-a[1]).slice(0,10).map(e=>e[0]);
+      const journalLimit = heatmapExpanded ? 999 : 10;
+      const kwLimit = heatmapExpanded ? 20 : 10;
+      const topJ = Object.entries(journalFreq).sort((a,b)=>b[1]-a[1]).slice(0, journalLimit).map(e=>e[0]);
+      const globalKw = _getHeatmapKw(filteredPapers);
+      const topKws = Object.entries(globalKw).sort((a,b)=>b[1]-a[1]).slice(0, kwLimit).map(e=>e[0]);
 
       const matrix = {};
       let maxVal = 1;
       for (const j of topJ) {
         matrix[j] = {};
         const jPapers = filteredPapers.filter(p => p.journal === j);
-        const kwF = getKeywordsForMode(jPapers);
+        const kwF = _getHeatmapKw(jPapers);
         for (const kw of topKws) {
           const v = kwF[kw]||0;
           matrix[j][kw] = v;
@@ -750,9 +790,9 @@
         }
       }
 
-      let html = '<thead><tr><th class="px-2 py-2 text-left text-slate-400 font-bold sticky left-0 bg-white"></th>';
+      let html = '<thead class="sticky top-0 z-10"><tr><th class="px-2 py-2 text-left text-slate-400 font-bold sticky left-0 bg-white z-20"></th>';
       for (const kw of topKws) {
-        html += `<th class="px-2 py-2 text-center font-bold text-slate-500" style="writing-mode:vertical-lr;transform:rotate(180deg);min-width:36px">${kw}</th>`;
+        html += `<th class="px-2 py-2 text-center font-bold text-slate-500 bg-white" style="writing-mode:vertical-lr;transform:rotate(180deg);min-width:36px">${kw}</th>`;
       }
       html += '</tr></thead><tbody>';
       for (const j of topJ) {
