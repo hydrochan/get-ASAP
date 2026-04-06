@@ -111,7 +111,9 @@ def _save_cache(df: pd.DataFrame, month: str, cache_dir: str = None) -> None:
     cache_dir = cache_dir or CACHE_DIR
     os.makedirs(cache_dir, exist_ok=True)
     path = os.path.join(cache_dir, f"papers_{month}.csv")
-    df.to_csv(path, index=False)
+    # 제목에 쉼표 포함 가능 → 모든 필드를 따옴표로 감싸서 저장
+    import csv
+    df.to_csv(path, index=False, quoting=csv.QUOTE_ALL, encoding="utf-8-sig")
     logger.info("캐시 저장: %s (%d건)", path, len(df))
 
 
