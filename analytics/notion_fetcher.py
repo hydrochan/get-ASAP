@@ -55,7 +55,7 @@ def _parse_pages(pages: list[dict]) -> pd.DataFrame:
     if not df.empty:
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
     else:
-        df["date"] = pd.to_datetime(df["date"])
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
     return df
 
 
