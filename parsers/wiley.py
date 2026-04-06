@@ -45,10 +45,12 @@ class WileyParser(BaseParser):
                     continue
                 seen_titles.add(title)
 
+                url = a_tag.get("href", "")
                 papers.append(PaperMetadata(
                     title=title,
                     journal="",
                     date="",
+                    url=url,
                 ))
 
             return papers

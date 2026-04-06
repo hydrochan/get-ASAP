@@ -12,3 +12,4 @@ class PaperMetadata:
     title: str          # 논문 제목
     journal: str        # 저널명
     date: str           # 발행일 (ISO 형식 권장: YYYY-MM-DD)
+    url: str = ""       # 논문 링크 (메일 내 하이퍼링크)

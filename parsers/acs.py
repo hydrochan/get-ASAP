@@ -56,7 +56,8 @@ class ACSParser(BaseParser):
             if not self._is_valid_title(title, seen_titles):
                 continue
             seen_titles.add(title)
-            papers.append(PaperMetadata(title=title, journal="", date=""))
+            url = title_tag.get("href", "")
+            papers.append(PaperMetadata(title=title, journal="", date="", url=url))
 
         return papers
 
@@ -73,7 +74,8 @@ class ACSParser(BaseParser):
             if not self._is_valid_title(title, seen_titles):
                 continue
             seen_titles.add(title)
-            papers.append(PaperMetadata(title=title, journal="", date=""))
+            url = a_tag.get("href", "")
+            papers.append(PaperMetadata(title=title, journal="", date="", url=url))
 
         return papers
 

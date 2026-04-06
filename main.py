@@ -277,6 +277,7 @@ def run_pipeline(dry_run: bool = False) -> dict:
         for paper in all_papers:
             print(f"  - 제목: {paper.title}")
             print(f"    저널:  {paper.journal or '(없음)'}")
+            print(f"    링크:  {paper.url or '(없음)'}")
             print()
 
         save_state(state)

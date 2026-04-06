@@ -51,7 +51,7 @@ class TestCreatePaperDb:
         # initial_data_source.properties 확인 (Title, Journal, Date, Status만)
         initial_ds = kwargs.get("initial_data_source", {})
         props = initial_ds.get("properties", {})
-        expected_keys = {"Title", "Journal", "Date", "Status"}
+        expected_keys = {"Title", "Journal", "Date", "URL", "Status"}
         assert expected_keys == set(props.keys()), f"속성 키 불일치: {set(props.keys())}"
 
 

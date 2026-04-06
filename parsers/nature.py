@@ -68,10 +68,12 @@ class NatureParser(BaseParser):
                         continue
                     seen_titles.add(title)
 
+                    url = current.get("href", "")
                     papers.append(PaperMetadata(
                         title=title,
                         journal="",
                         date="",
+                        url=url,
                     ))
 
             return papers

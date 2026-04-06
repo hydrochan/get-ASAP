@@ -32,6 +32,7 @@ def create_paper_db(parent_page_id: str) -> str:
                 "Title": {"type": "title", "title": {}},
                 "Journal": {"type": "select", "select": {}},
                 "Date": {"type": "date", "date": {}},
+                "URL": {"type": "url", "url": {}},
                 "Status": {
                     "type": "select",
                     "select": {
@@ -90,6 +91,9 @@ def _build_properties(paper: PaperMetadata) -> dict:
 
     if paper.date:
         props["Date"] = {"date": {"start": paper.date}}
+
+    if paper.url:
+        props["URL"] = {"url": paper.url}
 
     return props
 
