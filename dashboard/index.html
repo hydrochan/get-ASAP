@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.2/src/wordcloud2.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script>
@@ -27,11 +28,15 @@
     .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
     .kpi-card { border-left: 4px solid #002F6C; }
     .chart-container { position: relative; width: 100%; }
-    /* 로그인 배경 */
     .login-bg { background: linear-gradient(135deg, #001B44 0%, #002F6C 50%, #003D8F 100%); }
-    /* 스크롤바 */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+    /* 저널 필터 드롭다운 */
+    .journal-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 600; background: #E5E7EB; color: #001B44; cursor: pointer; transition: all 0.15s; }
+    .journal-chip.active { background: #002F6C; color: white; }
+    .journal-chip:hover { opacity: 0.8; }
+    /* 섹션 구분선 */
+    .sec-divider { border-top: 1px solid #E5E7EB; margin: 0.5rem 0; }
   </style>
 </head>
 <body class="font-sans text-gray-800 min-h-screen">
@@ -60,12 +65,12 @@
   <!-- ========== 대시보드 ========== -->
   <div id="dashboard" class="hidden">
     <!-- 상단 헤더 -->
-    <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between flex-wrap gap-3">
       <div>
         <h1 class="text-xl font-black text-navy-900 tracking-tight">get-ASAP Analytics</h1>
         <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">Paper Trend Dashboard</p>
       </div>
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-3 flex-wrap">
         <select id="month-range" class="text-xs font-semibold border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-800">
           <option value="1">Last 1 month</option>
           <option value="3" selected>Last 3 months</option>
@@ -75,15 +80,28 @@
         <button id="refresh-btn" class="px-4 py-2 bg-gradient-to-r from-navy-900 to-navy-800 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">
           Refresh
         </button>
+        <button id="report-btn" class="px-4 py-2 border border-navy-800 text-navy-800 text-xs font-bold rounded-lg hover:bg-navy-800 hover:text-white transition-all">
+          Download Report
+        </button>
         <button id="logout-btn" class="text-xs font-semibold text-slate-400 hover:text-red-500 transition-colors">
           Logout
         </button>
       </div>
     </header>
 
+    <!-- 저널 필터 바 -->
+    <div class="bg-white border-b border-slate-100 px-6 py-3">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Journals:</span>
+        <span id="journal-all-chip" class="journal-chip active" onclick="toggleAllJournals()">All</span>
+        <div id="journal-chips" class="flex items-center gap-1.5 flex-wrap"></div>
+        <span id="filter-count" class="text-[10px] font-semibold text-slate-400 ml-2"></span>
+      </div>
+    </div>
+
     <main class="max-w-7xl mx-auto px-6 py-6 space-y-6">
       <!-- KPI 카드 -->
-      <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <section class="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div class="card kpi-card p-5">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Total Papers</p>
           <p id="kpi-total" class="text-2xl font-black text-navy-900 mt-1">—</p>
@@ -100,12 +118,15 @@
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Daily Average</p>
           <p id="kpi-daily" class="text-2xl font-black text-navy-900 mt-1">—</p>
         </div>
+        <div class="card kpi-card p-5">
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Top Keyword</p>
+          <p id="kpi-topkw" class="text-2xl font-black text-navy-900 mt-1">—</p>
+        </div>
       </section>
 
-      <!-- 차트 2열 -->
-      <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- 키워드 트렌드 -->
-        <div class="card p-6">
+      <!-- 키워드 트렌드 + 워드클라우드 -->
+      <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="card p-6 lg:col-span-2">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Keyword Trends</h2>
             <select id="kw-top-n" class="text-xs border border-slate-200 rounded px-2 py-1">
@@ -118,12 +139,31 @@
             <canvas id="chart-keyword"></canvas>
           </div>
         </div>
+        <!-- 워드클라우드 -->
+        <div class="card p-6">
+          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Word Cloud</h2>
+          <canvas id="wordcloud-canvas" width="400" height="320" class="w-full"></canvas>
+        </div>
+      </section>
 
-        <!-- 저널 빈도 -->
+      <!-- Top 키워드 테이블 -->
+      <section class="card p-6">
+        <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Top 20 Keywords</h2>
+        <div id="kw-table-container" class="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-1 text-xs"></div>
+      </section>
+
+      <!-- 저널 빈도 + 저널별 월별 -->
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="card p-6">
           <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Journal Frequency</h2>
-          <div class="chart-container" style="height:320px">
+          <div class="chart-container" style="height:360px">
             <canvas id="chart-journal"></canvas>
+          </div>
+        </div>
+        <div class="card p-6">
+          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Top Journals Monthly</h2>
+          <div class="chart-container" style="height:360px">
+            <canvas id="chart-journal-monthly"></canvas>
           </div>
         </div>
       </section>
@@ -136,19 +176,55 @@
         </div>
       </section>
 
-      <!-- 일별 트렌드 + 저널별 월별 -->
-      <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="card p-6">
-          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Daily Paper Count</h2>
-          <div class="chart-container" style="height:280px">
-            <canvas id="chart-daily"></canvas>
+      <!-- AI 관심 분석 -->
+      <section class="card p-6">
+        <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">AI Interest Analysis</h2>
+        <div id="interest-empty" class="text-xs text-slate-400 hidden">No interest-marked papers found.</div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- 관심 비율 차트 -->
+          <div class="lg:col-span-2">
+            <div class="chart-container" style="height:300px">
+              <canvas id="chart-interest"></canvas>
+            </div>
+          </div>
+          <!-- 키워드 비교 테이블 -->
+          <div>
+            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">All vs Interest Keywords</h3>
+            <table id="interest-kw-table" class="w-full text-xs">
+              <thead>
+                <tr class="text-[10px] font-bold text-slate-400 uppercase">
+                  <th class="text-left py-1">#</th>
+                  <th class="text-left py-1">All Papers</th>
+                  <th class="text-left py-1">Interest</th>
+                </tr>
+              </thead>
+              <tbody id="interest-kw-tbody"></tbody>
+            </table>
           </div>
         </div>
-        <div class="card p-6">
-          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Top Journals Monthly</h2>
-          <div class="chart-container" style="height:280px">
-            <canvas id="chart-journal-monthly"></canvas>
-          </div>
+      </section>
+
+      <!-- 키워드 → 저널 검색 -->
+      <section class="card p-6">
+        <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Keyword &rarr; Journal Search</h2>
+        <div class="flex items-center gap-3 mb-4">
+          <input id="kw-search-input" type="text" placeholder="Enter keyword (e.g. catalysis, perovskite, hydrogen)..."
+            class="text-xs border border-slate-200 rounded-lg px-3 py-2 w-72 focus:outline-none focus:ring-2 focus:ring-navy-800">
+          <button id="kw-search-btn" class="px-4 py-2 bg-navy-800 text-white text-xs font-bold rounded-lg hover:bg-navy-700 transition-colors">
+            Search
+          </button>
+          <span id="kw-search-count" class="text-[10px] font-semibold text-slate-400"></span>
+        </div>
+        <div class="chart-container" style="height:250px">
+          <canvas id="chart-kw-search"></canvas>
+        </div>
+      </section>
+
+      <!-- 일별 트렌드 -->
+      <section class="card p-6">
+        <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Daily Paper Count</h2>
+        <div class="chart-container" style="height:250px">
+          <canvas id="chart-daily"></canvas>
         </div>
       </section>
 
@@ -159,7 +235,7 @@
           <input id="paper-search" type="text" placeholder="Search titles..."
             class="text-xs border border-slate-200 rounded-lg px-3 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-navy-800">
         </div>
-        <div class="overflow-x-auto max-h-96 overflow-y-auto">
+        <div class="overflow-x-auto max-h-[500px] overflow-y-auto">
           <table class="w-full text-xs">
             <thead class="sticky top-0 bg-slate-50">
               <tr class="text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -187,7 +263,15 @@
 
     // ---------- 상수 ----------
     const ACADEMIC_STOPWORDS = new Set([
-      'study','using','based','effect','effects','analysis','new','novel','high',
+      'the','and','for','are','but','not','you','all','any','her','was','his',
+      'how','its','let','our','out','own','say','she','too','who','oil','old',
+      'had','has','him','did','get','got','man','new','now','way','may',
+      'day','been','from','have','into','more','most','only','over','such',
+      'than','them','then','they','this','that','what','when','will','with',
+      'each','make','like','long','look','many','some','time','very','your',
+      'about','could','other','their','there','these','those','which','would',
+      'after','being','between','both','during','here','where','does','through',
+      'study','using','based','effect','effects','analysis','novel','high',
       'performance','enhanced','efficient','properties','via','towards','toward',
       'approach','method','methods','two','one','three','first','role','low',
       'improved','recent','large','small','different','various','general',
@@ -198,8 +282,9 @@
       'characterization','fabrication','co','de','non','re','pre','post','ex',
       'multi','sub','use','used','paper','research','results','show','data',
       'system','systems','type','model','total','state','process','part','case',
-      'well','also','however','within','without','like','since','still','found',
-      'made','good','many','much','even','just','may','can','able'
+      'well','also','however','within','without','since','still','found',
+      'made','good','much','even','just','can','able','under','upon',
+      'above','below','near','next','into','onto','toward'
     ]);
 
     const CHART_COLORS = [
@@ -208,7 +293,10 @@
       '#EF4444','#8B5CF6','#EC4899','#F59E0B','#6366F1'
     ];
 
-    let allPapers = [];
+    let allPapers = [];       // 전체 로드된 데이터
+    let filteredPapers = [];  // 저널 필터 적용된 데이터
+    let selectedJournals = new Set(); // 선택된 저널
+    let allJournalsMode = true;       // "All" 모드
     let charts = {};
 
     // ---------- 인증 ----------
@@ -220,7 +308,6 @@
       e.preventDefault();
       const user = document.getElementById('login-user').value;
       const pass = document.getElementById('login-pass').value;
-
       try {
         const res = await fetch('/api/login', {
           method: 'POST',
@@ -250,7 +337,6 @@
     async function loadData() {
       const months = parseInt(document.getElementById('month-range').value);
       const monthList = getMonthRange(months);
-
       const frames = [];
       for (const m of monthList) {
         try {
@@ -259,11 +345,11 @@
           const text = await res.text();
           const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
           frames.push(...parsed.data);
-        } catch { /* 해당 월 CSV 없음 */ }
+        } catch {}
       }
-
       allPapers = frames.filter(r => r.title && r.title.trim());
-      renderAll();
+      buildJournalFilter();
+      applyFilter();
     }
 
     function getMonthRange(n) {
@@ -278,29 +364,92 @@
 
     document.getElementById('month-range').addEventListener('change', loadData);
     document.getElementById('refresh-btn').addEventListener('click', loadData);
-    document.getElementById('kw-top-n').addEventListener('change', () => renderKeywordChart());
+    document.getElementById('kw-top-n').addEventListener('change', () => { renderKeywordChart(); renderWordCloud(); });
+
+    // ---------- 저널 필터 ----------
+    function buildJournalFilter() {
+      const freq = {};
+      for (const p of allPapers) {
+        if (p.journal) freq[p.journal] = (freq[p.journal]||0)+1;
+      }
+      const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]);
+      const container = document.getElementById('journal-chips');
+      container.innerHTML = '';
+      selectedJournals = new Set(sorted.map(e=>e[0]));
+      allJournalsMode = true;
+
+      for (const [j, count] of sorted) {
+        const chip = document.createElement('span');
+        chip.className = 'journal-chip active';
+        chip.textContent = `${j.length > 20 ? j.slice(0,18)+'..' : j} (${count})`;
+        chip.dataset.journal = j;
+        chip.addEventListener('click', () => toggleJournal(j, chip));
+        container.appendChild(chip);
+      }
+    }
+
+    window.toggleAllJournals = function() {
+      allJournalsMode = true;
+      selectedJournals = new Set(allPapers.map(p=>p.journal).filter(Boolean));
+      document.getElementById('journal-all-chip').classList.add('active');
+      document.querySelectorAll('#journal-chips .journal-chip').forEach(c => c.classList.add('active'));
+      applyFilter();
+    };
+
+    function toggleJournal(journal, chip) {
+      allJournalsMode = false;
+      document.getElementById('journal-all-chip').classList.remove('active');
+      if (selectedJournals.has(journal)) {
+        selectedJournals.delete(journal);
+        chip.classList.remove('active');
+      } else {
+        selectedJournals.add(journal);
+        chip.classList.add('active');
+      }
+      // 모두 선택되면 All 모드로
+      const allChips = document.querySelectorAll('#journal-chips .journal-chip');
+      const activeCount = document.querySelectorAll('#journal-chips .journal-chip.active').length;
+      if (activeCount === allChips.length) {
+        allJournalsMode = true;
+        document.getElementById('journal-all-chip').classList.add('active');
+      }
+      applyFilter();
+    }
+
+    function applyFilter() {
+      if (allJournalsMode) {
+        filteredPapers = allPapers;
+      } else {
+        filteredPapers = allPapers.filter(p => selectedJournals.has(p.journal));
+      }
+      document.getElementById('filter-count').textContent =
+        filteredPapers.length === allPapers.length ? '' : `${filteredPapers.length} / ${allPapers.length} papers`;
+      renderAll();
+    }
 
     // ---------- 렌더링 ----------
     function renderAll() {
       renderKPIs();
       renderKeywordChart();
+      renderWordCloud();
+      renderKeywordTable();
       renderJournalChart();
-      renderDailyChart();
       renderJournalMonthlyChart();
+      renderDailyChart();
       renderHeatmap();
+      renderInterestAnalysis();
       renderPaperTable();
     }
 
     // KPI
     function renderKPIs() {
-      const total = allPapers.length;
-      const journals = new Set(allPapers.map(p => p.journal).filter(Boolean));
+      const total = filteredPapers.length;
+      const journals = new Set(filteredPapers.map(p => p.journal).filter(Boolean));
       const now = new Date();
       const curMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-      const thisMonth = allPapers.filter(p => (p.date||'').startsWith(curMonth)).length;
+      const thisMonth = filteredPapers.filter(p => (p.date||'').startsWith(curMonth)).length;
 
-      // 일평균: 전체 기간 기준
-      const dates = allPapers.map(p => p.date).filter(Boolean).sort();
+      const dates = filteredPapers.map(p => p.date).filter(Boolean).sort();
       let daily = 0;
       if (dates.length > 1) {
         const first = new Date(dates[0]);
@@ -309,18 +458,23 @@
         daily = (total / days).toFixed(1);
       }
 
+      const globalFreq = extractKeywords(filteredPapers);
+      const topKw = Object.entries(globalFreq).sort((a,b)=>b[1]-a[1]);
+      const topKwName = topKw.length ? topKw[0][0] : '—';
+
       document.getElementById('kpi-total').textContent = total.toLocaleString();
       document.getElementById('kpi-journals').textContent = journals.size;
       document.getElementById('kpi-month').textContent = thisMonth.toLocaleString();
       document.getElementById('kpi-daily').textContent = daily || '—';
+      document.getElementById('kpi-topkw').textContent = topKwName;
     }
 
-    // 키워드 추출 (간이 TF 방식)
+    // 키워드 추출 (문서 빈도 방식)
     function extractKeywords(papers) {
       const freq = {};
       for (const p of papers) {
         const tokens = tokenize(p.title || '');
-        const unique = [...new Set(tokens)]; // 문서당 1회만 카운트
+        const unique = [...new Set(tokens)];
         for (const t of unique) {
           freq[t] = (freq[t] || 0) + 1;
         }
@@ -336,19 +490,14 @@
         .filter(w => w.length > 2 && !ACADEMIC_STOPWORDS.has(w));
     }
 
-    // 키워드 트렌드 차트
+    // 키워드 트렌드
     function renderKeywordChart() {
       const topN = parseInt(document.getElementById('kw-top-n').value);
-      // 전체 키워드 빈도로 Top N 선정
-      const globalFreq = extractKeywords(allPapers);
-      const topKws = Object.entries(globalFreq)
-        .sort((a,b) => b[1] - a[1])
-        .slice(0, topN)
-        .map(e => e[0]);
+      const globalFreq = extractKeywords(filteredPapers);
+      const topKws = Object.entries(globalFreq).sort((a,b)=>b[1]-a[1]).slice(0,topN).map(e=>e[0]);
 
-      // 월별 그룹핑
       const monthMap = {};
-      for (const p of allPapers) {
+      for (const p of filteredPapers) {
         const m = (p.date||'').slice(0,7);
         if (!m) continue;
         if (!monthMap[m]) monthMap[m] = [];
@@ -358,15 +507,10 @@
 
       const datasets = topKws.map((kw, i) => ({
         label: kw,
-        data: months.map(m => {
-          const freq = extractKeywords(monthMap[m]);
-          return freq[kw] || 0;
-        }),
+        data: months.map(m => { const f = extractKeywords(monthMap[m]); return f[kw]||0; }),
         borderColor: CHART_COLORS[i % CHART_COLORS.length],
         backgroundColor: CHART_COLORS[i % CHART_COLORS.length] + '20',
-        tension: 0.3,
-        borderWidth: 2,
-        pointRadius: 3,
+        tension: 0.3, borderWidth: 2, pointRadius: 3,
       }));
 
       if (charts.keyword) charts.keyword.destroy();
@@ -375,9 +519,7 @@
         data: { labels: months, datasets },
         options: {
           responsive: true, maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'bottom', labels: { font: { size: 10, family: 'Manrope' }, boxWidth: 12 } }
-          },
+          plugins: { legend: { position: 'bottom', labels: { font: { size: 10, family: 'Manrope' }, boxWidth: 12 } } },
           scales: {
             x: { ticks: { font: { size: 10 } } },
             y: { beginAtZero: true, ticks: { font: { size: 10 } } }
@@ -386,28 +528,67 @@
       });
     }
 
-    // 저널 빈도 차트
+    // 워드클라우드
+    function renderWordCloud() {
+      const canvas = document.getElementById('wordcloud-canvas');
+      const freq = extractKeywords(filteredPapers);
+      const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0, 50);
+      if (!sorted.length) return;
+
+      const maxFreq = sorted[0][1];
+      const list = sorted.map(([word, count]) => [word, Math.max(8, (count / maxFreq) * 48)]);
+
+      // wordcloud2는 canvas를 직접 사용
+      try {
+        WordCloud(canvas, {
+          list: list,
+          gridSize: 6,
+          weightFactor: 1,
+          fontFamily: 'Manrope',
+          color: function(word, weight) {
+            const intensity = weight / 48;
+            if (intensity > 0.6) return '#001B44';
+            if (intensity > 0.3) return '#002F6C';
+            return '#1A56A8';
+          },
+          backgroundColor: '#ffffff',
+          rotateRatio: 0.3,
+          minRotation: -0.5,
+          maxRotation: 0.5,
+        });
+      } catch {}
+    }
+
+    // Top 키워드 테이블
+    function renderKeywordTable() {
+      const freq = extractKeywords(filteredPapers);
+      const top20 = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0, 20);
+      const container = document.getElementById('kw-table-container');
+      container.innerHTML = top20.map(([kw, count], i) =>
+        `<div class="flex justify-between py-0.5 ${i < 3 ? 'font-bold text-navy-900' : 'text-slate-600'}">
+          <span><span class="text-slate-400 mr-1">${i+1}.</span>${kw}</span>
+          <span class="text-slate-400">${count}</span>
+        </div>`
+      ).join('');
+    }
+
+    // 저널 빈도
     function renderJournalChart() {
       const freq = {};
-      for (const p of allPapers) {
-        if (p.journal) freq[p.journal] = (freq[p.journal]||0) + 1;
+      for (const p of filteredPapers) {
+        if (p.journal) freq[p.journal] = (freq[p.journal]||0)+1;
       }
-      const sorted = Object.entries(freq).sort((a,b) => b[1]-a[1]).slice(0, 15);
+      const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0, 15);
 
       if (charts.journal) charts.journal.destroy();
       charts.journal = new Chart(document.getElementById('chart-journal'), {
         type: 'bar',
         data: {
-          labels: sorted.map(e => e[0].length > 25 ? e[0].slice(0,22)+'...' : e[0]),
-          datasets: [{
-            data: sorted.map(e => e[1]),
-            backgroundColor: '#002F6C',
-            borderRadius: 4,
-          }]
+          labels: sorted.map(e => e[0].length > 28 ? e[0].slice(0,25)+'...' : e[0]),
+          datasets: [{ data: sorted.map(e=>e[1]), backgroundColor: '#002F6C', borderRadius: 4 }]
         },
         options: {
-          indexAxis: 'y',
-          responsive: true, maintainAspectRatio: false,
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
             x: { beginAtZero: true, ticks: { font: { size: 10 } } },
@@ -417,12 +598,12 @@
       });
     }
 
-    // 일별 논문 수
+    // 일별
     function renderDailyChart() {
       const freq = {};
-      for (const p of allPapers) {
+      for (const p of filteredPapers) {
         const d = (p.date||'').slice(0,10);
-        if (d) freq[d] = (freq[d]||0) + 1;
+        if (d) freq[d] = (freq[d]||0)+1;
       }
       const dates = Object.keys(freq).sort();
 
@@ -430,12 +611,8 @@
       charts.daily = new Chart(document.getElementById('chart-daily'), {
         type: 'bar',
         data: {
-          labels: dates.map(d => d.slice(5)), // MM-DD
-          datasets: [{
-            data: dates.map(d => freq[d]),
-            backgroundColor: '#1A56A8',
-            borderRadius: 2,
-          }]
+          labels: dates.map(d => d.slice(5)),
+          datasets: [{ data: dates.map(d=>freq[d]), backgroundColor: '#1A56A8', borderRadius: 2 }]
         },
         options: {
           responsive: true, maintainAspectRatio: false,
@@ -448,30 +625,27 @@
       });
     }
 
-    // Top 저널 월별 추이
+    // Top 저널 월별
     function renderJournalMonthlyChart() {
       const freq = {};
-      for (const p of allPapers) {
-        if (p.journal) freq[p.journal] = (freq[p.journal]||0) + 1;
+      for (const p of filteredPapers) {
+        if (p.journal) freq[p.journal] = (freq[p.journal]||0)+1;
       }
-      const topJournals = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,5).map(e=>e[0]);
+      const topJ = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,5).map(e=>e[0]);
 
       const monthMap = {};
-      for (const p of allPapers) {
+      for (const p of filteredPapers) {
         const m = (p.date||'').slice(0,7);
         if (!m || !p.journal) continue;
         if (!monthMap[m]) monthMap[m] = {};
-        monthMap[m][p.journal] = (monthMap[m][p.journal]||0) + 1;
+        monthMap[m][p.journal] = (monthMap[m][p.journal]||0)+1;
       }
       const months = Object.keys(monthMap).sort();
 
-      const datasets = topJournals.map((j, i) => ({
-        label: j.length > 20 ? j.slice(0,18)+'...' : j,
-        data: months.map(m => monthMap[m]?.[j] || 0),
-        borderColor: CHART_COLORS[i],
-        tension: 0.3,
-        borderWidth: 2,
-        pointRadius: 3,
+      const datasets = topJ.map((j, i) => ({
+        label: j.length > 20 ? j.slice(0,18)+'..' : j,
+        data: months.map(m => monthMap[m]?.[j]||0),
+        borderColor: CHART_COLORS[i], tension: 0.3, borderWidth: 2, pointRadius: 3,
       }));
 
       if (charts.journalMonthly) charts.journalMonthly.destroy();
@@ -480,9 +654,7 @@
         data: { labels: months, datasets },
         options: {
           responsive: true, maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'bottom', labels: { font: { size: 9, family: 'Manrope' }, boxWidth: 10 } }
-          },
+          plugins: { legend: { position: 'bottom', labels: { font: { size: 9, family: 'Manrope' }, boxWidth: 10 } } },
           scales: {
             x: { ticks: { font: { size: 10 } } },
             y: { beginAtZero: true, ticks: { font: { size: 10 } } }
@@ -491,45 +663,42 @@
       });
     }
 
-    // 히트맵 테이블
+    // 히트맵
     function renderHeatmap() {
       const journalFreq = {};
-      for (const p of allPapers) {
+      for (const p of filteredPapers) {
         if (p.journal) journalFreq[p.journal] = (journalFreq[p.journal]||0)+1;
       }
-      const topJournals = Object.entries(journalFreq).sort((a,b)=>b[1]-a[1]).slice(0,10).map(e=>e[0]);
-      const globalKw = extractKeywords(allPapers);
+      const topJ = Object.entries(journalFreq).sort((a,b)=>b[1]-a[1]).slice(0,10).map(e=>e[0]);
+      const globalKw = extractKeywords(filteredPapers);
       const topKws = Object.entries(globalKw).sort((a,b)=>b[1]-a[1]).slice(0,10).map(e=>e[0]);
 
-      // 저널별 키워드 빈도 계산
       const matrix = {};
       let maxVal = 1;
-      for (const j of topJournals) {
+      for (const j of topJ) {
         matrix[j] = {};
-        const jPapers = allPapers.filter(p => p.journal === j);
-        const kwFreq = extractKeywords(jPapers);
+        const jPapers = filteredPapers.filter(p => p.journal === j);
+        const kwF = extractKeywords(jPapers);
         for (const kw of topKws) {
-          const v = kwFreq[kw] || 0;
+          const v = kwF[kw]||0;
           matrix[j][kw] = v;
           if (v > maxVal) maxVal = v;
         }
       }
 
-      // 테이블 렌더링
       let html = '<thead><tr><th class="px-2 py-2 text-left text-slate-400 font-bold sticky left-0 bg-white"></th>';
       for (const kw of topKws) {
         html += `<th class="px-2 py-2 text-center font-bold text-slate-500" style="writing-mode:vertical-lr;transform:rotate(180deg);min-width:36px">${kw}</th>`;
       }
       html += '</tr></thead><tbody>';
-
-      for (const j of topJournals) {
-        html += `<tr><td class="px-2 py-1.5 font-semibold text-navy-900 whitespace-nowrap sticky left-0 bg-white">${j.length > 30 ? j.slice(0,28)+'..' : j}</td>`;
+      for (const j of topJ) {
+        html += `<tr><td class="px-2 py-1.5 font-semibold text-navy-900 whitespace-nowrap sticky left-0 bg-white">${j.length>30?j.slice(0,28)+'..':j}</td>`;
         for (const kw of topKws) {
           const v = matrix[j][kw];
           const intensity = v / maxVal;
-          const bg = v === 0 ? '#F8F9FA' : `rgba(0,47,108,${0.1 + intensity * 0.8})`;
-          const textColor = intensity > 0.5 ? 'white' : '#001B44';
-          html += `<td class="px-2 py-1.5 text-center font-semibold" style="background:${bg};color:${textColor}">${v || ''}</td>`;
+          const bg = v===0?'#F8F9FA':`rgba(0,47,108,${0.1+intensity*0.8})`;
+          const tc = intensity>0.5?'white':'#001B44';
+          html += `<td class="px-2 py-1.5 text-center font-semibold" style="background:${bg};color:${tc}">${v||''}</td>`;
         }
         html += '</tr>';
       }
@@ -537,18 +706,133 @@
       document.getElementById('heatmap-table').innerHTML = html;
     }
 
+    // AI 관심 분석
+    function renderInterestAnalysis() {
+      // "대기중"이 아닌 논문 = AI가 관심 표시한 논문
+      const interestPapers = filteredPapers.filter(p => p.status && p.status !== '대기중');
+      const emptyEl = document.getElementById('interest-empty');
+
+      if (interestPapers.length === 0) {
+        emptyEl.classList.remove('hidden');
+        if (charts.interest) { charts.interest.destroy(); charts.interest = null; }
+        document.getElementById('interest-kw-tbody').innerHTML = '';
+        return;
+      }
+      emptyEl.classList.add('hidden');
+
+      // 저널별 관심 비율
+      const journalTotal = {};
+      const journalInterest = {};
+      for (const p of filteredPapers) {
+        if (!p.journal) continue;
+        journalTotal[p.journal] = (journalTotal[p.journal]||0)+1;
+      }
+      for (const p of interestPapers) {
+        if (!p.journal) continue;
+        journalInterest[p.journal] = (journalInterest[p.journal]||0)+1;
+      }
+
+      const ratios = Object.entries(journalInterest)
+        .map(([j, cnt]) => ({ journal: j, interest: cnt, total: journalTotal[j]||1, ratio: cnt/(journalTotal[j]||1) }))
+        .sort((a,b) => b.ratio - a.ratio)
+        .slice(0, 12);
+
+      if (charts.interest) charts.interest.destroy();
+      charts.interest = new Chart(document.getElementById('chart-interest'), {
+        type: 'bar',
+        data: {
+          labels: ratios.map(r => r.journal.length > 25 ? r.journal.slice(0,22)+'...' : r.journal),
+          datasets: [{
+            label: 'Interest Ratio',
+            data: ratios.map(r => (r.ratio * 100).toFixed(1)),
+            backgroundColor: ratios.map(r => r.ratio > 0.3 ? '#002F6C' : r.ratio > 0.1 ? '#1A56A8' : '#8BC4F0'),
+            borderRadius: 4,
+          }]
+        },
+        options: {
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.raw}% (${ratios[ctx.dataIndex].interest}/${ratios[ctx.dataIndex].total})` } } },
+          scales: {
+            x: { beginAtZero: true, max: 100, ticks: { font: { size: 10 }, callback: v => v+'%' } },
+            y: { ticks: { font: { size: 10, family: 'Manrope' } } }
+          }
+        }
+      });
+
+      // 키워드 비교: 전체 vs 관심
+      const allKw = Object.entries(extractKeywords(filteredPapers)).sort((a,b)=>b[1]-a[1]).slice(0,10);
+      const intKw = Object.entries(extractKeywords(interestPapers)).sort((a,b)=>b[1]-a[1]).slice(0,10);
+      const tbody = document.getElementById('interest-kw-tbody');
+      let rows = '';
+      for (let i = 0; i < 10; i++) {
+        rows += `<tr class="border-t border-slate-100">
+          <td class="py-1 text-slate-400">${i+1}</td>
+          <td class="py-1 font-semibold">${allKw[i]?allKw[i][0]:''}</td>
+          <td class="py-1 font-semibold text-navy-800">${intKw[i]?intKw[i][0]:''}</td>
+        </tr>`;
+      }
+      tbody.innerHTML = rows;
+    }
+
+    // 키워드 → 저널 검색
+    function searchKeywordJournal() {
+      const kw = document.getElementById('kw-search-input').value.trim().toLowerCase();
+      if (!kw) return;
+
+      const matched = filteredPapers.filter(p => tokenize(p.title||'').includes(kw));
+      document.getElementById('kw-search-count').textContent = matched.length ? `${matched.length} papers found` : 'No results';
+
+      if (!matched.length) {
+        if (charts.kwSearch) { charts.kwSearch.destroy(); charts.kwSearch = null; }
+        return;
+      }
+
+      const freq = {};
+      for (const p of matched) {
+        if (p.journal) freq[p.journal] = (freq[p.journal]||0)+1;
+      }
+      const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0, 10);
+
+      if (charts.kwSearch) charts.kwSearch.destroy();
+      charts.kwSearch = new Chart(document.getElementById('chart-kw-search'), {
+        type: 'bar',
+        data: {
+          labels: sorted.map(e => e[0].length > 28 ? e[0].slice(0,25)+'...' : e[0]),
+          datasets: [{ data: sorted.map(e=>e[1]), backgroundColor: '#002F6C', borderRadius: 4 }]
+        },
+        options: {
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { beginAtZero: true, ticks: { font: { size: 10 } } },
+            y: { ticks: { font: { size: 10, family: 'Manrope' } } }
+          }
+        }
+      });
+    }
+
+    document.getElementById('kw-search-btn').addEventListener('click', searchKeywordJournal);
+    document.getElementById('kw-search-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') searchKeywordJournal();
+    });
+
     // 논문 목록
     function renderPaperTable(filter='') {
       const tbody = document.getElementById('paper-tbody');
-      const filtered = filter
-        ? allPapers.filter(p => (p.title||'').toLowerCase().includes(filter.toLowerCase()))
-        : allPapers;
+      const papers = filter
+        ? filteredPapers.filter(p => (p.title||'').toLowerCase().includes(filter.toLowerCase()))
+        : filteredPapers;
 
-      // 날짜 역순 정렬
-      const sorted = [...filtered].sort((a,b) => (b.date||'').localeCompare(a.date||''));
-      const display = sorted.slice(0, 200); // 최대 200건
+      const sorted = [...papers].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+      const display = sorted.slice(0, 300);
 
-      const statusColor = { '대기중': 'bg-yellow-100 text-yellow-700', '읽음': 'bg-green-100 text-green-700', '관심': 'bg-blue-100 text-blue-700', '스킵': 'bg-gray-100 text-gray-500' };
+      const statusColor = {
+        '대기중': 'bg-yellow-100 text-yellow-700',
+        '읽음': 'bg-green-100 text-green-700',
+        '관심': 'bg-blue-100 text-blue-700',
+        '스킵': 'bg-gray-100 text-gray-500',
+        '추출됨': 'bg-purple-100 text-purple-700'
+      };
 
       tbody.innerHTML = display.map(p => `
         <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
@@ -568,7 +852,56 @@
       renderPaperTable(e.target.value);
     });
 
-    // ---------- 세션 체크 (자동 로그인) ----------
+    // ---------- 리포트 다운로드 ----------
+    document.getElementById('report-btn').addEventListener('click', () => {
+      const months = document.getElementById('month-range').value;
+      const now = new Date();
+      const range = getMonthRange(parseInt(months));
+      const start = range[range.length-1];
+      const end = range[0];
+
+      const globalFreq = extractKeywords(filteredPapers);
+      const top20 = Object.entries(globalFreq).sort((a,b)=>b[1]-a[1]).slice(0,20);
+
+      const journalFreq = {};
+      for (const p of filteredPapers) { if (p.journal) journalFreq[p.journal]=(journalFreq[p.journal]||0)+1; }
+      const topJournals = Object.entries(journalFreq).sort((a,b)=>b[1]-a[1]).slice(0,15);
+
+      let md = `# get-ASAP Paper Analysis Report\n\n`;
+      md += `**Period:** ${start} ~ ${end}\n`;
+      md += `**Generated:** ${now.toISOString().slice(0,10)}\n`;
+      md += `**Total Papers:** ${filteredPapers.length}\n`;
+      md += `**Active Journals:** ${new Set(filteredPapers.map(p=>p.journal).filter(Boolean)).size}\n\n`;
+
+      md += `## Top 20 Keywords\n\n`;
+      md += `| Rank | Keyword | Count |\n|------|---------|-------|\n`;
+      top20.forEach(([kw,c], i) => { md += `| ${i+1} | ${kw} | ${c} |\n`; });
+
+      md += `\n## Journal Frequency (Top 15)\n\n`;
+      md += `| Journal | Papers |\n|---------|--------|\n`;
+      topJournals.forEach(([j,c]) => { md += `| ${j} | ${c} |\n`; });
+
+      const interestPapers = filteredPapers.filter(p => p.status && p.status !== '대기중');
+      if (interestPapers.length > 0) {
+        md += `\n## AI Interest Analysis\n\n`;
+        md += `**Interest papers:** ${interestPapers.length} / ${filteredPapers.length} (${(interestPapers.length/filteredPapers.length*100).toFixed(1)}%)\n\n`;
+        const intKw = Object.entries(extractKeywords(interestPapers)).sort((a,b)=>b[1]-a[1]).slice(0,10);
+        md += `| Rank | Interest Keyword | Count |\n|------|-----------------|-------|\n`;
+        intKw.forEach(([kw,c], i) => { md += `| ${i+1} | ${kw} | ${c} |\n`; });
+      }
+
+      md += `\n---\n*Generated by get-ASAP Analytics Dashboard*\n`;
+
+      // 다운로드
+      const blob = new Blob([md], { type: 'text/markdown' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${start}_to_${end}_analysis.md`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    // ---------- 세션 체크 ----------
     (async function checkSession() {
       try {
         const res = await fetch('/api/session');
