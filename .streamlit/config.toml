@@ -1,0 +1,14 @@
+[server]
+# 외부 접속 허용
+address = "0.0.0.0"
+port = 8501
+# 프로덕션 설정
+headless = true
+
+[browser]
+# 서버 배포 시 자동 브라우저 열기 비활성화
+gatherUsageStats = false
+
+[client]
+# 디버그 도구바 숨김 (프로덕션)
+toolbarMode = "minimal"

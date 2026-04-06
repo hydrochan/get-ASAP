@@ -37,10 +37,32 @@ matplotlib.rcParams["axes.unicode_minus"] = False
 st.set_page_config(page_title="get-ASAP Analytics", layout="wide")
 
 # --- 비밀번호 인증 ---
+import time as _time
+
+MAX_LOGIN_ATTEMPTS = 5          # 최대 로그인 시도 횟수
+LOCKOUT_SECONDS = 300           # 잠금 시간 (5분)
+SESSION_TIMEOUT_SECONDS = 3600  # 세션 만료 (1시간)
+
+
 def check_password() -> bool:
-    """비밀번호 인증 게이트. 통과하면 True."""
+    """비밀번호 인증 게이트. 브루트포스 방지 + 세션 타임아웃 포함."""
+    # 세션 타임아웃 체크
     if st.session_state.get("authenticated"):
-        return True
+        login_time = st.session_state.get("login_time", 0)
+        if _time.time() - login_time > SESSION_TIMEOUT_SECONDS:
+            st.session_state["authenticated"] = False
+            st.warning("세션이 만료되었습니다. 다시 로그인해주세요.")
+        else:
+            return True
+
+    # 브루트포스 잠금 체크
+    attempts = st.session_state.get("login_attempts", 0)
+    lockout_until = st.session_state.get("lockout_until", 0)
+    if _time.time() < lockout_until:
+        remaining = int(lockout_until - _time.time())
+        st.title("get-ASAP 논문 분석 대시보드")
+        st.error(f"로그인 시도 횟수 초과. {remaining}초 후 다시 시도해주세요.")
+        return False
 
     st.title("get-ASAP 논문 분석 대시보드")
     with st.form("login_form"):
@@ -58,9 +80,17 @@ def check_password() -> bool:
         ):
             st.session_state["authenticated"] = True
             st.session_state["username"] = username
+            st.session_state["login_time"] = _time.time()
+            st.session_state["login_attempts"] = 0
             st.rerun()
         else:
-            st.error("ID 또는 비밀번호가 올바르지 않습니다.")
+            attempts += 1
+            st.session_state["login_attempts"] = attempts
+            if attempts >= MAX_LOGIN_ATTEMPTS:
+                st.session_state["lockout_until"] = _time.time() + LOCKOUT_SECONDS
+                st.error(f"로그인 시도 횟수 초과. {LOCKOUT_SECONDS // 60}분간 잠금됩니다.")
+            else:
+                st.error(f"ID 또는 비밀번호가 올바르지 않습니다. ({attempts}/{MAX_LOGIN_ATTEMPTS})")
     return False
 
 
