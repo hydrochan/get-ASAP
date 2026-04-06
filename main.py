@@ -255,10 +255,13 @@ def run_pipeline(dry_run: bool = False) -> dict:
             papers = parser.parse(body)
             logger.debug("메일 %s: %d건 추출", msg_id, len(papers))
 
-            # 각 paper의 누락 필드 보완 (저널명만 — DOI는 ASAP 특성상 미등록이 많아 조회하지 않음)
+            # 각 paper의 누락 필드 보완
+            today = __import__("datetime").date.today().isoformat()
             for paper in papers:
                 if not paper.journal:
                     paper.journal = infer_journal(sender, subject, publishers)
+                if not paper.date:
+                    paper.date = today
 
             all_papers.extend(papers)
             processed_msg_ids.append(msg_id)

@@ -34,7 +34,7 @@ class TestCreatePaperDb:
         mock_client.databases.create.return_value = {"id": "new-db-id-789"}
 
         with patch("notion_client_mod.get_notion_client", return_value=mock_client):
-            result = create_paper_db("parent-page-uuid")
+            result = create_paper_db("parent-page-uuid", db_name="get-ASAP 2026-04")
 
         assert result == "new-db-id-789"
 
@@ -43,10 +43,10 @@ class TestCreatePaperDb:
 
         kwargs = call_kwargs.kwargs if call_kwargs.kwargs else call_kwargs[1]
 
-        # title 확인
+        # title 확인 (월별 DB 이름)
         title = kwargs.get("title", [])
         title_text = title[0]["text"]["content"] if title else ""
-        assert title_text == "get-ASAP Papers", f"DB 제목이 잘못됨: {title_text}"
+        assert title_text == "get-ASAP 2026-04", f"DB 제목이 잘못됨: {title_text}"
 
         # initial_data_source.properties 확인 (Title, Journal, Date, Status만)
         initial_ds = kwargs.get("initial_data_source", {})
@@ -58,24 +58,34 @@ class TestCreatePaperDb:
 class TestGetOrCreateDb:
     """get_or_create_db — 환경변수 기반 DB 획득/생성 (D-08)"""
 
-    def test_get_or_create_db_uses_existing(self, monkeypatch):
-        """NOTION_DATABASE_ID 환경변수 있으면 그 값 반환 (D-08)"""
+    def test_get_or_create_db_uses_existing_db_id(self, monkeypatch):
+        """NOTION_PARENT_PAGE_ID 없고 NOTION_DATABASE_ID 있으면 그 값 반환"""
         from notion_client_mod import get_or_create_db
         monkeypatch.setattr(config, "NOTION_DATABASE_ID", "existing-db-id-123")
+        monkeypatch.setattr(config, "NOTION_PARENT_PAGE_ID", None)
 
-        with patch("notion_client_mod.create_paper_db") as mock_create:
-            result = get_or_create_db()
-
+        result = get_or_create_db()
         assert result == "existing-db-id-123"
-        mock_create.assert_not_called()
 
-    def test_get_or_create_db_creates_new(self, monkeypatch):
-        """NOTION_DATABASE_ID 없으면 create_paper_db 호출 (D-08)"""
+    def test_get_or_create_db_finds_monthly(self, monkeypatch):
+        """parent page에서 기존 월별 DB를 찾으면 그 ID 반환"""
         from notion_client_mod import get_or_create_db
         monkeypatch.setattr(config, "NOTION_DATABASE_ID", None)
         monkeypatch.setattr(config, "NOTION_PARENT_PAGE_ID", "parent-page-uuid")
 
-        with patch("notion_client_mod.create_paper_db", return_value="created-db-id") as mock_create:
+        with patch("notion_client_mod._find_monthly_db", return_value="found-db-id"):
+            result = get_or_create_db()
+
+        assert result == "found-db-id"
+
+    def test_get_or_create_db_creates_new(self, monkeypatch):
+        """월별 DB 없으면 create_paper_db 호출"""
+        from notion_client_mod import get_or_create_db
+        monkeypatch.setattr(config, "NOTION_DATABASE_ID", None)
+        monkeypatch.setattr(config, "NOTION_PARENT_PAGE_ID", "parent-page-uuid")
+
+        with patch("notion_client_mod._find_monthly_db", return_value=None), \
+             patch("notion_client_mod.create_paper_db", return_value="created-db-id") as mock_create:
             result = get_or_create_db()
 
         assert result == "created-db-id"
