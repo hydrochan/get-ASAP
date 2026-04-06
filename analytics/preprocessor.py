@@ -30,6 +30,8 @@ ACADEMIC_STOPWORDS = {
     "role", "review", "perspective", "progress", "challenges",
     "opportunities", "future", "overview", "comprehensive",
     "first", "report", "reveals", "revealed", "revealing",
+    # 하이픈 제거 후 남는 잔여 토큰 (co-catalyst → "co", de-novo → "de" 등)
+    "co", "de", "non", "re", "pre", "post", "ex", "multi", "sub",
 }
 
 
