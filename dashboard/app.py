@@ -15,7 +15,9 @@ import matplotlib.pyplot as plt
 import matplotlib
 import seaborn as sns
 from wordcloud import WordCloud
+from streamlit_google_auth import Authenticate
 
+import config
 from analytics.notion_fetcher import fetch_papers
 from analytics.preprocessor import extract_keywords, extract_keywords_by_month
 from analytics.analyzer import (
@@ -33,8 +35,32 @@ matplotlib.rcParams["font.family"] = "Malgun Gothic"
 matplotlib.rcParams["axes.unicode_minus"] = False
 
 st.set_page_config(page_title="get-ASAP Analytics", layout="wide")
-st.title("get-ASAP 논문 분석 대시보드")
 
+# --- Google 로그인 인증 ---
+authenticator = Authenticate(
+    secret_credentials_path="credentials.json",
+    cookie_name="get_asap_auth",
+    redirect_uri="http://localhost:8501",  # 배포 시 서버 URL로 변경
+)
+authenticator.check_authenticity()
+
+if not st.session_state.get("connected"):
+    st.title("get-ASAP 논문 분석 대시보드")
+    st.info("Google 로그인이 필요합니다.")
+    authenticator.login()
+    st.stop()
+
+# 허용된 이메일만 통과
+user_email = st.session_state.get("user_info", {}).get("email", "")
+if user_email not in config.DASHBOARD_ALLOWED_EMAILS:
+    st.error(f"접근 권한이 없습니다: {user_email}")
+    authenticator.logout()
+    st.stop()
+
+st.title("get-ASAP 논문 분석 대시보드")
+st.sidebar.markdown(f"**{user_email}** 로그인됨")
+if st.sidebar.button("로그아웃"):
+    authenticator.logout()
 
 # --- 사이드바: 기간 선택 + 필터 ---
 st.sidebar.header("설정")
@@ -59,8 +85,8 @@ def load_data(start: str, end: str, _force: bool = False) -> pd.DataFrame:
 
 try:
     df = load_data(start_month, end_month, force_refresh)
-except Exception as e:
-    st.error(f"데이터 로드 실패: {e}")
+except Exception:
+    st.error("데이터 로드에 실패했습니다. 잠시 후 다시 시도해주세요.")
     st.stop()
 
 if df.empty:
@@ -272,8 +298,8 @@ st.header("리포트 다운로드")
 
 if st.button("마크다운 리포트 생성"):
     md = generate_report(filtered, start=start_month, end=end_month)
-    path = save_report(md, start_month, end_month)
-    st.success(f"리포트 저장: {path}")
+    save_report(md, start_month, end_month)
+    st.success("리포트가 생성되었습니다.")
     st.download_button(
         label="리포트 다운로드 (.md)",
         data=md,

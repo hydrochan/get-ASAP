@@ -20,3 +20,8 @@ NOTION_PARENT_PAGE_ID = os.getenv("NOTION_PARENT_PAGE_ID")
 
 # 실행 설정
 CHECK_INTERVAL_HOURS = int(os.getenv("CHECK_INTERVAL_HOURS", "6"))
+
+# 대시보드 설정
+DASHBOARD_ALLOWED_EMAILS = [
+    e.strip() for e in os.getenv("DASHBOARD_ALLOWED_EMAILS", "").split(",") if e.strip()
+]
