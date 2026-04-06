@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>get-ASAP Analytics</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Manrope', 'sans-serif'] },
+          colors: {
+            navy: { 900: '#001B44', 800: '#002F6C', 700: '#003D8F', 600: '#1A56A8' },
+            slate: { 50: '#F8F9FA', 100: '#F3F4F5', 200: '#E5E7EB', 300: '#D1D5DB', 400: '#9CA3AF', 500: '#6B7280' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #F3F4F5; }
+    .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+    .kpi-card { border-left: 4px solid #002F6C; }
+    .chart-container { position: relative; width: 100%; }
+    /* 로그인 배경 */
+    .login-bg { background: linear-gradient(135deg, #001B44 0%, #002F6C 50%, #003D8F 100%); }
+    /* 스크롤바 */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+  </style>
+</head>
+<body class="font-sans text-gray-800 min-h-screen">
+
+  <!-- ========== 로그인 화면 ========== -->
+  <div id="login-screen" class="login-bg min-h-screen flex items-center justify-center">
+    <div class="card p-10 w-full max-w-sm text-center">
+      <div class="mb-6">
+        <h1 class="text-2xl font-black text-navy-900 tracking-tight">get-ASAP</h1>
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mt-1">Paper Analytics Dashboard</p>
+      </div>
+      <form id="login-form" class="space-y-4">
+        <input id="login-user" type="text" placeholder="Username"
+          class="w-full px-4 py-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 focus:border-transparent" autocomplete="username">
+        <input id="login-pass" type="password" placeholder="Password"
+          class="w-full px-4 py-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 focus:border-transparent" autocomplete="current-password">
+        <button type="submit"
+          class="w-full py-3 bg-gradient-to-r from-navy-900 to-navy-800 text-white font-bold rounded-lg text-sm tracking-wide hover:shadow-lg transition-shadow">
+          Sign In
+        </button>
+        <p id="login-error" class="text-red-500 text-xs font-semibold hidden">Invalid credentials</p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========== 대시보드 ========== -->
+  <div id="dashboard" class="hidden">
+    <!-- 상단 헤더 -->
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-black text-navy-900 tracking-tight">get-ASAP Analytics</h1>
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">Paper Trend Dashboard</p>
+      </div>
+      <div class="flex items-center gap-4">
+        <select id="month-range" class="text-xs font-semibold border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-800">
+          <option value="1">Last 1 month</option>
+          <option value="3" selected>Last 3 months</option>
+          <option value="6">Last 6 months</option>
+          <option value="12">Last 12 months</option>
+        </select>
+        <button id="refresh-btn" class="px-4 py-2 bg-gradient-to-r from-navy-900 to-navy-800 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">
+          Refresh
+        </button>
+        <button id="logout-btn" class="text-xs font-semibold text-slate-400 hover:text-red-500 transition-colors">
+          Logout
+        </button>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 py-6 space-y-6">
+      <!-- KPI 카드 -->
+      <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="card kpi-card p-5">
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Total Papers</p>
+          <p id="kpi-total" class="text-2xl font-black text-navy-900 mt-1">—</p>
+        </div>
+        <div class="card kpi-card p-5">
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Journals</p>
+          <p id="kpi-journals" class="text-2xl font-black text-navy-900 mt-1">—</p>
+        </div>
+        <div class="card kpi-card p-5">
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">This Month</p>
+          <p id="kpi-month" class="text-2xl font-black text-navy-900 mt-1">—</p>
+        </div>
+        <div class="card kpi-card p-5">
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Daily Average</p>
+          <p id="kpi-daily" class="text-2xl font-black text-navy-900 mt-1">—</p>
+        </div>
+      </section>
+
+      <!-- 차트 2열 -->
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- 키워드 트렌드 -->
+        <div class="card p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Keyword Trends</h2>
+            <select id="kw-top-n" class="text-xs border border-slate-200 rounded px-2 py-1">
+              <option value="5">Top 5</option>
+              <option value="10" selected>Top 10</option>
+              <option value="15">Top 15</option>
+            </select>
+          </div>
+          <div class="chart-container" style="height:320px">
+            <canvas id="chart-keyword"></canvas>
+          </div>
+        </div>
+
+        <!-- 저널 빈도 -->
+        <div class="card p-6">
+          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Journal Frequency</h2>
+          <div class="chart-container" style="height:320px">
+            <canvas id="chart-journal"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- 저널 × 키워드 히트맵 -->
+      <section class="card p-6">
+        <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Journal &times; Keyword Matrix</h2>
+        <div id="heatmap-container" class="overflow-x-auto">
+          <table id="heatmap-table" class="text-xs w-full"></table>
+        </div>
+      </section>
+
+      <!-- 일별 트렌드 + 저널별 월별 -->
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card p-6">
+          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Daily Paper Count</h2>
+          <div class="chart-container" style="height:280px">
+            <canvas id="chart-daily"></canvas>
+          </div>
+        </div>
+        <div class="card p-6">
+          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Top Journals Monthly</h2>
+          <div class="chart-container" style="height:280px">
+            <canvas id="chart-journal-monthly"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- 논문 목록 -->
+      <section class="card p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Recent Papers</h2>
+          <input id="paper-search" type="text" placeholder="Search titles..."
+            class="text-xs border border-slate-200 rounded-lg px-3 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-navy-800">
+        </div>
+        <div class="overflow-x-auto max-h-96 overflow-y-auto">
+          <table class="w-full text-xs">
+            <thead class="sticky top-0 bg-slate-50">
+              <tr class="text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <th class="px-3 py-2">Date</th>
+                <th class="px-3 py-2">Journal</th>
+                <th class="px-3 py-2">Title</th>
+                <th class="px-3 py-2">Status</th>
+              </tr>
+            </thead>
+            <tbody id="paper-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer class="text-center text-[10px] text-slate-400 py-4">
+      get-ASAP &copy; 2026 &mdash; Built for catalysis &amp; energy research
+    </footer>
+  </div>
+
+  <!-- ========== JS ========== -->
+  <script>
+  (function() {
+    'use strict';
+
+    // ---------- 상수 ----------
+    const ACADEMIC_STOPWORDS = new Set([
+      'study','using','based','effect','effects','analysis','new','novel','high',
+      'performance','enhanced','efficient','properties','via','towards','toward',
+      'approach','method','methods','two','one','three','first','role','low',
+      'improved','recent','large','small','different','various','general',
+      'selective','driven','induced','mediated','assisted','controlled','strategy',
+      'highly','simple','facile','rapid','direct','green','review','advances',
+      'progress','perspective','insight','insights','investigation','evaluation',
+      'design','development','application','applications','preparation','synthesis',
+      'characterization','fabrication','co','de','non','re','pre','post','ex',
+      'multi','sub','use','used','paper','research','results','show','data',
+      'system','systems','type','model','total','state','process','part','case',
+      'well','also','however','within','without','like','since','still','found',
+      'made','good','many','much','even','just','may','can','able'
+    ]);
+
+    const CHART_COLORS = [
+      '#002F6C','#1A56A8','#2E7DD1','#5BA3E6','#8BC4F0',
+      '#D4A03C','#E8B960','#F0D08A','#059669','#10B981',
+      '#EF4444','#8B5CF6','#EC4899','#F59E0B','#6366F1'
+    ];
+
+    let allPapers = [];
+    let charts = {};
+
+    // ---------- 인증 ----------
+    const loginForm = document.getElementById('login-form');
+    const loginScreen = document.getElementById('login-screen');
+    const dashboard = document.getElementById('dashboard');
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const user = document.getElementById('login-user').value;
+      const pass = document.getElementById('login-pass').value;
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: user, password: pass })
+        });
+        if (res.ok) {
+          loginScreen.classList.add('hidden');
+          dashboard.classList.remove('hidden');
+          loadData();
+        } else {
+          document.getElementById('login-error').classList.remove('hidden');
+        }
+      } catch {
+        document.getElementById('login-error').classList.remove('hidden');
+      }
+    });
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      await fetch('/api/logout', { method: 'POST' });
+      dashboard.classList.add('hidden');
+      loginScreen.classList.remove('hidden');
+      document.getElementById('login-pass').value = '';
+    });
+
+    // ---------- 데이터 로드 ----------
+    async function loadData() {
+      const months = parseInt(document.getElementById('month-range').value);
+      const monthList = getMonthRange(months);
+
+      const frames = [];
+      for (const m of monthList) {
+        try {
+          const res = await fetch(`/api/csv/${m}`);
+          if (!res.ok) continue;
+          const text = await res.text();
+          const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+          frames.push(...parsed.data);
+        } catch { /* 해당 월 CSV 없음 */ }
+      }
+
+      allPapers = frames.filter(r => r.title && r.title.trim());
+      renderAll();
+    }
+
+    function getMonthRange(n) {
+      const months = [];
+      const now = new Date();
+      for (let i = 0; i < n; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+      }
+      return months;
+    }
+
+    document.getElementById('month-range').addEventListener('change', loadData);
+    document.getElementById('refresh-btn').addEventListener('click', loadData);
+    document.getElementById('kw-top-n').addEventListener('change', () => renderKeywordChart());
+
+    // ---------- 렌더링 ----------
+    function renderAll() {
+      renderKPIs();
+      renderKeywordChart();
+      renderJournalChart();
+      renderDailyChart();
+      renderJournalMonthlyChart();
+      renderHeatmap();
+      renderPaperTable();
+    }
+
+    // KPI
+    function renderKPIs() {
+      const total = allPapers.length;
+      const journals = new Set(allPapers.map(p => p.journal).filter(Boolean));
+      const now = new Date();
+      const curMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+      const thisMonth = allPapers.filter(p => (p.date||'').startsWith(curMonth)).length;
+
+      // 일평균: 전체 기간 기준
+      const dates = allPapers.map(p => p.date).filter(Boolean).sort();
+      let daily = 0;
+      if (dates.length > 1) {
+        const first = new Date(dates[0]);
+        const last = new Date(dates[dates.length-1]);
+        const days = Math.max(1, (last - first) / 86400000 + 1);
+        daily = (total / days).toFixed(1);
+      }
+
+      document.getElementById('kpi-total').textContent = total.toLocaleString();
+      document.getElementById('kpi-journals').textContent = journals.size;
+      document.getElementById('kpi-month').textContent = thisMonth.toLocaleString();
+      document.getElementById('kpi-daily').textContent = daily || '—';
+    }
+
+    // 키워드 추출 (간이 TF 방식)
+    function extractKeywords(papers) {
+      const freq = {};
+      for (const p of papers) {
+        const tokens = tokenize(p.title || '');
+        const unique = [...new Set(tokens)]; // 문서당 1회만 카운트
+        for (const t of unique) {
+          freq[t] = (freq[t] || 0) + 1;
+        }
+      }
+      return freq;
+    }
+
+    function tokenize(title) {
+      return title.toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/-/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length > 2 && !ACADEMIC_STOPWORDS.has(w));
+    }
+
+    // 키워드 트렌드 차트
+    function renderKeywordChart() {
+      const topN = parseInt(document.getElementById('kw-top-n').value);
+      // 전체 키워드 빈도로 Top N 선정
+      const globalFreq = extractKeywords(allPapers);
+      const topKws = Object.entries(globalFreq)
+        .sort((a,b) => b[1] - a[1])
+        .slice(0, topN)
+        .map(e => e[0]);
+
+      // 월별 그룹핑
+      const monthMap = {};
+      for (const p of allPapers) {
+        const m = (p.date||'').slice(0,7);
+        if (!m) continue;
+        if (!monthMap[m]) monthMap[m] = [];
+        monthMap[m].push(p);
+      }
+      const months = Object.keys(monthMap).sort();
+
+      const datasets = topKws.map((kw, i) => ({
+        label: kw,
+        data: months.map(m => {
+          const freq = extractKeywords(monthMap[m]);
+          return freq[kw] || 0;
+        }),
+        borderColor: CHART_COLORS[i % CHART_COLORS.length],
+        backgroundColor: CHART_COLORS[i % CHART_COLORS.length] + '20',
+        tension: 0.3,
+        borderWidth: 2,
+        pointRadius: 3,
+      }));
+
+      if (charts.keyword) charts.keyword.destroy();
+      charts.keyword = new Chart(document.getElementById('chart-keyword'), {
+        type: 'line',
+        data: { labels: months, datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { font: { size: 10, family: 'Manrope' }, boxWidth: 12 } }
+          },
+          scales: {
+            x: { ticks: { font: { size: 10 } } },
+            y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    // 저널 빈도 차트
+    function renderJournalChart() {
+      const freq = {};
+      for (const p of allPapers) {
+        if (p.journal) freq[p.journal] = (freq[p.journal]||0) + 1;
+      }
+      const sorted = Object.entries(freq).sort((a,b) => b[1]-a[1]).slice(0, 15);
+
+      if (charts.journal) charts.journal.destroy();
+      charts.journal = new Chart(document.getElementById('chart-journal'), {
+        type: 'bar',
+        data: {
+          labels: sorted.map(e => e[0].length > 25 ? e[0].slice(0,22)+'...' : e[0]),
+          datasets: [{
+            data: sorted.map(e => e[1]),
+            backgroundColor: '#002F6C',
+            borderRadius: 4,
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { beginAtZero: true, ticks: { font: { size: 10 } } },
+            y: { ticks: { font: { size: 10, family: 'Manrope' } } }
+          }
+        }
+      });
+    }
+
+    // 일별 논문 수
+    function renderDailyChart() {
+      const freq = {};
+      for (const p of allPapers) {
+        const d = (p.date||'').slice(0,10);
+        if (d) freq[d] = (freq[d]||0) + 1;
+      }
+      const dates = Object.keys(freq).sort();
+
+      if (charts.daily) charts.daily.destroy();
+      charts.daily = new Chart(document.getElementById('chart-daily'), {
+        type: 'bar',
+        data: {
+          labels: dates.map(d => d.slice(5)), // MM-DD
+          datasets: [{
+            data: dates.map(d => freq[d]),
+            backgroundColor: '#1A56A8',
+            borderRadius: 2,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { font: { size: 9 }, maxRotation: 45 } },
+            y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    // Top 저널 월별 추이
+    function renderJournalMonthlyChart() {
+      const freq = {};
+      for (const p of allPapers) {
+        if (p.journal) freq[p.journal] = (freq[p.journal]||0) + 1;
+      }
+      const topJournals = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,5).map(e=>e[0]);
+
+      const monthMap = {};
+      for (const p of allPapers) {
+        const m = (p.date||'').slice(0,7);
+        if (!m || !p.journal) continue;
+        if (!monthMap[m]) monthMap[m] = {};
+        monthMap[m][p.journal] = (monthMap[m][p.journal]||0) + 1;
+      }
+      const months = Object.keys(monthMap).sort();
+
+      const datasets = topJournals.map((j, i) => ({
+        label: j.length > 20 ? j.slice(0,18)+'...' : j,
+        data: months.map(m => monthMap[m]?.[j] || 0),
+        borderColor: CHART_COLORS[i],
+        tension: 0.3,
+        borderWidth: 2,
+        pointRadius: 3,
+      }));
+
+      if (charts.journalMonthly) charts.journalMonthly.destroy();
+      charts.journalMonthly = new Chart(document.getElementById('chart-journal-monthly'), {
+        type: 'line',
+        data: { labels: months, datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { font: { size: 9, family: 'Manrope' }, boxWidth: 10 } }
+          },
+          scales: {
+            x: { ticks: { font: { size: 10 } } },
+            y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    // 히트맵 테이블
+    function renderHeatmap() {
+      const journalFreq = {};
+      for (const p of allPapers) {
+        if (p.journal) journalFreq[p.journal] = (journalFreq[p.journal]||0)+1;
+      }
+      const topJournals = Object.entries(journalFreq).sort((a,b)=>b[1]-a[1]).slice(0,10).map(e=>e[0]);
+      const globalKw = extractKeywords(allPapers);
+      const topKws = Object.entries(globalKw).sort((a,b)=>b[1]-a[1]).slice(0,10).map(e=>e[0]);
+
+      // 저널별 키워드 빈도 계산
+      const matrix = {};
+      let maxVal = 1;
+      for (const j of topJournals) {
+        matrix[j] = {};
+        const jPapers = allPapers.filter(p => p.journal === j);
+        const kwFreq = extractKeywords(jPapers);
+        for (const kw of topKws) {
+          const v = kwFreq[kw] || 0;
+          matrix[j][kw] = v;
+          if (v > maxVal) maxVal = v;
+        }
+      }
+
+      // 테이블 렌더링
+      let html = '<thead><tr><th class="px-2 py-2 text-left text-slate-400 font-bold sticky left-0 bg-white"></th>';
+      for (const kw of topKws) {
+        html += `<th class="px-2 py-2 text-center font-bold text-slate-500" style="writing-mode:vertical-lr;transform:rotate(180deg);min-width:36px">${kw}</th>`;
+      }
+      html += '</tr></thead><tbody>';
+
+      for (const j of topJournals) {
+        html += `<tr><td class="px-2 py-1.5 font-semibold text-navy-900 whitespace-nowrap sticky left-0 bg-white">${j.length > 30 ? j.slice(0,28)+'..' : j}</td>`;
+        for (const kw of topKws) {
+          const v = matrix[j][kw];
+          const intensity = v / maxVal;
+          const bg = v === 0 ? '#F8F9FA' : `rgba(0,47,108,${0.1 + intensity * 0.8})`;
+          const textColor = intensity > 0.5 ? 'white' : '#001B44';
+          html += `<td class="px-2 py-1.5 text-center font-semibold" style="background:${bg};color:${textColor}">${v || ''}</td>`;
+        }
+        html += '</tr>';
+      }
+      html += '</tbody>';
+      document.getElementById('heatmap-table').innerHTML = html;
+    }
+
+    // 논문 목록
+    function renderPaperTable(filter='') {
+      const tbody = document.getElementById('paper-tbody');
+      const filtered = filter
+        ? allPapers.filter(p => (p.title||'').toLowerCase().includes(filter.toLowerCase()))
+        : allPapers;
+
+      // 날짜 역순 정렬
+      const sorted = [...filtered].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+      const display = sorted.slice(0, 200); // 최대 200건
+
+      const statusColor = { '대기중': 'bg-yellow-100 text-yellow-700', '읽음': 'bg-green-100 text-green-700', '관심': 'bg-blue-100 text-blue-700', '스킵': 'bg-gray-100 text-gray-500' };
+
+      tbody.innerHTML = display.map(p => `
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-3 py-2 whitespace-nowrap text-slate-500">${(p.date||'').slice(0,10)}</td>
+          <td class="px-3 py-2 whitespace-nowrap font-semibold text-navy-800">${p.journal||''}</td>
+          <td class="px-3 py-2">
+            ${p.url ? `<a href="${p.url}" target="_blank" class="text-navy-700 hover:underline">${p.title||''}</a>` : (p.title||'')}
+          </td>
+          <td class="px-3 py-2 whitespace-nowrap">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${statusColor[p.status]||'bg-gray-100 text-gray-500'}">${p.status||''}</span>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    document.getElementById('paper-search').addEventListener('input', (e) => {
+      renderPaperTable(e.target.value);
+    });
+
+    // ---------- 세션 체크 (자동 로그인) ----------
+    (async function checkSession() {
+      try {
+        const res = await fetch('/api/session');
+        if (res.ok) {
+          loginScreen.classList.add('hidden');
+          dashboard.classList.remove('hidden');
+          loadData();
+        }
+      } catch {}
+    })();
+
+  })();
+  </script>
+</body>
+</html>

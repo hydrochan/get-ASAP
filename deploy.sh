@@ -78,6 +78,11 @@ echo "--- 드라이런 (Notion 저장 없이 파싱 결과만 확인) ---"
 echo "  ${SCRIPT_DIR}/.venv/bin/python main.py --dry-run --verbose"
 
 echo ""
+echo "--- 대시보드 서버 실행 ---"
+echo "  ${SCRIPT_DIR}/.venv/bin/python ${SCRIPT_DIR}/dashboard/server.py --port 8501"
+echo "  (백그라운드: nohup ... &)"
+
+echo ""
 echo "--- crontab 설정 (매 6시간 자동 실행, per D-04, D-05) ---"
 echo "  crontab -e 로 편집기를 열고 아래 줄을 추가하세요:"
 echo "  0 */6 * * * cd ${SCRIPT_DIR} && ${SCRIPT_DIR}/.venv/bin/python main.py >> ${SCRIPT_DIR}/logs/cron.log 2>&1"
