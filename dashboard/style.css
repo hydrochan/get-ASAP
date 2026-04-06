@@ -1,0 +1,132 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
+/* 전역 폰트 */
+html, body, [class*="css"] {
+    font-family: 'Manrope', -apple-system, sans-serif;
+}
+
+/* 메인 컨테이너 */
+.main .block-container {
+    padding: 2rem 2.5rem;
+    max-width: 1300px;
+    background: #F3F4F5;
+}
+
+/* 사이드바 */
+section[data-testid="stSidebar"] {
+    background: #F8F9FA;
+}
+section[data-testid="stSidebar"] [data-testid="stMarkdown"] h2 {
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #9CA3AF;
+}
+
+/* KPI 카드 */
+div[data-testid="stMetric"] {
+    background: #FFFFFF;
+    border-radius: 4px;
+    padding: 20px 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    border-left: 4px solid #002F6C;
+}
+div[data-testid="stMetric"] label {
+    color: #9CA3AF !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+    color: #001B44 !important;
+    font-size: 1.6rem !important;
+    font-weight: 900 !important;
+}
+div[data-testid="stMetric"] [data-testid="stMetricDelta"] {
+    color: #059669 !important;
+    font-weight: 700 !important;
+}
+
+/* Plotly 차트 카드 */
+div[data-testid="stPlotlyChart"] {
+    background: #FFFFFF;
+    border-radius: 4px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+/* Expander */
+div[data-testid="stExpander"] {
+    background: #FFFFFF;
+    border: none;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+div[data-testid="stExpander"] summary span {
+    font-size: 13px;
+    font-weight: 700;
+    color: #001B44;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* 섹션 헤더 */
+.sec-head {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #001B44;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 2.5rem 0 1rem;
+}
+
+/* 대시보드 헤더 */
+.dash-h h1 {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: #001B44;
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+.dash-h p {
+    font-size: 12px;
+    font-weight: 500;
+    color: #4A607D;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-top: 4px;
+}
+
+/* 버튼 */
+.stButton > button {
+    background: linear-gradient(135deg, #001B44, #002F6C) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 4px !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    letter-spacing: 0.02em !important;
+    box-shadow: 0 4px 12px rgba(0,27,68,0.1) !important;
+}
+.stButton > button:hover {
+    box-shadow: 0 6px 20px rgba(0,27,68,0.2) !important;
+}
+
+/* 데이터프레임 */
+div[data-testid="stDataFrame"] {
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+/* 슬라이더 */
+div[data-testid="stSlider"] label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #9CA3AF;
+}

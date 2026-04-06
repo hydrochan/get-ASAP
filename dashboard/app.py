@@ -43,60 +43,10 @@ st.set_page_config(
     layout="wide",
 )
 
-st.markdown("""
-<style>
-    /* KPI 카드 스타일 */
-    div[data-testid="stMetric"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 16px 20px;
-        border-radius: 12px;
-        color: white;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-    }
-    div[data-testid="stMetric"] label {
-        color: rgba(255,255,255,0.8) !important;
-        font-size: 0.85rem !important;
-    }
-    div[data-testid="stMetric"] [data-testid="stMetricValue"] {
-        color: white !important;
-        font-size: 1.8rem !important;
-        font-weight: 700 !important;
-    }
-    div[data-testid="stMetric"] [data-testid="stMetricDelta"] {
-        color: rgba(255,255,255,0.9) !important;
-    }
-
-    /* 섹션 구분선 */
-    .section-divider {
-        border: none;
-        height: 1px;
-        background: linear-gradient(to right, transparent, #e0e0e0, transparent);
-        margin: 2rem 0;
-    }
-
-    /* 섹션 헤더 */
-    .section-header {
-        font-size: 1.3rem;
-        font-weight: 600;
-        color: #1a1a2e;
-        margin-bottom: 0.5rem;
-        padding-left: 4px;
-        border-left: 4px solid #667eea;
-        padding-left: 12px;
-    }
-
-    /* 사이드바 스타일 */
-    section[data-testid="stSidebar"] {
-        background: #f8f9fc;
-    }
-
-    /* 전체 배경 */
-    .main .block-container {
-        padding-top: 2rem;
-        max-width: 1200px;
-    }
-</style>
-""", unsafe_allow_html=True)
+# CSS 파일에서 스타일 로드
+_css_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "style.css")
+with open(_css_path, encoding="utf-8") as _f:
+    st.markdown(f"<style>{_f.read()}</style>", unsafe_allow_html=True)
 
 # --- 비밀번호 인증 ---
 MAX_LOGIN_ATTEMPTS = 5
@@ -217,8 +167,8 @@ st.sidebar.markdown(f"**{len(filtered)}건** / 전체 {len(df)}건")
 # ======================================================
 
 # --- 헤더 ---
-st.markdown("## 📊 get-ASAP Analytics")
-st.caption(f"{start_month} ~ {end_month} | {len(filtered)}건 분석 중")
+st.markdown('<div class="dash-h"><h1>Dashboard</h1>'
+            f'<p>Period: {start_month} — {end_month}</p></div>', unsafe_allow_html=True)
 
 # --- KPI 스트립 ---
 interest_count = len(filtered[filtered["status"] != "대기중"])
@@ -234,8 +184,8 @@ k4.metric("AI 관심", f"{interest_count}건", f"{interest_count/total_count*100
 
 
 # --- 섹션 1: 키워드 트렌드 ---
-st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
-st.markdown('<p class="section-header">키워드 트렌드</p>', unsafe_allow_html=True)
+st.markdown('<hr>', unsafe_allow_html=True)
+st.markdown('<p class="sec-head">키워드 트렌드</p>', unsafe_allow_html=True)
 
 col_chart, col_cloud = st.columns([2, 1])
 
@@ -268,7 +218,7 @@ with col_cloud:
         wc = WordCloud(
             width=600, height=400,
             background_color="white",
-            colormap="cool",
+            color_func=lambda *a, **kw: "#002F6C",
             prefer_horizontal=0.7,
             max_words=40,
         ).generate_from_frequencies(word_freq)
@@ -293,8 +243,8 @@ with st.expander("Top 20 키워드 상세 보기"):
 
 
 # --- 섹션 2: 저널 × 키워드 + 저널 통계 ---
-st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
-st.markdown('<p class="section-header">저널 분석</p>', unsafe_allow_html=True)
+st.markdown('<hr>', unsafe_allow_html=True)
+st.markdown('<p class="sec-head">저널 분석</p>', unsafe_allow_html=True)
 
 col_heat, col_freq = st.columns([3, 2])
 
@@ -306,7 +256,7 @@ with col_heat:
         fig = px.imshow(
             ct_df,
             aspect="auto",
-            color_continuous_scale="YlOrRd",
+            color_continuous_scale=[[0, "#F3F4F5"], [0.5, "#AEC6FF"], [1, "#001B44"]],
             labels=dict(x="키워드", y="저널", color="빈도"),
         )
         fig.update_layout(
@@ -326,7 +276,7 @@ with col_freq:
             orientation="h",
             labels={"x": "논문 수", "y": ""},
             color=freq.values,
-            color_continuous_scale="Blues",
+            color_continuous_scale=[[0, "#AEC6FF"], [1, "#002F6C"]],
         )
         fig.update_layout(
             height=max(400, len(freq) * 28),
@@ -353,7 +303,7 @@ with st.expander("키워드로 저널 검색"):
             fig = px.bar(
                 x=rank.values, y=rank.index, orientation="h",
                 labels={"x": "논문 수", "y": ""},
-                color=rank.values, color_continuous_scale="Purples",
+                color=rank.values, color_continuous_scale=[[0, "#AEC6FF"], [1, "#002F6C"]],
             )
             fig.update_layout(
                 height=max(250, len(rank) * 25),
@@ -368,8 +318,8 @@ with st.expander("키워드로 저널 검색"):
 
 
 # --- 섹션 3: AI 관심 분석 ---
-st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
-st.markdown('<p class="section-header">AI 관심 논문 분석</p>', unsafe_allow_html=True)
+st.markdown('<hr>', unsafe_allow_html=True)
+st.markdown('<p class="sec-head">AI 관심 논문 분석</p>', unsafe_allow_html=True)
 
 col_ratio, col_compare = st.columns([3, 2])
 
@@ -382,7 +332,7 @@ with col_ratio:
             x="ratio", y="journal", orientation="h",
             labels={"ratio": "관심 비율", "journal": ""},
             color="ratio",
-            color_continuous_scale="Viridis",
+            color_continuous_scale=[[0, "#AEC6FF"], [1, "#002F6C"]],
             text=top_ratio["ratio"].apply(lambda x: f"{x:.0%}"),
         )
         fig.update_layout(
@@ -417,8 +367,8 @@ with col_compare:
 
 
 # --- 섹션 4: 월별 트렌드 ---
-st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
-st.markdown('<p class="section-header">월별 활동</p>', unsafe_allow_html=True)
+st.markdown('<hr>', unsafe_allow_html=True)
+st.markdown('<p class="sec-head">월별 활동</p>', unsafe_allow_html=True)
 
 monthly = journal_monthly_frequency(filtered)
 if not monthly.empty:
@@ -434,8 +384,8 @@ if not monthly.empty:
     )
     fig.update_traces(
         fill="tozeroy",
-        line_color="#667eea",
-        fillcolor="rgba(102,126,234,0.15)",
+        line_color="#002F6C",
+        fillcolor="rgba(0,47,108,0.08)",
     )
     st.plotly_chart(fig, use_container_width=True)
 
@@ -444,7 +394,7 @@ if not monthly.empty:
 
 
 # --- 리포트 다운로드 ---
-st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+st.markdown('<hr>', unsafe_allow_html=True)
 col_dl, _ = st.columns([1, 3])
 with col_dl:
     if st.button("📄 리포트 생성 및 다운로드", use_container_width=True):
