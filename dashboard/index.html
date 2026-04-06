@@ -129,11 +129,18 @@
         <div class="card p-6 lg:col-span-2">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Keyword Trends</h2>
-            <select id="kw-top-n" class="text-xs border border-slate-200 rounded px-2 py-1">
-              <option value="5">Top 5</option>
-              <option value="10" selected>Top 10</option>
-              <option value="15">Top 15</option>
-            </select>
+            <div class="flex items-center gap-2">
+              <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
+                <button id="ngram-1" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setNgramMode(1)">Unigram</button>
+                <button id="ngram-2" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setNgramMode(2)">Bigram</button>
+                <button id="ngram-both" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setNgramMode(0)">Both</button>
+              </div>
+              <select id="kw-top-n" class="text-xs border border-slate-200 rounded px-2 py-1">
+                <option value="5">Top 5</option>
+                <option value="10" selected>Top 10</option>
+                <option value="15">Top 15</option>
+              </select>
+            </div>
           </div>
           <div class="chart-container" style="height:320px">
             <canvas id="chart-keyword"></canvas>
@@ -146,10 +153,19 @@
         </div>
       </section>
 
-      <!-- Top 키워드 테이블 -->
+      <!-- Top 키워드 테이블 (유니그램 + 바이그램) -->
       <section class="card p-6">
         <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Top 20 Keywords</h2>
-        <div id="kw-table-container" class="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-1 text-xs"></div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Unigrams (Single Words)</h3>
+            <div id="kw-table-unigram" class="grid grid-cols-2 gap-x-6 gap-y-1 text-xs"></div>
+          </div>
+          <div>
+            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Bigrams (Two-Word Phrases)</h3>
+            <div id="kw-table-bigram" class="grid grid-cols-2 gap-x-6 gap-y-1 text-xs"></div>
+          </div>
+        </div>
       </section>
 
       <!-- 저널 빈도 + 저널별 월별 -->
@@ -297,6 +313,7 @@
     let filteredPapers = [];  // 저널 필터 적용된 데이터
     let selectedJournals = new Set(); // 선택된 저널
     let allJournalsMode = true;       // "All" 모드
+    let ngramMode = 1;               // 1=unigram, 2=bigram, 0=both
     let charts = {};
 
     // ---------- 인증 ----------
@@ -469,19 +486,7 @@
       document.getElementById('kpi-topkw').textContent = topKwName;
     }
 
-    // 키워드 추출 (문서 빈도 방식)
-    function extractKeywords(papers) {
-      const freq = {};
-      for (const p of papers) {
-        const tokens = tokenize(p.title || '');
-        const unique = [...new Set(tokens)];
-        for (const t of unique) {
-          freq[t] = (freq[t] || 0) + 1;
-        }
-      }
-      return freq;
-    }
-
+    // 토큰화 (불용어 제거)
     function tokenize(title) {
       return title.toLowerCase()
         .replace(/[^a-z0-9\s-]/g, '')
@@ -490,10 +495,67 @@
         .filter(w => w.length > 2 && !ACADEMIC_STOPWORDS.has(w));
     }
 
+    // 유니그램 키워드 추출 (문서 빈도 방식)
+    function extractKeywords(papers) {
+      const freq = {};
+      for (const p of papers) {
+        const tokens = tokenize(p.title || '');
+        const unique = [...new Set(tokens)];
+        for (const t of unique) { freq[t] = (freq[t] || 0) + 1; }
+      }
+      return freq;
+    }
+
+    // 바이그램 키워드 추출
+    function extractBigrams(papers) {
+      const freq = {};
+      for (const p of papers) {
+        const tokens = tokenize(p.title || '');
+        const bigrams = new Set();
+        for (let i = 0; i < tokens.length - 1; i++) {
+          bigrams.add(`${tokens[i]} ${tokens[i+1]}`);
+        }
+        for (const bg of bigrams) { freq[bg] = (freq[bg] || 0) + 1; }
+      }
+      // 최소 2회 이상 등장한 바이그램만
+      const filtered = {};
+      for (const [k, v] of Object.entries(freq)) {
+        if (v >= 2) filtered[k] = v;
+      }
+      return filtered;
+    }
+
+    // ngram 모드에 따라 키워드 반환
+    function getKeywordsForMode(papers) {
+      if (ngramMode === 1) return extractKeywords(papers);
+      if (ngramMode === 2) return extractBigrams(papers);
+      // both: 합치기
+      const uni = extractKeywords(papers);
+      const bi = extractBigrams(papers);
+      return { ...uni, ...bi };
+    }
+
+    // ngram 모드 전환
+    window.setNgramMode = function(mode) {
+      ngramMode = mode;
+      // 버튼 스타일 업데이트
+      ['ngram-1','ngram-2','ngram-both'].forEach(id => {
+        const btn = document.getElementById(id);
+        const isActive = (id === 'ngram-1' && mode === 1) || (id === 'ngram-2' && mode === 2) || (id === 'ngram-both' && mode === 0);
+        btn.className = isActive
+          ? 'px-2.5 py-1 bg-navy-800 text-white'
+          : 'px-2.5 py-1 text-slate-500 hover:bg-slate-50';
+      });
+      renderKeywordChart();
+      renderWordCloud();
+      renderKeywordTable();
+      renderHeatmap();
+    };
+
     // 키워드 트렌드
     function renderKeywordChart() {
       const topN = parseInt(document.getElementById('kw-top-n').value);
-      const globalFreq = extractKeywords(filteredPapers);
+      const globalFreq = getKeywordsForMode(filteredPapers);
       const topKws = Object.entries(globalFreq).sort((a,b)=>b[1]-a[1]).slice(0,topN).map(e=>e[0]);
 
       const monthMap = {};
@@ -507,7 +569,7 @@
 
       const datasets = topKws.map((kw, i) => ({
         label: kw,
-        data: months.map(m => { const f = extractKeywords(monthMap[m]); return f[kw]||0; }),
+        data: months.map(m => { const f = getKeywordsForMode(monthMap[m]); return f[kw]||0; }),
         borderColor: CHART_COLORS[i % CHART_COLORS.length],
         backgroundColor: CHART_COLORS[i % CHART_COLORS.length] + '20',
         tension: 0.3, borderWidth: 2, pointRadius: 3,
@@ -531,7 +593,7 @@
     // 워드클라우드
     function renderWordCloud() {
       const canvas = document.getElementById('wordcloud-canvas');
-      const freq = extractKeywords(filteredPapers);
+      const freq = getKeywordsForMode(filteredPapers);
       const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0, 50);
       if (!sorted.length) return;
 
@@ -559,17 +621,19 @@
       } catch {}
     }
 
-    // Top 키워드 테이블
+    // Top 키워드 테이블 (유니그램 + 바이그램)
     function renderKeywordTable() {
-      const freq = extractKeywords(filteredPapers);
-      const top20 = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0, 20);
-      const container = document.getElementById('kw-table-container');
-      container.innerHTML = top20.map(([kw, count], i) =>
-        `<div class="flex justify-between py-0.5 ${i < 3 ? 'font-bold text-navy-900' : 'text-slate-600'}">
-          <span><span class="text-slate-400 mr-1">${i+1}.</span>${kw}</span>
-          <span class="text-slate-400">${count}</span>
-        </div>`
-      ).join('');
+      const renderList = (freq, containerId) => {
+        const top20 = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0, 20);
+        document.getElementById(containerId).innerHTML = top20.map(([kw, count], i) =>
+          `<div class="flex justify-between py-0.5 ${i < 3 ? 'font-bold text-navy-900' : 'text-slate-600'}">
+            <span><span class="text-slate-400 mr-1">${i+1}.</span>${kw}</span>
+            <span class="text-slate-400">${count}</span>
+          </div>`
+        ).join('') || '<div class="text-slate-400">No data</div>';
+      };
+      renderList(extractKeywords(filteredPapers), 'kw-table-unigram');
+      renderList(extractBigrams(filteredPapers), 'kw-table-bigram');
     }
 
     // 저널 빈도
@@ -670,7 +734,7 @@
         if (p.journal) journalFreq[p.journal] = (journalFreq[p.journal]||0)+1;
       }
       const topJ = Object.entries(journalFreq).sort((a,b)=>b[1]-a[1]).slice(0,10).map(e=>e[0]);
-      const globalKw = extractKeywords(filteredPapers);
+      const globalKw = getKeywordsForMode(filteredPapers);
       const topKws = Object.entries(globalKw).sort((a,b)=>b[1]-a[1]).slice(0,10).map(e=>e[0]);
 
       const matrix = {};
@@ -678,7 +742,7 @@
       for (const j of topJ) {
         matrix[j] = {};
         const jPapers = filteredPapers.filter(p => p.journal === j);
-        const kwF = extractKeywords(jPapers);
+        const kwF = getKeywordsForMode(jPapers);
         for (const kw of topKws) {
           const v = kwF[kw]||0;
           matrix[j][kw] = v;
