@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import seaborn as sns
 from wordcloud import WordCloud
-from streamlit_google_auth import Authenticate
+import bcrypt
 
 import config
 from analytics.notion_fetcher import fetch_papers
@@ -36,31 +36,42 @@ matplotlib.rcParams["axes.unicode_minus"] = False
 
 st.set_page_config(page_title="get-ASAP Analytics", layout="wide")
 
-# --- Google 로그인 인증 ---
-authenticator = Authenticate(
-    secret_credentials_path="credentials.json",
-    cookie_name="get_asap_auth",
-    redirect_uri="http://localhost:8501",  # 배포 시 서버 URL로 변경
-)
-authenticator.check_authenticity()
+# --- 비밀번호 인증 ---
+def check_password() -> bool:
+    """비밀번호 인증 게이트. 통과하면 True."""
+    if st.session_state.get("authenticated"):
+        return True
 
-if not st.session_state.get("connected"):
     st.title("get-ASAP 논문 분석 대시보드")
-    st.info("Google 로그인이 필요합니다.")
-    authenticator.login()
-    st.stop()
+    with st.form("login_form"):
+        username = st.text_input("ID")
+        password = st.text_input("비밀번호", type="password")
+        submitted = st.form_submit_button("로그인")
 
-# 허용된 이메일만 통과
-user_email = st.session_state.get("user_info", {}).get("email", "")
-if user_email not in config.DASHBOARD_ALLOWED_EMAILS:
-    st.error(f"접근 권한이 없습니다: {user_email}")
-    authenticator.logout()
+    if submitted:
+        if (
+            username == config.DASHBOARD_USERNAME
+            and config.DASHBOARD_PASSWORD_HASH
+            and bcrypt.checkpw(
+                password.encode(), config.DASHBOARD_PASSWORD_HASH.encode()
+            )
+        ):
+            st.session_state["authenticated"] = True
+            st.session_state["username"] = username
+            st.rerun()
+        else:
+            st.error("ID 또는 비밀번호가 올바르지 않습니다.")
+    return False
+
+
+if not check_password():
     st.stop()
 
 st.title("get-ASAP 논문 분석 대시보드")
-st.sidebar.markdown(f"**{user_email}** 로그인됨")
+st.sidebar.markdown(f"**{st.session_state['username']}** 로그인됨")
 if st.sidebar.button("로그아웃"):
-    authenticator.logout()
+    st.session_state["authenticated"] = False
+    st.rerun()
 
 # --- 사이드바: 기간 선택 + 필터 ---
 st.sidebar.header("설정")

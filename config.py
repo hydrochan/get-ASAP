@@ -22,6 +22,5 @@ NOTION_PARENT_PAGE_ID = os.getenv("NOTION_PARENT_PAGE_ID")
 CHECK_INTERVAL_HOURS = int(os.getenv("CHECK_INTERVAL_HOURS", "6"))
 
 # 대시보드 설정
-DASHBOARD_ALLOWED_EMAILS = [
-    e.strip() for e in os.getenv("DASHBOARD_ALLOWED_EMAILS", "").split(",") if e.strip()
-]
+DASHBOARD_USERNAME = os.getenv("DASHBOARD_USERNAME", "")
+DASHBOARD_PASSWORD_HASH = os.getenv("DASHBOARD_PASSWORD_HASH", "")
