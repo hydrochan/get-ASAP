@@ -165,11 +165,114 @@ def format_summary_text(summary: dict) -> str:
     return "\n".join(lines)
 
 
-def post_to_notion(summary: dict) -> str | None:
-    """Notion 페이지에 주간 서머리를 코멘트로 추가.
+WEEKLY_PAGE_TITLE = "get-ASAP Weekly Summary"
 
-    NOTION_PARENT_PAGE_ID 페이지에 코멘트를 달아서 기록.
-    Returns: 코멘트 ID 또는 None
+
+def _find_weekly_page(client, parent_page_id: str) -> str | None:
+    """parent 하위에서 'get-ASAP Weekly Summary' 페이지를 찾아 ID 반환."""
+    cursor = None
+    while True:
+        kwargs = {"block_id": parent_page_id, "page_size": 100}
+        if cursor:
+            kwargs["start_cursor"] = cursor
+        result = client.blocks.children.list(**kwargs)
+        for block in result["results"]:
+            if block["type"] != "child_page":
+                continue
+            title = block.get("child_page", {}).get("title", "")
+            if title == WEEKLY_PAGE_TITLE:
+                return block["id"]
+        if not result.get("has_more"):
+            break
+        cursor = result.get("next_cursor")
+    return None
+
+
+def _create_weekly_page(client, parent_page_id: str) -> str:
+    """'get-ASAP Weekly Summary' 전용 페이지 생성."""
+    result = client.pages.create(
+        parent={"page_id": parent_page_id},
+        properties={
+            "title": [{"type": "text", "text": {"content": WEEKLY_PAGE_TITLE}}]
+        },
+    )
+    page_id = result["id"]
+    logger.info("Weekly Summary 페이지 생성: %s", page_id)
+    return page_id
+
+
+def _build_summary_blocks(summary: dict) -> list[dict]:
+    """서머리를 Notion 블록 배열로 변환."""
+    today = date.today().isoformat()
+    blocks = []
+
+    # 제목 (H2)
+    blocks.append({
+        "type": "heading_2",
+        "heading_2": {"rich_text": [{"type": "text", "text": {"content": f"Weekly Summary — {today}"}}]}
+    })
+
+    # 개요
+    overview = (
+        f"Total: {summary['total']} papers | "
+        f"Journals: {summary['journal_count']} | "
+        f"Daily avg: {summary['daily_avg']} | "
+        f"Busiest: {summary['busiest_day'][0]} ({summary['busiest_day'][1]}건) | "
+        f"AI interest: {summary['interest_count']}건"
+    )
+    blocks.append({
+        "type": "paragraph",
+        "paragraph": {"rich_text": [{"type": "text", "text": {"content": overview}}]}
+    })
+
+    # 구분선
+    blocks.append({"type": "divider", "divider": {}})
+
+    # Top 키워드 (유니그램)
+    blocks.append({
+        "type": "heading_3",
+        "heading_3": {"rich_text": [{"type": "text", "text": {"content": "Top Keywords (Unigram)"}}]}
+    })
+    kw_text = "  |  ".join(f"{kw} ({c})" for kw, c in summary["top_keywords"][:10])
+    blocks.append({
+        "type": "paragraph",
+        "paragraph": {"rich_text": [{"type": "text", "text": {"content": kw_text}}]}
+    })
+
+    # Top 키워드 (바이그램)
+    if summary["top_bigrams"]:
+        blocks.append({
+            "type": "heading_3",
+            "heading_3": {"rich_text": [{"type": "text", "text": {"content": "Top Keywords (Bigram)"}}]}
+        })
+        bg_text = "  |  ".join(f"{bg} ({c})" for bg, c in summary["top_bigrams"][:10])
+        blocks.append({
+            "type": "paragraph",
+            "paragraph": {"rich_text": [{"type": "text", "text": {"content": bg_text}}]}
+        })
+
+    # Top 저널
+    blocks.append({
+        "type": "heading_3",
+        "heading_3": {"rich_text": [{"type": "text", "text": {"content": "Top Journals"}}]}
+    })
+    for j, count in summary["top_journals"][:10]:
+        blocks.append({
+            "type": "bulleted_list_item",
+            "bulleted_list_item": {"rich_text": [{"type": "text", "text": {"content": f"{j}: {count}건"}}]}
+        })
+
+    # 마지막 구분선
+    blocks.append({"type": "divider", "divider": {}})
+
+    return blocks
+
+
+def post_to_notion(summary: dict) -> str | None:
+    """'get-ASAP Weekly Summary' 전용 페이지에 주간 서머리 블록 추가.
+
+    페이지가 없으면 자동 생성. 매주 서머리가 누적 기록됨.
+    Returns: 페이지 ID 또는 None
     """
     parent_page_id = config.NOTION_PARENT_PAGE_ID
     if not parent_page_id:
@@ -177,21 +280,18 @@ def post_to_notion(summary: dict) -> str | None:
         return None
 
     client = get_notion_client()
-    today = date.today().isoformat()
-    text = format_summary_text(summary)
 
-    # Notion 코멘트로 서머리 기록
-    # rich_text 블록으로 구성
-    result = client.comments.create(
-        parent={"page_id": parent_page_id},
-        rich_text=[
-            {"type": "text", "text": {"content": text}}
-        ],
-    )
+    # 전용 페이지 찾기/생성
+    page_id = _find_weekly_page(client, parent_page_id)
+    if not page_id:
+        page_id = _create_weekly_page(client, parent_page_id)
 
-    comment_id = result.get("id")
-    logger.info("Notion 코멘트 작성 완료: %s", comment_id)
-    return comment_id
+    # 서머리 블록 추가 (페이지 맨 앞에 — 최신이 위)
+    blocks = _build_summary_blocks(summary)
+    client.blocks.children.append(block_id=page_id, children=blocks)
+
+    logger.info("Weekly Summary 기록 완료: %s", page_id)
+    return page_id
 
 
 def main():
