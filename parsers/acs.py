@@ -4,11 +4,9 @@ import re
 from bs4 import BeautifulSoup
 from models import PaperMetadata
 from parsers.base import BaseParser
+from parsers.filters import is_valid_paper_title
 
 logger = logging.getLogger(__name__)
-
-# 비논문 제목 필터 (대소문자 무시)
-_SKIP_TITLES = {"issue information", "front cover", "back cover", "masthead", "table of contents"}
 
 
 class ACSParser(BaseParser):
@@ -80,9 +78,7 @@ class ACSParser(BaseParser):
         return papers
 
     def _is_valid_title(self, title: str, seen: set) -> bool:
-        if not title or len(title) < 10:
-            return False
-        if title.lower() in _SKIP_TITLES:
+        if not is_valid_paper_title(title):
             return False
         if title in seen:
             return False

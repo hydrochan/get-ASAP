@@ -4,6 +4,7 @@ import re
 from bs4 import BeautifulSoup
 from models import PaperMetadata
 from parsers.base import BaseParser
+from parsers.filters import is_valid_paper_title
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,7 @@ class NatureParser(BaseParser):
                         continue
 
                     title = self._clean_text(current)
-                    if not title or len(title) < 10:
+                    if not is_valid_paper_title(title):
                         continue
                     if title in seen_titles:
                         continue

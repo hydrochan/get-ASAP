@@ -4,13 +4,13 @@ import re
 from bs4 import BeautifulSoup
 from models import PaperMetadata
 from parsers.base import BaseParser
+from parsers.filters import is_valid_paper_title
 
 logger = logging.getLogger(__name__)
 
-# Cell Press 메일 하단 링크 텍스트 필터
-_SKIP_TITLES = {
-    "issue information", "front cover", "back cover", "masthead",
-    "table of contents", "terms and conditions", "privacy policy",
+# Cell Press 메일 footer 링크 텍스트 추가 필터
+_CELL_EXTRA_SKIP = {
+    "terms and conditions", "privacy policy",
     "manage your preferences", "unsubscribe",
 }
 
@@ -47,9 +47,11 @@ class CellPressParser(BaseParser):
                 if "cell.com" not in href:
                     continue
                 title = self._clean_text(a_tag)
-                if not title or len(title) < 20:
+                if len(title) < 20:
                     continue
-                if title.lower() in _SKIP_TITLES:
+                if title.lower() in _CELL_EXTRA_SKIP:
+                    continue
+                if not is_valid_paper_title(title):
                     continue
                 if title in seen_titles:
                     continue

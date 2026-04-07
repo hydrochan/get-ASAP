@@ -4,11 +4,11 @@ import re
 from bs4 import BeautifulSoup
 from models import PaperMetadata
 from parsers.base import BaseParser
+from parsers.filters import is_valid_paper_title
 
 logger = logging.getLogger(__name__)
 
 _TITLE_SELECTOR = "td.em_f24 a"
-_SKIP_TITLES = {"issue information", "front cover", "back cover", "masthead", "table of contents"}
 
 
 class ScienceParser(BaseParser):
@@ -29,9 +29,7 @@ class ScienceParser(BaseParser):
 
             for a_tag in soup.select(_TITLE_SELECTOR):
                 title = self._clean_text(a_tag)
-                if not title or len(title) < 10:
-                    continue
-                if title.lower() in _SKIP_TITLES:
+                if not is_valid_paper_title(title):
                     continue
                 if title in seen_titles:
                     continue

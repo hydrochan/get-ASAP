@@ -4,14 +4,12 @@ import re
 from bs4 import BeautifulSoup
 from models import PaperMetadata
 from parsers.base import BaseParser
+from parsers.filters import is_valid_paper_title
 
 logger = logging.getLogger(__name__)
 
 # "(저널명 이슈/연도)" 접미사 제거 패턴
 _JOURNAL_SUFFIX_RE = re.compile(r'\s*\([^)]+\d{4}\)\s*$')
-
-# 비논문 제목 필터
-_SKIP_TITLES = {"issue information", "front cover", "back cover", "masthead", "table of contents"}
 
 
 class WileyParser(BaseParser):
@@ -37,9 +35,7 @@ class WileyParser(BaseParser):
                 title = _JOURNAL_SUFFIX_RE.sub("", raw_title).strip()
                 title = re.sub(r'\s+', ' ', title).strip()
 
-                if not title or len(title) < 10:
-                    continue
-                if title.lower() in _SKIP_TITLES:
+                if not is_valid_paper_title(title):
                     continue
                 if title in seen_titles:
                     continue
