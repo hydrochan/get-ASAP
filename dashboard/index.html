@@ -131,9 +131,11 @@
             <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Keyword Trends</h2>
             <div class="flex items-center gap-2">
               <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
-                <button id="ngram-1" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setNgramMode(1)">Unigram</button>
-                <button id="ngram-2" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setNgramMode(2)">Bigram</button>
-                <button id="ngram-both" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setNgramMode(0)">Both</button>
+                <button id="cat-all" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setCategoryMode('all')">All</button>
+                <button id="cat-topic" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setCategoryMode('topic')">Topic</button>
+                <button id="cat-material" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setCategoryMode('material')">Material</button>
+                <button id="cat-method" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setCategoryMode('method')">Method</button>
+                <button id="cat-experiment" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setCategoryMode('experiment')">Experiment</button>
               </div>
               <select id="kw-top-n" class="text-xs border border-slate-200 rounded px-2 py-1">
                 <option value="5">Top 5</option>
@@ -153,17 +155,25 @@
         </div>
       </section>
 
-      <!-- Top 키워드 테이블 (유니그램 + 바이그램) -->
+      <!-- Top 키워드 테이블 (카테고리별) -->
       <section class="card p-6">
-        <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Top 20 Keywords</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Top Keywords by Category</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div>
-            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Unigrams (Single Words)</h3>
-            <div id="kw-table-unigram" class="grid grid-cols-2 gap-x-6 gap-y-1 text-xs"></div>
+            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Topic</h3>
+            <div id="kw-table-topic" class="space-y-0.5 text-xs"></div>
           </div>
           <div>
-            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Bigrams (Two-Word Phrases)</h3>
-            <div id="kw-table-bigram" class="grid grid-cols-2 gap-x-6 gap-y-1 text-xs"></div>
+            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Material</h3>
+            <div id="kw-table-material" class="space-y-0.5 text-xs"></div>
+          </div>
+          <div>
+            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Method</h3>
+            <div id="kw-table-method" class="space-y-0.5 text-xs"></div>
+          </div>
+          <div>
+            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Experiment</h3>
+            <div id="kw-table-experiment" class="space-y-0.5 text-xs"></div>
           </div>
         </div>
       </section>
@@ -190,9 +200,11 @@
           <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Journal &times; Keyword Matrix</h2>
           <div class="flex items-center gap-2">
             <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
-              <button id="hm-ngram-1" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setHeatmapNgram(1)">Unigram</button>
-              <button id="hm-ngram-2" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapNgram(2)">Bigram</button>
-              <button id="hm-ngram-both" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapNgram(0)">Both</button>
+              <button id="hm-cat-all" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setHeatmapCategory('all')">All</button>
+              <button id="hm-cat-topic" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapCategory('topic')">Topic</button>
+              <button id="hm-cat-material" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapCategory('material')">Material</button>
+              <button id="hm-cat-method" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapCategory('method')">Method</button>
+              <button id="hm-cat-experiment" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapCategory('experiment')">Experiment</button>
             </div>
             <button id="hm-expand-btn" class="px-3 py-1 text-[10px] font-bold border border-slate-200 rounded text-slate-500 hover:bg-slate-50 transition-colors" onclick="toggleHeatmapExpand()">
               Expand All
@@ -290,32 +302,6 @@
     'use strict';
 
     // ---------- 상수 ----------
-    const ACADEMIC_STOPWORDS = new Set([
-      'the','and','for','are','but','not','you','all','any','her','was','his',
-      'how','its','let','our','out','own','say','she','too','who','oil','old',
-      'had','has','him','did','get','got','man','new','now','way','may',
-      'day','been','from','have','into','more','most','only','over','such',
-      'than','them','then','they','this','that','what','when','will','with',
-      'each','make','like','long','look','many','some','time','very','your',
-      'about','could','other','their','there','these','those','which','would',
-      'after','being','between','both','during','here','where','does','through',
-      'study','using','based','effect','effects','analysis','novel','high',
-      'performance','enhanced','efficient','properties','via','towards','toward',
-      'approach','method','methods','two','one','three','first','role','low',
-      'improved','recent','large','small','different','various','general',
-      'selective','driven','induced','mediated','assisted','controlled','strategy',
-      'highly','simple','facile','rapid','direct','green','review','advances',
-      'progress','perspective','insight','insights','investigation','evaluation',
-      'design','development','application','applications','preparation','synthesis',
-      'characterization','fabrication','co','de','non','re','pre','post','ex',
-      'multi','sub','use','used','paper','research','results','show','data',
-      'system','systems','type','model','total','state','process','part','case',
-      'well','also','however','within','without','since','still','found',
-      'made','good','much','even','just','can','able','under','upon',
-      'above','below','near','next','into','onto','toward',
-      'dual','phase','acid','ion','single'
-    ]);
-
     const CHART_COLORS = [
       '#002F6C','#1A56A8','#2E7DD1','#5BA3E6','#8BC4F0',
       '#D4A03C','#E8B960','#F0D08A','#059669','#10B981',
@@ -326,7 +312,7 @@
     let filteredPapers = [];  // 저널 필터 적용된 데이터
     let selectedJournals = new Set(); // 선택된 저널
     let allJournalsMode = true;       // "All" 모드
-    let ngramMode = 1;               // 1=unigram, 2=bigram, 0=both
+    let categoryMode = 'all';        // all | topic | material | method | experiment
     let charts = {};
 
     // ---------- 인증 ----------
@@ -488,7 +474,9 @@
         daily = (total / days).toFixed(1);
       }
 
-      const globalFreq = extractKeywords(filteredPapers);
+      const _prevCatKpi = categoryMode; categoryMode = 'all';
+      const globalFreq = getKeywordsForMode(filteredPapers);
+      categoryMode = _prevCatKpi;
       const topKw = Object.entries(globalFreq).sort((a,b)=>b[1]-a[1]);
       const topKwName = topKw.length ? topKw[0][0] : '—';
 
@@ -499,70 +487,67 @@
       document.getElementById('kpi-topkw').textContent = topKwName;
     }
 
-    // 토큰화 (불용어 제거)
-    function tokenize(title) {
-      return title.toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/-/g, ' ')
-        .split(/\s+/)
-        .filter(w => w.length > 2 && !ACADEMIC_STOPWORDS.has(w));
+    // gpt_reason 파싱: "topic/kw-1, material/kw-2" → [{cat,kw}, ...]
+    function parseReason(reason) {
+      if (!reason) return [];
+      const out = [];
+      for (const tok of reason.split(',')) {
+        const s = tok.trim();
+        if (!s) continue;
+        const idx = s.indexOf('/');
+        if (idx < 0) continue;
+        const cat = s.slice(0, idx).trim().toLowerCase();
+        const kw = s.slice(idx + 1).trim().toLowerCase();
+        if (!cat || !kw) continue;
+        out.push({ cat, kw });
+      }
+      return out;
     }
 
-    // 유니그램 키워드 추출 (문서 빈도 방식)
-    function extractKeywords(papers) {
+    // 카테고리 필터 적용된 키워드 빈도 (paper 단위 중복 제거)
+    function getKeywordsForMode(papers) {
       const freq = {};
       for (const p of papers) {
-        const tokens = tokenize(p.title || '');
-        const unique = [...new Set(tokens)];
-        for (const t of unique) { freq[t] = (freq[t] || 0) + 1; }
+        const seen = new Set();
+        for (const { cat, kw } of parseReason(p.gpt_reason || '')) {
+          if (categoryMode !== 'all' && cat !== categoryMode) continue;
+          if (seen.has(kw)) continue;
+          seen.add(kw);
+          freq[kw] = (freq[kw] || 0) + 1;
+        }
       }
       return freq;
     }
 
-    // 바이그램 키워드 추출
-    function extractBigrams(papers) {
-      const freq = {};
+    // 카테고리별로 빈도 맵 4개 반환 (Top Keywords Table용)
+    function getKeywordsByCategory(papers) {
+      const result = { topic: {}, material: {}, method: {}, experiment: {} };
       for (const p of papers) {
-        const tokens = tokenize(p.title || '');
-        const bigrams = new Set();
-        for (let i = 0; i < tokens.length - 1; i++) {
-          bigrams.add(`${tokens[i]} ${tokens[i+1]}`);
+        const seen = new Set();
+        for (const { cat, kw } of parseReason(p.gpt_reason || '')) {
+          if (!(cat in result)) continue;
+          const key = cat + '|' + kw;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          result[cat][kw] = (result[cat][kw] || 0) + 1;
         }
-        for (const bg of bigrams) { freq[bg] = (freq[bg] || 0) + 1; }
       }
-      // 최소 2회 이상 등장한 바이그램만
-      const filtered = {};
-      for (const [k, v] of Object.entries(freq)) {
-        if (v >= 2) filtered[k] = v;
-      }
-      return filtered;
+      return result;
     }
 
-    // ngram 모드에 따라 키워드 반환
-    function getKeywordsForMode(papers) {
-      if (ngramMode === 1) return extractKeywords(papers);
-      if (ngramMode === 2) return extractBigrams(papers);
-      // both: 합치기
-      const uni = extractKeywords(papers);
-      const bi = extractBigrams(papers);
-      return { ...uni, ...bi };
-    }
-
-    // ngram 모드 전환
-    window.setNgramMode = function(mode) {
-      ngramMode = mode;
-      // 버튼 스타일 업데이트
-      ['ngram-1','ngram-2','ngram-both'].forEach(id => {
-        const btn = document.getElementById(id);
-        const isActive = (id === 'ngram-1' && mode === 1) || (id === 'ngram-2' && mode === 2) || (id === 'ngram-both' && mode === 0);
-        btn.className = isActive
+    // 카테고리 모드 전환 (키워드 트렌드·워드클라우드용)
+    const CATEGORIES = ['all','topic','material','method','experiment'];
+    window.setCategoryMode = function(mode) {
+      categoryMode = mode;
+      for (const c of CATEGORIES) {
+        const btn = document.getElementById('cat-' + c);
+        if (!btn) continue;
+        btn.className = (c === mode)
           ? 'px-2.5 py-1 bg-navy-800 text-white'
           : 'px-2.5 py-1 text-slate-500 hover:bg-slate-50';
-      });
+      }
       renderKeywordChart();
       renderWordCloud();
-      renderKeywordTable();
-      renderHeatmap();
     };
 
     // 키워드 트렌드
@@ -634,19 +619,22 @@
       } catch {}
     }
 
-    // Top 키워드 테이블 (유니그램 + 바이그램)
+    // Top 키워드 테이블 (카테고리별 4개)
     function renderKeywordTable() {
-      const renderList = (freq, containerId) => {
-        const top20 = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0, 20);
-        document.getElementById(containerId).innerHTML = top20.map(([kw, count], i) =>
+      const byCat = getKeywordsByCategory(filteredPapers);
+      const render = (freq, containerId) => {
+        const top15 = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0, 15);
+        document.getElementById(containerId).innerHTML = top15.map(([kw, count], i) =>
           `<div class="flex justify-between py-0.5 ${i < 3 ? 'font-bold text-navy-900' : 'text-slate-600'}">
-            <span><span class="text-slate-400 mr-1">${i+1}.</span>${kw}</span>
-            <span class="text-slate-400">${count}</span>
+            <span class="truncate pr-2"><span class="text-slate-400 mr-1">${i+1}.</span>${kw}</span>
+            <span class="text-slate-400 shrink-0">${count}</span>
           </div>`
         ).join('') || '<div class="text-slate-400">No data</div>';
       };
-      renderList(extractKeywords(filteredPapers), 'kw-table-unigram');
-      renderList(extractBigrams(filteredPapers), 'kw-table-bigram');
+      render(byCat.topic, 'kw-table-topic');
+      render(byCat.material, 'kw-table-material');
+      render(byCat.method, 'kw-table-method');
+      render(byCat.experiment, 'kw-table-experiment');
     }
 
     // 저널 빈도
@@ -741,22 +729,33 @@
     }
 
     // 히트맵
-    let heatmapNgram = 1;
+    let heatmapCategory = 'all';
     let heatmapExpanded = false;
 
     function _getHeatmapKw(papers) {
-      if (heatmapNgram === 1) return extractKeywords(papers);
-      if (heatmapNgram === 2) return extractBigrams(papers);
-      return { ...extractKeywords(papers), ...extractBigrams(papers) };
+      // 히트맵 전용 카테고리 필터를 적용한 빈도 맵 반환
+      const freq = {};
+      for (const p of papers) {
+        const seen = new Set();
+        for (const { cat, kw } of parseReason(p.gpt_reason || '')) {
+          if (heatmapCategory !== 'all' && cat !== heatmapCategory) continue;
+          if (seen.has(kw)) continue;
+          seen.add(kw);
+          freq[kw] = (freq[kw] || 0) + 1;
+        }
+      }
+      return freq;
     }
 
-    window.setHeatmapNgram = function(mode) {
-      heatmapNgram = mode;
-      ['hm-ngram-1','hm-ngram-2','hm-ngram-both'].forEach(id => {
-        const btn = document.getElementById(id);
-        const isActive = (id==='hm-ngram-1'&&mode===1)||(id==='hm-ngram-2'&&mode===2)||(id==='hm-ngram-both'&&mode===0);
-        btn.className = isActive ? 'px-2.5 py-1 bg-navy-800 text-white' : 'px-2.5 py-1 text-slate-500 hover:bg-slate-50';
-      });
+    window.setHeatmapCategory = function(mode) {
+      heatmapCategory = mode;
+      for (const c of CATEGORIES) {
+        const btn = document.getElementById('hm-cat-' + c);
+        if (!btn) continue;
+        btn.className = (c === mode)
+          ? 'px-2.5 py-1 bg-navy-800 text-white'
+          : 'px-2.5 py-1 text-slate-500 hover:bg-slate-50';
+      }
       renderHeatmap();
     };
 
@@ -864,9 +863,12 @@
         }
       });
 
-      // 키워드 비교: 전체 vs 관심
-      const allKw = Object.entries(extractKeywords(filteredPapers)).sort((a,b)=>b[1]-a[1]).slice(0,10);
-      const intKw = Object.entries(extractKeywords(interestPapers)).sort((a,b)=>b[1]-a[1]).slice(0,10);
+      // 키워드 비교: 전체 vs 관심 (all 카테고리 기준)
+      const _prevCat = categoryMode;
+      categoryMode = 'all';
+      const allKw = Object.entries(getKeywordsForMode(filteredPapers)).sort((a,b)=>b[1]-a[1]).slice(0,10);
+      const intKw = Object.entries(getKeywordsForMode(interestPapers)).sort((a,b)=>b[1]-a[1]).slice(0,10);
+      categoryMode = _prevCat;
       const tbody = document.getElementById('interest-kw-tbody');
       let rows = '';
       for (let i = 0; i < 10; i++) {
@@ -884,7 +886,11 @@
       const kw = document.getElementById('kw-search-input').value.trim().toLowerCase();
       if (!kw) return;
 
-      const matched = filteredPapers.filter(p => tokenize(p.title||'').includes(kw));
+      // reason의 키워드 슬러그와 substring 매칭 (입력은 공백도 허용 → '-'로 정규화)
+      const needle = kw.replace(/\s+/g, '-');
+      const matched = filteredPapers.filter(p =>
+        parseReason(p.gpt_reason||'').some(({ kw: k }) => k.includes(needle))
+      );
       document.getElementById('kw-search-count').textContent = matched.length ? `${matched.length} papers found` : 'No results';
 
       if (!matched.length) {
@@ -965,8 +971,11 @@
       const start = range[range.length-1];
       const end = range[0];
 
-      const globalFreq = extractKeywords(filteredPapers);
+      const _prevCat = categoryMode;
+      categoryMode = 'all';
+      const globalFreq = getKeywordsForMode(filteredPapers);
       const top20 = Object.entries(globalFreq).sort((a,b)=>b[1]-a[1]).slice(0,20);
+      categoryMode = _prevCat;
 
       const journalFreq = {};
       for (const p of filteredPapers) { if (p.journal) journalFreq[p.journal]=(journalFreq[p.journal]||0)+1; }
@@ -990,7 +999,9 @@
       if (interestPapers.length > 0) {
         md += `\n## AI Interest Analysis\n\n`;
         md += `**Interest papers:** ${interestPapers.length} / ${filteredPapers.length} (${(interestPapers.length/filteredPapers.length*100).toFixed(1)}%)\n\n`;
-        const intKw = Object.entries(extractKeywords(interestPapers)).sort((a,b)=>b[1]-a[1]).slice(0,10);
+        const _prev2 = categoryMode; categoryMode = 'all';
+        const intKw = Object.entries(getKeywordsForMode(interestPapers)).sort((a,b)=>b[1]-a[1]).slice(0,10);
+        categoryMode = _prev2;
         md += `| Rank | Interest Keyword | Count |\n|------|-----------------|-------|\n`;
         intKw.forEach(([kw,c], i) => { md += `| ${i+1} | ${kw} | ${c} |\n`; });
       }
