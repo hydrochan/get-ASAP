@@ -3,7 +3,7 @@ import json
 import os
 from functools import lru_cache
 
-# 저자명, 편집 페이지 등 논문이 아닌 공통 타이틀
+# 저자명, 편집 페이지 등 논문이 아닌 공통 타이틀 (정확 매칭)
 SKIP_TITLES = {
     "issue information",
     "front cover",
@@ -11,6 +11,8 @@ SKIP_TITLES = {
     "inside cover",
     "inside front cover",
     "inside back cover",
+    "outside front cover",
+    "outside back cover",
     "masthead",
     "table of contents",
     "contents",
@@ -23,6 +25,27 @@ SKIP_TITLES = {
     "corrigendum",
     "erratum",
 }
+
+# 제목이 이 prefix로 시작하면 비논문으로 간주
+# (예: "Outside Front Cover: ...", "Correction to ...", "Erratum for ...")
+SKIP_PREFIXES = (
+    "outside front cover:",
+    "outside back cover:",
+    "inside front cover:",
+    "inside back cover:",
+    "front cover:",
+    "back cover:",
+    "cover picture:",
+    "cover feature:",
+    "frontispiece:",
+    "correction to",
+    "corrigendum to",
+    "erratum to",
+    "erratum for",
+    "retraction of",
+    "retraction:",
+    "withdrawn:",
+)
 
 @lru_cache(maxsize=1)
 def _load_journal_names() -> frozenset[str]:
@@ -51,6 +74,11 @@ def is_valid_paper_title(title: str) -> bool:
     low = t.lower()
     if low in SKIP_TITLES:
         return False
+
+    # prefix 매칭 (예: "Outside Front Cover: ...", "Correction to ...")
+    for prefix in SKIP_PREFIXES:
+        if low.startswith(prefix):
+            return False
 
     # 저널명 그 자체(예: "Chemical Engineering Journal")는 제외
     if low in _load_journal_names():
