@@ -43,15 +43,22 @@ def _parse_pages(pages: list[dict]) -> pd.DataFrame:
         status_sel = props.get("Status", {}).get("select")
         status = status_sel.get("name", "") if status_sel else ""
 
+        # GPT Reason (rich_text) — 조각들을 이어붙여 단일 문자열로
+        reason_arr = props.get("GPT Reason", {}).get("rich_text", [])
+        gpt_reason = "".join(
+            seg.get("plain_text", "") for seg in reason_arr
+        ) if reason_arr else ""
+
         records.append({
             "title": title,
             "journal": journal,
             "date": date_str,
             "url": url,
             "status": status,
+            "gpt_reason": gpt_reason,
         })
 
-    df = pd.DataFrame(records, columns=["title", "journal", "date", "url", "status"])
+    df = pd.DataFrame(records, columns=["title", "journal", "date", "url", "status", "gpt_reason"])
     if not df.empty:
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
     else:

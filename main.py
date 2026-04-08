@@ -9,7 +9,6 @@
   python main.py --verbose        # DEBUG 레벨 로그 활성화
 """
 import argparse
-import csv
 import json
 import logging
 import logging.handlers
@@ -27,7 +26,6 @@ from gmail_client import (
     mark_processed,
     save_state,
 )
-from models import PaperMetadata
 from notion_client_mod import get_or_create_db, save_papers
 from parser_registry import load_parsers
 
@@ -97,30 +95,20 @@ def _extract_header(headers: list[dict], name: str) -> str:
 
 # ---------- 캐시 CSV 증분 저장 ----------
 
-_CACHE_DIR = os.path.join(os.path.dirname(__file__), "cache")
+def _refresh_cache_from_notion() -> None:
+    """현재 월 Notion DB를 통째로 읽어 cache/papers_YYYY-MM.csv를 재생성.
 
-
-def _append_to_cache(papers: list[PaperMetadata]) -> None:
-    """저장 성공한 논문을 cache/papers_YYYY-MM.csv에 증분 추가.
-
-    파일이 없으면 헤더 포함 생성, 있으면 append.
+    진실의 원천(Source of Truth)은 Notion이며, 캐시는 대시보드 서빙용 스냅샷.
+    cron 실행 마지막에 호출되어 Notion ↔ 캐시 드리프트를 제거한다.
     """
-    if not papers:
-        return
-
-    os.makedirs(_CACHE_DIR, exist_ok=True)
-    month_str = __import__("datetime").date.today().strftime("%Y-%m")
-    path = os.path.join(_CACHE_DIR, f"papers_{month_str}.csv")
-
-    file_exists = os.path.exists(path)
-    with open(path, "a", newline="", encoding="utf-8-sig") as f:
-        writer = csv.writer(f, quoting=csv.QUOTE_ALL)
-        if not file_exists:
-            writer.writerow(["title", "journal", "date", "url", "status"])
-        for p in papers:
-            writer.writerow([p.title, p.journal, p.date, p.url or "", "대기중"])
-
-    logger.info("캐시 CSV 추가: %s (%d건)", path, len(papers))
+    try:
+        from datetime import date
+        from analytics.notion_fetcher import fetch_papers
+        month = date.today().strftime("%Y-%m")
+        df = fetch_papers(month, month, force_refresh=True)
+        logger.info("캐시 재생성 완료: %s (%d건)", month, len(df))
+    except Exception as e:
+        logger.warning("캐시 재생성 실패: %s", e)
 
 
 # ---------- 로깅 설정 ----------
@@ -320,9 +308,9 @@ def run_pipeline(dry_run: bool = False) -> dict:
         db_id = get_or_create_db()
         save_result = save_papers(all_papers, db_id)
 
-        # 캐시 CSV에 저장된 논문 추가
+        # 캐시 CSV는 Notion 기준으로 전체 재생성 (드리프트 방지)
         if save_result.get("saved", 0) > 0:
-            _append_to_cache(all_papers)
+            _refresh_cache_from_notion()
 
         # 처리 완료된 메일에 라벨 마킹
         for msg_id in processed_msg_ids:
