@@ -302,6 +302,9 @@
     'use strict';
 
     // ---------- 상수 ----------
+    // "관심" = Notion에서 다운완료 or 관련 상태인 논문만 (무관/추출됨/대기중 제외)
+    const INTEREST_STATUSES = new Set(['다운완료', '관련']);
+
     const CHART_COLORS = [
       '#002F6C','#1A56A8','#2E7DD1','#5BA3E6','#8BC4F0',
       '#D4A03C','#E8B960','#F0D08A','#059669','#10B981',
@@ -813,7 +816,7 @@
     // AI 관심 분석
     function renderInterestAnalysis() {
       // "대기중"이 아닌 논문 = AI가 관심 표시한 논문
-      const interestPapers = filteredPapers.filter(p => p.status && p.status !== '대기중');
+      const interestPapers = filteredPapers.filter(p => INTEREST_STATUSES.has(p.status));
       const emptyEl = document.getElementById('interest-empty');
 
       if (interestPapers.length === 0) {
@@ -995,7 +998,7 @@
       md += `| Journal | Papers |\n|---------|--------|\n`;
       topJournals.forEach(([j,c]) => { md += `| ${j} | ${c} |\n`; });
 
-      const interestPapers = filteredPapers.filter(p => p.status && p.status !== '대기중');
+      const interestPapers = filteredPapers.filter(p => INTEREST_STATUSES.has(p.status));
       if (interestPapers.length > 0) {
         md += `\n## AI Interest Analysis\n\n`;
         md += `**Interest papers:** ${interestPapers.length} / ${filteredPapers.length} (${(interestPapers.length/filteredPapers.length*100).toFixed(1)}%)\n\n`;
