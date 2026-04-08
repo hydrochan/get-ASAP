@@ -839,28 +839,38 @@
         journalInterest[p.journal] = (journalInterest[p.journal]||0)+1;
       }
 
+      // 갯수 기준 정렬 (비율은 tooltip 보조 정보로만)
       const ratios = Object.entries(journalInterest)
         .map(([j, cnt]) => ({ journal: j, interest: cnt, total: journalTotal[j]||1, ratio: cnt/(journalTotal[j]||1) }))
-        .sort((a,b) => b.ratio - a.ratio)
+        .sort((a,b) => b.interest - a.interest)
         .slice(0, 12);
 
+      const maxCnt = ratios[0]?.interest || 1;
       if (charts.interest) charts.interest.destroy();
       charts.interest = new Chart(document.getElementById('chart-interest'), {
         type: 'bar',
         data: {
           labels: ratios.map(r => r.journal.length > 25 ? r.journal.slice(0,22)+'...' : r.journal),
           datasets: [{
-            label: 'Interest Ratio',
-            data: ratios.map(r => (r.ratio * 100).toFixed(1)),
-            backgroundColor: ratios.map(r => r.ratio > 0.3 ? '#002F6C' : r.ratio > 0.1 ? '#1A56A8' : '#8BC4F0'),
+            label: 'Interest Count',
+            data: ratios.map(r => r.interest),
+            backgroundColor: ratios.map(r => {
+              const i = r.interest / maxCnt;
+              return i > 0.66 ? '#002F6C' : i > 0.33 ? '#1A56A8' : '#8BC4F0';
+            }),
             borderRadius: 4,
           }]
         },
         options: {
           indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.raw}% (${ratios[ctx.dataIndex].interest}/${ratios[ctx.dataIndex].total})` } } },
+          plugins: { legend: { display: false }, tooltip: { callbacks: {
+            label: ctx => {
+              const r = ratios[ctx.dataIndex];
+              return `${r.interest} / ${r.total} papers (${(r.ratio*100).toFixed(1)}%)`;
+            }
+          } } },
           scales: {
-            x: { beginAtZero: true, max: 100, ticks: { font: { size: 10 }, callback: v => v+'%' } },
+            x: { beginAtZero: true, ticks: { font: { size: 10 }, precision: 0 } },
             y: { ticks: { font: { size: 10, family: 'Manrope' } } }
           }
         }
