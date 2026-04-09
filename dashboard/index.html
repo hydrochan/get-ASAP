@@ -155,25 +155,19 @@
         </div>
       </section>
 
-      <!-- Top 키워드 테이블 (Broad / Sharp) -->
+      <!-- Top 키워드 트리 (Broad ▸ Sharp 계층) -->
       <section class="card p-6">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Top Keywords</h2>
-          <p class="text-[10px] text-slate-400">Click a broad domain to filter sharp keywords</p>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Broad Domains</h3>
-            <div id="kw-table-broad" class="space-y-0.5 text-xs"></div>
+            <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Top Keywords</h2>
+            <p class="text-[10px] text-slate-400 mt-1">Broad domain ▸ Sharp keyword. Click a domain to expand, ⚲ to filter charts.</p>
           </div>
-          <div>
-            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-              Sharp Keywords
-              <span id="kw-table-sharp-scope" class="text-slate-400 font-normal normal-case tracking-normal ml-1"></span>
-            </h3>
-            <div id="kw-table-sharp" class="space-y-0.5 text-xs"></div>
+          <div class="flex items-center gap-2">
+            <button onclick="expandAllBroads(true)" class="text-[10px] font-bold text-slate-500 hover:text-navy-700 px-2 py-1 border border-slate-200 rounded">Expand all</button>
+            <button onclick="expandAllBroads(false)" class="text-[10px] font-bold text-slate-500 hover:text-navy-700 px-2 py-1 border border-slate-200 rounded">Collapse all</button>
           </div>
         </div>
+        <div id="kw-tree" class="text-xs grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0.5"></div>
       </section>
 
       <!-- 저널 빈도 + 저널별 월별 -->
@@ -315,6 +309,7 @@
     let allJournalsMode = true;       // "All" 모드
     let keywordView = 'broad';       // 'broad' | 'sharp'
     let broadFilter = '';            // '' or specific broad domain (sharp view 필터)
+    let expandedBroads = new Set();  // Top Keywords 트리에서 펼쳐진 broad 목록
     let charts = {};
 
     // ---------- 인증 ----------
@@ -643,43 +638,89 @@
       } catch {}
     }
 
-    // Top 키워드 테이블 (Broad / Sharp)
+    // Top 키워드 트리 (Broad ▸ Sharp 계층)
     function renderKeywordTable() {
       const broadFreq = getFreq(filteredPapers, 'broad', '');
-      const sharpFreq = getFreq(filteredPapers, 'sharp', broadFilter);
-
       const top15Broad = Object.entries(broadFreq).sort((a,b)=>b[1]-a[1]).slice(0, 15);
-      const top15Sharp = Object.entries(sharpFreq).sort((a,b)=>b[1]-a[1]).slice(0, 15);
 
-      // Broad: 클릭하면 sharp 필터에 적용
-      document.getElementById('kw-table-broad').innerHTML = top15Broad.map(([kw, count], i) => {
-        const active = (kw === broadFilter);
-        return `<div class="flex justify-between py-0.5 cursor-pointer hover:bg-slate-50 px-1 rounded ${active ? 'bg-navy-50 font-bold text-navy-900' : (i < 3 ? 'font-bold text-navy-900' : 'text-slate-600')}" onclick="pickBroad('${kw.replace(/'/g,"\\'")}')">
-          <span class="truncate pr-2"><span class="text-slate-400 mr-1">${i+1}.</span>${kw}</span>
-          <span class="text-slate-400 shrink-0">${count}</span>
-        </div>`;
-      }).join('') || '<div class="text-slate-400">No data</div>';
+      if (top15Broad.length === 0) {
+        document.getElementById('kw-tree').innerHTML = '<div class="text-slate-400">No data</div>';
+        return;
+      }
 
-      // Sharp: 현재 broadFilter 기준
-      document.getElementById('kw-table-sharp').innerHTML = top15Sharp.map(([kw, count], i) =>
-        `<div class="flex justify-between py-0.5 px-1 ${i < 3 ? 'font-bold text-navy-900' : 'text-slate-600'}">
-          <span class="truncate pr-2"><span class="text-slate-400 mr-1">${i+1}.</span>${kw}</span>
-          <span class="text-slate-400 shrink-0">${count}</span>
-        </div>`
-      ).join('') || '<div class="text-slate-400">No data</div>';
+      // 각 broad 아래 sharp top 8 계산
+      const maxBroad = top15Broad[0][1];
+      const html = top15Broad.map(([broad, count], i) => {
+        const isOpen = expandedBroads.has(broad);
+        const isFilter = (broad === broadFilter);
+        const pct = Math.round((count / maxBroad) * 100);
+        const barColor = isFilter ? '#002F6C' : '#8BC4F0';
+        const rowCls = i < 3 ? 'font-bold text-navy-900' : 'text-slate-700';
 
-      // Sharp 패널 스코프 라벨
-      const scopeEl = document.getElementById('kw-table-sharp-scope');
-      scopeEl.innerHTML = broadFilter
-        ? `in <span class="text-navy-700 font-semibold">${broadFilter}</span> <button onclick="pickBroad('')" class="text-slate-400 hover:text-navy-700 ml-1">×</button>`
-        : '(all domains)';
+        // 해당 broad 내 sharp 빈도
+        const sharpsInBroad = getFreq(filteredPapers, 'sharp', broad);
+        const topSharps = Object.entries(sharpsInBroad).sort((a,b)=>b[1]-a[1]).slice(0, 8);
+        const sharpSum = Object.values(sharpsInBroad).reduce((a,b)=>a+b, 0);
+        const bareCount = count - (topSharps.length ? Math.max(...Object.values(sharpsInBroad).length ? [sharpSum] : [0]) : 0);
+
+        const chevron = topSharps.length
+          ? `<span class="inline-block w-3 text-slate-400">${isOpen ? '▾' : '▸'}</span>`
+          : `<span class="inline-block w-3"></span>`;
+
+        // broad row
+        const broadEscaped = broad.replace(/'/g, "\\'");
+        let row = `<div class="${rowCls} ${isFilter ? 'bg-navy-50' : ''}">
+          <div class="flex items-center justify-between py-1 px-1 hover:bg-slate-50 rounded cursor-pointer group" onclick="toggleBroad('${broadEscaped}')">
+            <span class="truncate pr-2 flex items-center gap-1">
+              ${chevron}
+              <span class="text-slate-400 mr-0.5">${i+1}.</span>
+              <span>${broad}</span>
+              ${topSharps.length ? `<span class="text-slate-300 text-[10px]">(${topSharps.length}${Object.keys(sharpsInBroad).length > topSharps.length ? '+' : ''} sharps)</span>` : ''}
+            </span>
+            <span class="flex items-center gap-2 shrink-0">
+              <span class="text-slate-400">${count}</span>
+              <button onclick="event.stopPropagation(); pickBroad('${broadEscaped}')" title="Filter charts by this domain" class="opacity-0 group-hover:opacity-100 ${isFilter ? 'opacity-100 text-navy-700' : 'text-slate-400 hover:text-navy-700'} transition-opacity text-[11px]">⚲</button>
+            </span>
+          </div>
+          <div class="h-0.5 bg-slate-100 rounded-full overflow-hidden ml-4 mr-1">
+            <div class="h-full rounded-full" style="width:${pct}%;background:${barColor}"></div>
+          </div>`;
+
+        // sharps (펼친 경우)
+        if (isOpen && topSharps.length) {
+          row += `<div class="ml-6 mt-1 mb-2 border-l border-slate-200 pl-3 space-y-0.5">`;
+          const maxSharp = topSharps[0][1];
+          for (const [sharp, sc] of topSharps) {
+            const sPct = Math.round((sc / maxSharp) * 100);
+            row += `<div class="flex items-center justify-between py-0.5 text-slate-600">
+              <span class="truncate pr-2 text-[11px]"><span class="text-slate-300 mr-1">└</span>${sharp}</span>
+              <span class="flex items-center gap-2 shrink-0">
+                <span class="w-12 h-0.5 bg-slate-100 rounded-full overflow-hidden"><span class="block h-full bg-slate-300" style="width:${sPct}%"></span></span>
+                <span class="text-slate-400 text-[10px] w-6 text-right">${sc}</span>
+              </span>
+            </div>`;
+          }
+          row += `</div>`;
+        }
+
+        row += `</div>`;
+        return row;
+      }).join('');
+
+      document.getElementById('kw-tree').innerHTML = html;
     }
 
-    // Broad 테이블에서 클릭 → sharp 필터 토글
+    // broad 행 클릭 → 펼치기/접기
+    window.toggleBroad = function(broad) {
+      if (expandedBroads.has(broad)) expandedBroads.delete(broad);
+      else expandedBroads.add(broad);
+      renderKeywordTable();
+    };
+
+    // ⚲ 아이콘 → 차트/워드클라우드를 해당 broad로 필터
     window.pickBroad = function(broad) {
       broadFilter = (broadFilter === broad) ? '' : broad;
       document.getElementById('broad-filter').value = broadFilter;
-      // broadFilter를 고르면 자동으로 sharp view로 전환
       if (broadFilter && keywordView !== 'sharp') {
         setKeywordView('sharp');
       } else {
@@ -687,6 +728,17 @@
         renderWordCloud();
         renderKeywordTable();
       }
+    };
+
+    // 전체 펼치기/접기
+    window.expandAllBroads = function(expand) {
+      if (expand) {
+        const broadFreq = getFreq(filteredPapers, 'broad', '');
+        expandedBroads = new Set(Object.entries(broadFreq).sort((a,b)=>b[1]-a[1]).slice(0, 15).map(e=>e[0]));
+      } else {
+        expandedBroads.clear();
+      }
+      renderKeywordTable();
     };
 
     // 저널 빈도
