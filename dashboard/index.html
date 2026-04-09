@@ -146,7 +146,6 @@
               <select id="kw-top-n" class="text-xs border border-slate-200 rounded px-2 py-1">
                 <option value="5">Top 5</option>
                 <option value="10" selected>Top 10</option>
-                <option value="15">Top 15</option>
               </select>
             </div>
           </div>
@@ -711,7 +710,7 @@
     function renderWordCloud() {
       const canvas = document.getElementById('wordcloud-canvas');
       const freq = currentFreq(filteredPapers);
-      const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0, 50);
+      const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]);
       if (!sorted.length) return;
 
       const maxFreq = sorted[0][1];
@@ -759,7 +758,7 @@
 
         // 해당 broad 내 sharp 빈도
         const sharpsInBroad = getFreq(filteredPapers, 'sharp', broad);
-        const topSharps = Object.entries(sharpsInBroad).sort((a,b)=>b[1]-a[1]).slice(0, 8);
+        const topSharps = Object.entries(sharpsInBroad).sort((a,b)=>b[1]-a[1]).slice(0, 10);
         const sharpSum = Object.values(sharpsInBroad).reduce((a,b)=>a+b, 0);
         const bareCount = count - (topSharps.length ? Math.max(...Object.values(sharpsInBroad).length ? [sharpSum] : [0]) : 0);
 
