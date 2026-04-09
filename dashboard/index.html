@@ -77,6 +77,10 @@
           <option value="6">Last 6 months</option>
           <option value="12">Last 12 months</option>
         </select>
+        <div class="flex text-[10px] font-bold border border-slate-200 rounded-lg overflow-hidden">
+          <button id="period-month" class="px-3 py-2 bg-navy-800 text-white" onclick="setPeriodMode('month')">Month</button>
+          <button id="period-week" class="px-3 py-2 text-slate-500 hover:bg-slate-50" onclick="setPeriodMode('week')">Week</button>
+        </div>
         <button id="refresh-btn" class="px-4 py-2 bg-gradient-to-r from-navy-900 to-navy-800 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">
           Refresh
         </button>
@@ -310,6 +314,36 @@
     let keywordView = 'broad';       // 'broad' | 'sharp'
     let broadFilter = '';            // '' or specific broad domain (sharp view 필터)
     let expandedBroads = new Set();  // Top Keywords 트리에서 펼쳐진 broad 목록
+    let periodMode = 'month';        // 'month' | 'week' — 시계열 차트 집계 단위
+
+    // ISO 주 키 (월요일 시작) "YYYY-Www"
+    function isoWeekKey(dateStr) {
+      if (!dateStr) return '';
+      const d = new Date(dateStr + 'T00:00:00Z');
+      if (isNaN(d)) return '';
+      // ISO 8601: 목요일 기준 연도, 월요일 기준 주
+      const target = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+      const dayNum = (target.getUTCDay() + 6) % 7; // 월=0..일=6
+      target.setUTCDate(target.getUTCDate() - dayNum + 3); // 해당 주 목요일
+      const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
+      const firstDayNum = (firstThursday.getUTCDay() + 6) % 7;
+      firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNum + 3);
+      const week = 1 + Math.round((target - firstThursday) / (7 * 86400000));
+      return `${target.getUTCFullYear()}-W${String(week).padStart(2,'0')}`;
+    }
+
+    function periodKey(dateStr) {
+      if (!dateStr) return '';
+      return periodMode === 'week' ? isoWeekKey(dateStr) : dateStr.slice(0, 7);
+    }
+
+    window.setPeriodMode = function(mode) {
+      periodMode = mode;
+      document.getElementById('period-month').className = (mode === 'month') ? 'px-3 py-2 bg-navy-800 text-white' : 'px-3 py-2 text-slate-500 hover:bg-slate-50';
+      document.getElementById('period-week').className = (mode === 'week') ? 'px-3 py-2 bg-navy-800 text-white' : 'px-3 py-2 text-slate-500 hover:bg-slate-50';
+      renderKeywordChart();
+      renderJournalMonthlyChart();
+    };
     let charts = {};
 
     // ---------- 인증 ----------
@@ -577,7 +611,7 @@
 
       const monthMap = {};
       for (const p of filteredPapers) {
-        const m = (p.date||'').slice(0,7);
+        const m = periodKey(p.date||'');
         if (!m) continue;
         if (!monthMap[m]) monthMap[m] = [];
         monthMap[m].push(p);
@@ -804,7 +838,7 @@
 
       const monthMap = {};
       for (const p of filteredPapers) {
-        const m = (p.date||'').slice(0,7);
+        const m = periodKey(p.date||'');
         if (!m || !p.journal) continue;
         if (!monthMap[m]) monthMap[m] = {};
         monthMap[m][p.journal] = (monthMap[m][p.journal]||0)+1;
