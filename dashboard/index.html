@@ -77,10 +77,6 @@
           <option value="6">Last 6 months</option>
           <option value="12">Last 12 months</option>
         </select>
-        <div class="flex text-[10px] font-bold border border-slate-200 rounded-lg overflow-hidden">
-          <button id="period-month" class="px-3 py-2 bg-navy-800 text-white" onclick="setPeriodMode('month')">Month</button>
-          <button id="period-week" class="px-3 py-2 text-slate-500 hover:bg-slate-50" onclick="setPeriodMode('week')">Week</button>
-        </div>
         <button id="refresh-btn" class="px-4 py-2 bg-gradient-to-r from-navy-900 to-navy-800 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">
           Refresh
         </button>
@@ -132,7 +128,13 @@
       <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="card p-6 lg:col-span-2">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Keyword Trends</h2>
+            <div class="flex items-center gap-2">
+              <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Keyword Trends</h2>
+              <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
+                <button id="kw-period-month" class="px-2 py-1 bg-navy-800 text-white" onclick="setKwPeriod('month')">Month</button>
+                <button id="kw-period-week" class="px-2 py-1 text-slate-500 hover:bg-slate-50" onclick="setKwPeriod('week')">Week</button>
+              </div>
+            </div>
             <div class="flex items-center gap-2 flex-wrap">
               <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
                 <button id="kv-broad" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setKeywordView('broad')">Broad</button>
@@ -183,7 +185,13 @@
           </div>
         </div>
         <div class="card p-6">
-          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Top Journals Monthly</h2>
+          <div class="flex items-center gap-2 mb-4">
+            <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Top Journals Monthly</h2>
+            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
+              <button id="jm-period-month" class="px-2 py-1 bg-navy-800 text-white" onclick="setJmPeriod('month')">Month</button>
+              <button id="jm-period-week" class="px-2 py-1 text-slate-500 hover:bg-slate-50" onclick="setJmPeriod('week')">Week</button>
+            </div>
+          </div>
           <div class="chart-container" style="height:360px">
             <canvas id="chart-journal-monthly"></canvas>
           </div>
@@ -256,9 +264,16 @@
         </div>
       </section>
 
-      <!-- 일별 트렌드 -->
+      <!-- 일별/주별/월별 트렌드 -->
       <section class="card p-6">
-        <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Daily Paper Count</h2>
+        <div class="flex items-center gap-2 mb-4">
+          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Paper Count</h2>
+          <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
+            <button id="daily-period-day" class="px-2 py-1 bg-navy-800 text-white" onclick="setDailyPeriod('day')">Day</button>
+            <button id="daily-period-week" class="px-2 py-1 text-slate-500 hover:bg-slate-50" onclick="setDailyPeriod('week')">Week</button>
+            <button id="daily-period-month" class="px-2 py-1 text-slate-500 hover:bg-slate-50" onclick="setDailyPeriod('month')">Month</button>
+          </div>
+        </div>
         <div class="chart-container" style="height:250px">
           <canvas id="chart-daily"></canvas>
         </div>
@@ -314,7 +329,10 @@
     let keywordView = 'broad';       // 'broad' | 'sharp'
     let broadFilter = '';            // '' or specific broad domain (sharp view 필터)
     let expandedBroads = new Set();  // Top Keywords 트리에서 펼쳐진 broad 목록
-    let periodMode = 'month';        // 'month' | 'week' — 시계열 차트 집계 단위
+    // 차트별 독립 period 모드
+    let kwPeriodMode = 'month';       // Keyword Trends
+    let jmPeriodMode = 'month';       // Top Journals Monthly
+    let dailyPeriodMode = 'day';      // Daily Paper Count: 'day' | 'week' | 'month'
 
     // ISO 주 키 (월요일 시작) "YYYY-Www"
     function isoWeekKey(dateStr) {
@@ -332,17 +350,38 @@
       return `${target.getUTCFullYear()}-W${String(week).padStart(2,'0')}`;
     }
 
-    function periodKey(dateStr) {
+    function periodKey(dateStr, mode) {
       if (!dateStr) return '';
-      return periodMode === 'week' ? isoWeekKey(dateStr) : dateStr.slice(0, 7);
+      if (mode === 'week') return isoWeekKey(dateStr);
+      if (mode === 'day')  return dateStr.slice(0, 10);
+      return dateStr.slice(0, 7); // month
     }
 
-    window.setPeriodMode = function(mode) {
-      periodMode = mode;
-      document.getElementById('period-month').className = (mode === 'month') ? 'px-3 py-2 bg-navy-800 text-white' : 'px-3 py-2 text-slate-500 hover:bg-slate-50';
-      document.getElementById('period-week').className = (mode === 'week') ? 'px-3 py-2 bg-navy-800 text-white' : 'px-3 py-2 text-slate-500 hover:bg-slate-50';
+    // 차트별 period 토글 버튼 스타일 갱신 헬퍼
+    function _updatePeriodButtons(prefix, current, modes) {
+      for (const m of modes) {
+        const btn = document.getElementById(`${prefix}-${m}`);
+        if (!btn) continue;
+        btn.className = (m === current)
+          ? 'px-2 py-1 bg-navy-800 text-white'
+          : 'px-2 py-1 text-slate-500 hover:bg-slate-50';
+      }
+    }
+
+    window.setKwPeriod = function(mode) {
+      kwPeriodMode = mode;
+      _updatePeriodButtons('kw-period', mode, ['month','week']);
       renderKeywordChart();
+    };
+    window.setJmPeriod = function(mode) {
+      jmPeriodMode = mode;
+      _updatePeriodButtons('jm-period', mode, ['month','week']);
       renderJournalMonthlyChart();
+    };
+    window.setDailyPeriod = function(mode) {
+      dailyPeriodMode = mode;
+      _updatePeriodButtons('daily-period', mode, ['day','week','month']);
+      renderDailyChart();
     };
     let charts = {};
 
@@ -611,7 +650,7 @@
 
       const monthMap = {};
       for (const p of filteredPapers) {
-        const m = periodKey(p.date||'');
+        const m = periodKey(p.date||'', kwPeriodMode);
         if (!m) continue;
         if (!monthMap[m]) monthMap[m] = [];
         monthMap[m].push(p);
@@ -801,11 +840,11 @@
       });
     }
 
-    // 일별
+    // 일별/주별/월별
     function renderDailyChart() {
       const freq = {};
       for (const p of filteredPapers) {
-        const d = (p.date||'').slice(0,10);
+        const d = periodKey(p.date||'', dailyPeriodMode);
         if (d) freq[d] = (freq[d]||0)+1;
       }
       const dates = Object.keys(freq).sort();
@@ -838,7 +877,7 @@
 
       const monthMap = {};
       for (const p of filteredPapers) {
-        const m = periodKey(p.date||'');
+        const m = periodKey(p.date||'', jmPeriodMode);
         if (!m || !p.journal) continue;
         if (!monthMap[m]) monthMap[m] = {};
         monthMap[m][p.journal] = (monthMap[m][p.journal]||0)+1;
