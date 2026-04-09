@@ -127,9 +127,9 @@
       <!-- 키워드 트렌드 + 워드클라우드 -->
       <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="card p-6 lg:col-span-2">
-          <div class="flex items-center justify-between mb-4">
-            <div class="flex items-center gap-2">
-              <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Keyword Trends</h2>
+          <div class="flex items-center justify-between mb-4 flex-wrap gap-y-2">
+            <div class="flex items-center gap-2 shrink-0">
+              <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] whitespace-nowrap">Keyword Trends</h2>
               <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
                 <button id="kw-period-month" class="px-2 py-1 bg-navy-800 text-white" onclick="setKwPeriod('month')">Month</button>
                 <button id="kw-period-week" class="px-2 py-1 text-slate-500 hover:bg-slate-50" onclick="setKwPeriod('week')">Week</button>
@@ -657,6 +657,34 @@
       }
       const months = Object.keys(monthMap).sort();
 
+      if (charts.keyword) charts.keyword.destroy();
+
+      // 기간 포인트가 1개 이하면 line이 의미 없으므로 horizontal bar로 전환
+      if (months.length <= 1) {
+        const label = months[0] || '—';
+        const data = topKws.map(kw => globalFreq[kw] || 0);
+        charts.keyword = new Chart(document.getElementById('chart-keyword'), {
+          type: 'bar',
+          data: {
+            labels: topKws,
+            datasets: [{
+              label, data,
+              backgroundColor: topKws.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]),
+              borderRadius: 4,
+            }]
+          },
+          options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { title: () => label } } },
+            scales: {
+              x: { beginAtZero: true, ticks: { font: { size: 10 }, precision: 0 } },
+              y: { ticks: { font: { size: 10, family: 'Manrope' } } }
+            }
+          }
+        });
+        return;
+      }
+
       const datasets = topKws.map((kw, i) => ({
         label: kw,
         data: months.map(m => { const f = currentFreq(monthMap[m]); return f[kw]||0; }),
@@ -665,7 +693,6 @@
         tension: 0.3, borderWidth: 2, pointRadius: 3,
       }));
 
-      if (charts.keyword) charts.keyword.destroy();
       charts.keyword = new Chart(document.getElementById('chart-keyword'), {
         type: 'line',
         data: { labels: months, datasets },
@@ -884,13 +911,40 @@
       }
       const months = Object.keys(monthMap).sort();
 
+      if (charts.journalMonthly) charts.journalMonthly.destroy();
+
+      // 기간 포인트가 1개 이하면 horizontal bar로 전환
+      if (months.length <= 1) {
+        const label = months[0] || '—';
+        const data = topJ.map(j => (monthMap[months[0]]?.[j]) || freq[j] || 0);
+        charts.journalMonthly = new Chart(document.getElementById('chart-journal-monthly'), {
+          type: 'bar',
+          data: {
+            labels: topJ.map(j => j.length > 22 ? j.slice(0,20)+'..' : j),
+            datasets: [{
+              label, data,
+              backgroundColor: topJ.map((_, i) => CHART_COLORS[i]),
+              borderRadius: 4,
+            }]
+          },
+          options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { title: () => label } } },
+            scales: {
+              x: { beginAtZero: true, ticks: { font: { size: 10 }, precision: 0 } },
+              y: { ticks: { font: { size: 10, family: 'Manrope' } } }
+            }
+          }
+        });
+        return;
+      }
+
       const datasets = topJ.map((j, i) => ({
         label: j.length > 20 ? j.slice(0,18)+'..' : j,
         data: months.map(m => monthMap[m]?.[j]||0),
         borderColor: CHART_COLORS[i], tension: 0.3, borderWidth: 2, pointRadius: 3,
       }));
 
-      if (charts.journalMonthly) charts.journalMonthly.destroy();
       charts.journalMonthly = new Chart(document.getElementById('chart-journal-monthly'), {
         type: 'line',
         data: { labels: months, datasets },
