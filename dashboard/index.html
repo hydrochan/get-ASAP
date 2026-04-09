@@ -129,14 +129,14 @@
         <div class="card p-6 lg:col-span-2">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Keyword Trends</h2>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
               <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
-                <button id="cat-all" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setCategoryMode('all')">All</button>
-                <button id="cat-topic" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setCategoryMode('topic')">Topic</button>
-                <button id="cat-material" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setCategoryMode('material')">Material</button>
-                <button id="cat-method" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setCategoryMode('method')">Method</button>
-                <button id="cat-experiment" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setCategoryMode('experiment')">Experiment</button>
+                <button id="kv-broad" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setKeywordView('broad')">Broad</button>
+                <button id="kv-sharp" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setKeywordView('sharp')">Sharp</button>
               </div>
+              <select id="broad-filter" class="text-xs border border-slate-200 rounded px-2 py-1" disabled>
+                <option value="">All domains</option>
+              </select>
               <select id="kw-top-n" class="text-xs border border-slate-200 rounded px-2 py-1">
                 <option value="5">Top 5</option>
                 <option value="10" selected>Top 10</option>
@@ -155,25 +155,23 @@
         </div>
       </section>
 
-      <!-- Top 키워드 테이블 (카테고리별) -->
+      <!-- Top 키워드 테이블 (Broad / Sharp) -->
       <section class="card p-6">
-        <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Top Keywords by Category</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Top Keywords</h2>
+          <p class="text-[10px] text-slate-400">Click a broad domain to filter sharp keywords</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Topic</h3>
-            <div id="kw-table-topic" class="space-y-0.5 text-xs"></div>
+            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Broad Domains</h3>
+            <div id="kw-table-broad" class="space-y-0.5 text-xs"></div>
           </div>
           <div>
-            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Material</h3>
-            <div id="kw-table-material" class="space-y-0.5 text-xs"></div>
-          </div>
-          <div>
-            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Method</h3>
-            <div id="kw-table-method" class="space-y-0.5 text-xs"></div>
-          </div>
-          <div>
-            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Experiment</h3>
-            <div id="kw-table-experiment" class="space-y-0.5 text-xs"></div>
+            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+              Sharp Keywords
+              <span id="kw-table-sharp-scope" class="text-slate-400 font-normal normal-case tracking-normal ml-1"></span>
+            </h3>
+            <div id="kw-table-sharp" class="space-y-0.5 text-xs"></div>
           </div>
         </div>
       </section>
@@ -200,12 +198,12 @@
           <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Journal &times; Keyword Matrix</h2>
           <div class="flex items-center gap-2">
             <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
-              <button id="hm-cat-all" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setHeatmapCategory('all')">All</button>
-              <button id="hm-cat-topic" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapCategory('topic')">Topic</button>
-              <button id="hm-cat-material" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapCategory('material')">Material</button>
-              <button id="hm-cat-method" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapCategory('method')">Method</button>
-              <button id="hm-cat-experiment" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapCategory('experiment')">Experiment</button>
+              <button id="hm-kv-broad" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setHeatmapView('broad')">Broad</button>
+              <button id="hm-kv-sharp" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapView('sharp')">Sharp</button>
             </div>
+            <select id="hm-broad-filter" class="text-xs border border-slate-200 rounded px-2 py-1" disabled>
+              <option value="">All domains</option>
+            </select>
             <button id="hm-expand-btn" class="px-3 py-1 text-[10px] font-bold border border-slate-200 rounded text-slate-500 hover:bg-slate-50 transition-colors" onclick="toggleHeatmapExpand()">
               Expand All
             </button>
@@ -315,7 +313,8 @@
     let filteredPapers = [];  // 저널 필터 적용된 데이터
     let selectedJournals = new Set(); // 선택된 저널
     let allJournalsMode = true;       // "All" 모드
-    let categoryMode = 'all';        // all | topic | material | method | experiment
+    let keywordView = 'broad';       // 'broad' | 'sharp'
+    let broadFilter = '';            // '' or specific broad domain (sharp view 필터)
     let charts = {};
 
     // ---------- 인증 ----------
@@ -368,6 +367,7 @@
       }
       allPapers = frames.filter(r => r.title && r.title.trim());
       buildJournalFilter();
+      populateBroadFilters();
       applyFilter();
     }
 
@@ -477,9 +477,7 @@
         daily = (total / days).toFixed(1);
       }
 
-      const _prevCatKpi = categoryMode; categoryMode = 'all';
-      const globalFreq = getKeywordsForMode(filteredPapers);
-      categoryMode = _prevCatKpi;
+      const globalFreq = getFreq(filteredPapers, 'broad', '');
       const topKw = Object.entries(globalFreq).sort((a,b)=>b[1]-a[1]);
       const topKwName = topKw.length ? topKw[0][0] : '—';
 
@@ -490,73 +488,96 @@
       document.getElementById('kpi-topkw').textContent = topKwName;
     }
 
-    // gpt_reason 파싱: "topic/kw-1, material/kw-2" → [{cat,kw}, ...]
+    // gpt_reason 파싱: "batteries/solid-electrolytes, biology" → [{broad, sharp}, ...]
+    // broad만 있는 토큰(sharp 없음)도 허용
     function parseReason(reason) {
       if (!reason) return [];
       const out = [];
       for (const tok of reason.split(',')) {
-        const s = tok.trim();
+        const s = tok.trim().toLowerCase();
         if (!s) continue;
         const idx = s.indexOf('/');
-        if (idx < 0) continue;
-        const cat = s.slice(0, idx).trim().toLowerCase();
-        const kw = s.slice(idx + 1).trim().toLowerCase();
-        if (!cat || !kw) continue;
-        out.push({ cat, kw });
+        if (idx < 0) {
+          out.push({ broad: s, sharp: null });
+        } else {
+          const broad = s.slice(0, idx).trim();
+          const sharp = s.slice(idx + 1).trim();
+          if (!broad) continue;
+          out.push({ broad, sharp: sharp || null });
+        }
       }
       return out;
     }
 
-    // 카테고리 필터 적용된 키워드 빈도 (paper 단위 중복 제거)
-    function getKeywordsForMode(papers) {
+    // 빈도 계산 (paper 단위 중복 제거)
+    //  view='broad' → broad 도메인 기준
+    //  view='sharp' → sharp 키워드 기준, broadOnly가 있으면 해당 broad 안의 sharp만
+    function getFreq(papers, view, broadOnly) {
       const freq = {};
       for (const p of papers) {
         const seen = new Set();
-        for (const { cat, kw } of parseReason(p.gpt_reason || '')) {
-          if (categoryMode !== 'all' && cat !== categoryMode) continue;
-          if (seen.has(kw)) continue;
-          seen.add(kw);
-          freq[kw] = (freq[kw] || 0) + 1;
+        for (const { broad, sharp } of parseReason(p.gpt_reason || '')) {
+          if (view === 'broad') {
+            if (seen.has(broad)) continue;
+            seen.add(broad);
+            freq[broad] = (freq[broad] || 0) + 1;
+          } else {
+            if (!sharp) continue;
+            if (broadOnly && broad !== broadOnly) continue;
+            if (seen.has(sharp)) continue;
+            seen.add(sharp);
+            freq[sharp] = (freq[sharp] || 0) + 1;
+          }
         }
       }
       return freq;
     }
 
-    // 카테고리별로 빈도 맵 4개 반환 (Top Keywords Table용)
-    function getKeywordsByCategory(papers) {
-      const result = { topic: {}, material: {}, method: {}, experiment: {} };
-      for (const p of papers) {
-        const seen = new Set();
-        for (const { cat, kw } of parseReason(p.gpt_reason || '')) {
-          if (!(cat in result)) continue;
-          const key = cat + '|' + kw;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          result[cat][kw] = (result[cat][kw] || 0) + 1;
-        }
-      }
-      return result;
+    // 현재 UI 상태(keywordView + broadFilter)에 맞는 빈도
+    function currentFreq(papers) {
+      return getFreq(papers, keywordView, keywordView === 'sharp' ? broadFilter : '');
     }
 
-    // 카테고리 모드 전환 (키워드 트렌드·워드클라우드용)
-    const CATEGORIES = ['all','topic','material','method','experiment'];
-    window.setCategoryMode = function(mode) {
-      categoryMode = mode;
-      for (const c of CATEGORIES) {
-        const btn = document.getElementById('cat-' + c);
-        if (!btn) continue;
-        btn.className = (c === mode)
-          ? 'px-2.5 py-1 bg-navy-800 text-white'
-          : 'px-2.5 py-1 text-slate-500 hover:bg-slate-50';
-      }
+    // Broad/Sharp 뷰 전환 (키워드 트렌드·워드클라우드·Top 테이블용)
+    window.setKeywordView = function(view) {
+      keywordView = view;
+      const b1 = document.getElementById('kv-broad');
+      const b2 = document.getElementById('kv-sharp');
+      b1.className = (view === 'broad') ? 'px-2.5 py-1 bg-navy-800 text-white' : 'px-2.5 py-1 text-slate-500 hover:bg-slate-50';
+      b2.className = (view === 'sharp') ? 'px-2.5 py-1 bg-navy-800 text-white' : 'px-2.5 py-1 text-slate-500 hover:bg-slate-50';
+      // broad 드롭다운은 sharp view에서만 활성
+      document.getElementById('broad-filter').disabled = (view !== 'sharp');
       renderKeywordChart();
       renderWordCloud();
+      renderKeywordTable();
     };
+
+    // broad 도메인 드롭다운 변경
+    document.getElementById('broad-filter').addEventListener('change', (e) => {
+      broadFilter = e.target.value;
+      renderKeywordChart();
+      renderWordCloud();
+      renderKeywordTable();
+    });
+
+    // broad 도메인 목록으로 드롭다운 채우기
+    function populateBroadFilters() {
+      const broads = Object.entries(getFreq(allPapers, 'broad', ''))
+        .sort((a,b) => b[1] - a[1]).map(e => e[0]);
+      const fill = (sel, keepValue) => {
+        const prev = keepValue && broads.includes(keepValue) ? keepValue : '';
+        sel.innerHTML = '<option value="">All domains</option>' +
+          broads.map(b => `<option value="${b}">${b} (${getFreq(allPapers,'broad','')[b]})</option>`).join('');
+        sel.value = prev;
+      };
+      fill(document.getElementById('broad-filter'), broadFilter);
+      fill(document.getElementById('hm-broad-filter'), heatmapBroadFilter);
+    }
 
     // 키워드 트렌드
     function renderKeywordChart() {
       const topN = parseInt(document.getElementById('kw-top-n').value);
-      const globalFreq = getKeywordsForMode(filteredPapers);
+      const globalFreq = currentFreq(filteredPapers);
       const topKws = Object.entries(globalFreq).sort((a,b)=>b[1]-a[1]).slice(0,topN).map(e=>e[0]);
 
       const monthMap = {};
@@ -570,7 +591,7 @@
 
       const datasets = topKws.map((kw, i) => ({
         label: kw,
-        data: months.map(m => { const f = getKeywordsForMode(monthMap[m]); return f[kw]||0; }),
+        data: months.map(m => { const f = currentFreq(monthMap[m]); return f[kw]||0; }),
         borderColor: CHART_COLORS[i % CHART_COLORS.length],
         backgroundColor: CHART_COLORS[i % CHART_COLORS.length] + '20',
         tension: 0.3, borderWidth: 2, pointRadius: 3,
@@ -594,7 +615,7 @@
     // 워드클라우드
     function renderWordCloud() {
       const canvas = document.getElementById('wordcloud-canvas');
-      const freq = getKeywordsForMode(filteredPapers);
+      const freq = currentFreq(filteredPapers);
       const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0, 50);
       if (!sorted.length) return;
 
@@ -622,23 +643,51 @@
       } catch {}
     }
 
-    // Top 키워드 테이블 (카테고리별 4개)
+    // Top 키워드 테이블 (Broad / Sharp)
     function renderKeywordTable() {
-      const byCat = getKeywordsByCategory(filteredPapers);
-      const render = (freq, containerId) => {
-        const top15 = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0, 15);
-        document.getElementById(containerId).innerHTML = top15.map(([kw, count], i) =>
-          `<div class="flex justify-between py-0.5 ${i < 3 ? 'font-bold text-navy-900' : 'text-slate-600'}">
-            <span class="truncate pr-2"><span class="text-slate-400 mr-1">${i+1}.</span>${kw}</span>
-            <span class="text-slate-400 shrink-0">${count}</span>
-          </div>`
-        ).join('') || '<div class="text-slate-400">No data</div>';
-      };
-      render(byCat.topic, 'kw-table-topic');
-      render(byCat.material, 'kw-table-material');
-      render(byCat.method, 'kw-table-method');
-      render(byCat.experiment, 'kw-table-experiment');
+      const broadFreq = getFreq(filteredPapers, 'broad', '');
+      const sharpFreq = getFreq(filteredPapers, 'sharp', broadFilter);
+
+      const top15Broad = Object.entries(broadFreq).sort((a,b)=>b[1]-a[1]).slice(0, 15);
+      const top15Sharp = Object.entries(sharpFreq).sort((a,b)=>b[1]-a[1]).slice(0, 15);
+
+      // Broad: 클릭하면 sharp 필터에 적용
+      document.getElementById('kw-table-broad').innerHTML = top15Broad.map(([kw, count], i) => {
+        const active = (kw === broadFilter);
+        return `<div class="flex justify-between py-0.5 cursor-pointer hover:bg-slate-50 px-1 rounded ${active ? 'bg-navy-50 font-bold text-navy-900' : (i < 3 ? 'font-bold text-navy-900' : 'text-slate-600')}" onclick="pickBroad('${kw.replace(/'/g,"\\'")}')">
+          <span class="truncate pr-2"><span class="text-slate-400 mr-1">${i+1}.</span>${kw}</span>
+          <span class="text-slate-400 shrink-0">${count}</span>
+        </div>`;
+      }).join('') || '<div class="text-slate-400">No data</div>';
+
+      // Sharp: 현재 broadFilter 기준
+      document.getElementById('kw-table-sharp').innerHTML = top15Sharp.map(([kw, count], i) =>
+        `<div class="flex justify-between py-0.5 px-1 ${i < 3 ? 'font-bold text-navy-900' : 'text-slate-600'}">
+          <span class="truncate pr-2"><span class="text-slate-400 mr-1">${i+1}.</span>${kw}</span>
+          <span class="text-slate-400 shrink-0">${count}</span>
+        </div>`
+      ).join('') || '<div class="text-slate-400">No data</div>';
+
+      // Sharp 패널 스코프 라벨
+      const scopeEl = document.getElementById('kw-table-sharp-scope');
+      scopeEl.innerHTML = broadFilter
+        ? `in <span class="text-navy-700 font-semibold">${broadFilter}</span> <button onclick="pickBroad('')" class="text-slate-400 hover:text-navy-700 ml-1">×</button>`
+        : '(all domains)';
     }
+
+    // Broad 테이블에서 클릭 → sharp 필터 토글
+    window.pickBroad = function(broad) {
+      broadFilter = (broadFilter === broad) ? '' : broad;
+      document.getElementById('broad-filter').value = broadFilter;
+      // broadFilter를 고르면 자동으로 sharp view로 전환
+      if (broadFilter && keywordView !== 'sharp') {
+        setKeywordView('sharp');
+      } else {
+        renderKeywordChart();
+        renderWordCloud();
+        renderKeywordTable();
+      }
+    };
 
     // 저널 빈도
     function renderJournalChart() {
@@ -732,35 +781,28 @@
     }
 
     // 히트맵
-    let heatmapCategory = 'all';
+    let heatmapView = 'broad';        // 'broad' | 'sharp'
+    let heatmapBroadFilter = '';      // sharp view일 때 특정 broad로 제한
     let heatmapExpanded = false;
 
     function _getHeatmapKw(papers) {
-      // 히트맵 전용 카테고리 필터를 적용한 빈도 맵 반환
-      const freq = {};
-      for (const p of papers) {
-        const seen = new Set();
-        for (const { cat, kw } of parseReason(p.gpt_reason || '')) {
-          if (heatmapCategory !== 'all' && cat !== heatmapCategory) continue;
-          if (seen.has(kw)) continue;
-          seen.add(kw);
-          freq[kw] = (freq[kw] || 0) + 1;
-        }
-      }
-      return freq;
+      return getFreq(papers, heatmapView, heatmapView === 'sharp' ? heatmapBroadFilter : '');
     }
 
-    window.setHeatmapCategory = function(mode) {
-      heatmapCategory = mode;
-      for (const c of CATEGORIES) {
-        const btn = document.getElementById('hm-cat-' + c);
-        if (!btn) continue;
-        btn.className = (c === mode)
-          ? 'px-2.5 py-1 bg-navy-800 text-white'
-          : 'px-2.5 py-1 text-slate-500 hover:bg-slate-50';
-      }
+    window.setHeatmapView = function(view) {
+      heatmapView = view;
+      const b1 = document.getElementById('hm-kv-broad');
+      const b2 = document.getElementById('hm-kv-sharp');
+      b1.className = (view === 'broad') ? 'px-2.5 py-1 bg-navy-800 text-white' : 'px-2.5 py-1 text-slate-500 hover:bg-slate-50';
+      b2.className = (view === 'sharp') ? 'px-2.5 py-1 bg-navy-800 text-white' : 'px-2.5 py-1 text-slate-500 hover:bg-slate-50';
+      document.getElementById('hm-broad-filter').disabled = (view !== 'sharp');
       renderHeatmap();
     };
+
+    document.getElementById('hm-broad-filter').addEventListener('change', (e) => {
+      heatmapBroadFilter = e.target.value;
+      renderHeatmap();
+    });
 
     window.toggleHeatmapExpand = function() {
       heatmapExpanded = !heatmapExpanded;
@@ -876,12 +918,9 @@
         }
       });
 
-      // 키워드 비교: 전체 vs 관심 (all 카테고리 기준)
-      const _prevCat = categoryMode;
-      categoryMode = 'all';
-      const allKw = Object.entries(getKeywordsForMode(filteredPapers)).sort((a,b)=>b[1]-a[1]).slice(0,10);
-      const intKw = Object.entries(getKeywordsForMode(interestPapers)).sort((a,b)=>b[1]-a[1]).slice(0,10);
-      categoryMode = _prevCat;
+      // 키워드 비교: 전체 vs 관심 (broad 도메인 기준)
+      const allKw = Object.entries(getFreq(filteredPapers, 'broad', '')).sort((a,b)=>b[1]-a[1]).slice(0,10);
+      const intKw = Object.entries(getFreq(interestPapers, 'broad', '')).sort((a,b)=>b[1]-a[1]).slice(0,10);
       const tbody = document.getElementById('interest-kw-tbody');
       let rows = '';
       for (let i = 0; i < 10; i++) {
@@ -899,10 +938,12 @@
       const kw = document.getElementById('kw-search-input').value.trim().toLowerCase();
       if (!kw) return;
 
-      // reason의 키워드 슬러그와 substring 매칭 (입력은 공백도 허용 → '-'로 정규화)
+      // reason의 broad 또는 sharp 슬러그와 substring 매칭
       const needle = kw.replace(/\s+/g, '-');
       const matched = filteredPapers.filter(p =>
-        parseReason(p.gpt_reason||'').some(({ kw: k }) => k.includes(needle))
+        parseReason(p.gpt_reason||'').some(({ broad, sharp }) =>
+          broad.includes(needle) || (sharp && sharp.includes(needle))
+        )
       );
       document.getElementById('kw-search-count').textContent = matched.length ? `${matched.length} papers found` : 'No results';
 
@@ -984,11 +1025,8 @@
       const start = range[range.length-1];
       const end = range[0];
 
-      const _prevCat = categoryMode;
-      categoryMode = 'all';
-      const globalFreq = getKeywordsForMode(filteredPapers);
+      const globalFreq = getFreq(filteredPapers, 'broad', '');
       const top20 = Object.entries(globalFreq).sort((a,b)=>b[1]-a[1]).slice(0,20);
-      categoryMode = _prevCat;
 
       const journalFreq = {};
       for (const p of filteredPapers) { if (p.journal) journalFreq[p.journal]=(journalFreq[p.journal]||0)+1; }
@@ -1012,9 +1050,7 @@
       if (interestPapers.length > 0) {
         md += `\n## AI Interest Analysis\n\n`;
         md += `**Interest papers:** ${interestPapers.length} / ${filteredPapers.length} (${(interestPapers.length/filteredPapers.length*100).toFixed(1)}%)\n\n`;
-        const _prev2 = categoryMode; categoryMode = 'all';
-        const intKw = Object.entries(getKeywordsForMode(interestPapers)).sort((a,b)=>b[1]-a[1]).slice(0,10);
-        categoryMode = _prev2;
+        const intKw = Object.entries(getFreq(interestPapers, 'broad', '')).sort((a,b)=>b[1]-a[1]).slice(0,10);
         md += `| Rank | Interest Keyword | Count |\n|------|-----------------|-------|\n`;
         intKw.forEach(([kw,c], i) => { md += `| ${i+1} | ${kw} | ${c} |\n`; });
       }
