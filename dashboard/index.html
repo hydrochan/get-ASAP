@@ -899,7 +899,7 @@
       for (const p of filteredPapers) {
         if (p.journal) freq[p.journal] = (freq[p.journal]||0)+1;
       }
-      const topJ = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,5).map(e=>e[0]);
+      const topJ = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,10).map(e=>e[0]);
 
       const monthMap = {};
       for (const p of filteredPapers) {
