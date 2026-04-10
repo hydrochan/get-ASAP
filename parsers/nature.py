@@ -33,8 +33,8 @@ class NatureParser(BaseParser):
             seen_titles = set()
 
             # 논문 섹션의 <h2> 찾기
-            # Articles/Letters: 일반 저널, Reviews/Perspectives: 리뷰 저널
-            target_sections = {"articles", "letters", "reviews", "perspectives"}
+            # Articles/Letters: 일반 저널, Reviews/Perspectives: 리뷰 저널, Research: 본지
+            target_sections = {"articles", "letters", "reviews", "perspectives", "research"}
             article_sections = []
             for h2 in soup.find_all("h2"):
                 section_name = h2.get_text(strip=True).lower()
