@@ -50,7 +50,28 @@ class NatureParser(BaseParser):
                 if section_name in target_h3:
                     article_sections.append(("h3", h3))
 
+            # Nature Communications 형식: h3가 논문 제목, h2가 분야 섹션
+            # (Articles/Letters 같은 섹션 헤더 없이 h3에 바로 제목이 들어감)
             if not article_sections:
+                ncomms_skip = {"related subjects", "view more articles"}
+                for h3 in soup.find_all("h3"):
+                    title = self._clean_text(h3)
+                    low = title.lower()
+                    if any(low.startswith(s) for s in ncomms_skip):
+                        continue
+                    if not is_valid_paper_title(title):
+                        continue
+                    if title in seen_titles:
+                        continue
+                    seen_titles.add(title)
+                    # h3 근처에서 URL 찾기
+                    a_tag = h3.find("a") or h3.find_next("a")
+                    url = a_tag.get("href", "") if a_tag else ""
+                    papers.append(PaperMetadata(
+                        title=title, journal="", date="", url=url,
+                    ))
+                if papers:
+                    return papers
                 logger.debug("Nature 메일에 논문 섹션 없음")
                 return []
 
