@@ -30,9 +30,9 @@
     "doi_prefix": "10.1016/"
   },
   "science": {
-    "sender": ["announcements@aaas.sciencepubs.org"],
+    "sender": ["announcements@aaas.sciencepubs.org", "alerts@aaas.sciencepubs.org"],
     "name": "Science",
-    "journals": ["Science", "Science Advances"],
+    "journals": ["Science", "Science Advances", "Science Signaling"],
     "doi_prefix": "10.1126/"
   },
   "rsc": {
