@@ -32,28 +32,39 @@ class NatureParser(BaseParser):
             papers = []
             seen_titles = set()
 
-            # 논문 섹션의 <h2> 찾기
-            # Articles/Letters: 일반 저널, Reviews/Perspectives: 리뷰 저널, Research: 본지
-            target_sections = {"articles", "letters", "reviews", "perspectives", "research"}
+            # 논문 섹션 찾기: <h2> (일반 저널) 또는 <h3> (본지 Research 내 서브섹션)
+            # h2: Articles, Letters, Reviews, Perspectives
+            # h3: Articles (Research 섹션 내 서브헤더)
+            target_h2 = {"articles", "letters", "reviews", "perspectives"}
+            target_h3 = {"articles", "letters"}  # Research 내 서브섹션
+
             article_sections = []
+            # h2 레벨 섹션 (일반 저널 메일)
             for h2 in soup.find_all("h2"):
                 section_name = h2.get_text(strip=True).lower()
-                if section_name in target_sections:
-                    article_sections.append(h2)
+                if section_name in target_h2:
+                    article_sections.append(("h2", h2))
+            # h3 레벨 서브섹션 (본지 Research 내 Articles)
+            for h3 in soup.find_all("h3"):
+                section_name = h3.get_text(strip=True).lower()
+                if section_name in target_h3:
+                    article_sections.append(("h3", h3))
 
             if not article_sections:
                 logger.debug("Nature 메일에 논문 섹션 없음")
                 return []
 
-            # 각 섹션에서 다음 <h2> 전까지의 <a> 태그 추출
-            for section_h2 in article_sections:
-                current = section_h2
+            # 각 섹션에서 다음 같은 레벨 헤더 전까지의 <a> 태그 추출
+            for level, section_header in article_sections:
+                current = section_header
                 while True:
                     current = current.find_next()
                     if current is None:
                         break
-                    # 다음 h2를 만나면 섹션 끝
+                    # 같은 레벨 이상의 헤더를 만나면 섹션 끝
                     if current.name == "h2":
+                        break
+                    if current.name == "h3" and level == "h3":
                         break
                     # <td> > <div|span> > <a> 패턴 매칭
                     if current.name != "a":
