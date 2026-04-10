@@ -1,4 +1,4 @@
-"""4가지 분석 로직: 키워드 트렌드, 저널×키워드, AI 관심 분석, 저널 빈도.
+"""4가지 분석 로직: 키워드 트렌드, 저널×키워드, 사용자 관심 분석, 저널 빈도.
 
 모든 함수는 pandas DataFrame을 입력받아 분석 결과를 반환한다.
 """
@@ -88,17 +88,20 @@ def journal_keyword_crosstab(
     return result
 
 
-def interest_ratio_by_journal(df: pd.DataFrame) -> pd.DataFrame:
-    """저널별 AI 관심 논문 비율.
+INTEREST_STATUSES = {"관련", "다운완료"}
 
-    status != '대기중'인 논문을 관심 논문으로 분류.
+
+def interest_ratio_by_journal(df: pd.DataFrame) -> pd.DataFrame:
+    """저널별 사용자 관심 논문 비율.
+
+    status가 '관련' 또는 '다운완료'인 논문을 관심 논문으로 분류.
 
     Returns:
         DataFrame (journal, total, interest, ratio) — ratio 내림차순
     """
     total = df.groupby("journal").size().reset_index(name="total")
     interest = (
-        df[df["status"] != "대기중"]
+        df[df["status"].isin(INTEREST_STATUSES)]
         .groupby("journal")
         .size()
         .reset_index(name="interest")
@@ -112,12 +115,12 @@ def interest_ratio_by_journal(df: pd.DataFrame) -> pd.DataFrame:
 def interest_keywords(
     df: pd.DataFrame, top_n: int = 15
 ) -> tuple[list[tuple[str, float]], list[tuple[str, float]]]:
-    """전체 키워드 vs AI 관심 논문 키워드 비교.
+    """전체 키워드 vs 사용자 관심 논문 키워드 비교.
 
     Returns:
         (all_keywords, interest_keywords) — 각각 [(keyword, score), ...]
     """
     all_kw = extract_keywords(df, top_n=top_n)
-    interest_df = df[df["status"] != "대기중"]
+    interest_df = df[df["status"].isin(INTEREST_STATUSES)]
     interest_kw = extract_keywords(interest_df, top_n=top_n) if not interest_df.empty else []
     return all_kw, interest_kw

@@ -221,7 +221,7 @@
 
       <!-- AI 관심 분석 -->
       <section class="card p-6">
-        <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">AI Interest Analysis</h2>
+        <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">User Interest Analysis</h2>
         <div id="interest-empty" class="text-xs text-slate-400 hidden">No interest-marked papers found.</div>
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <!-- 관심 비율 차트 -->
@@ -312,7 +312,7 @@
     'use strict';
 
     // ---------- 상수 ----------
-    // "관심" = Notion에서 다운완료 or 관련 상태인 논문만 (무관/추출됨/대기중 제외)
+    // "관심" = Notion에서 '관련' 또는 '다운완료' 상태인 논문 (사용자가 관심 표시한 논문)
     const INTEREST_STATUSES = new Set(['다운완료', '관련']);
 
     const CHART_COLORS = [
@@ -1226,7 +1226,7 @@
 
       const interestPapers = filteredPapers.filter(p => INTEREST_STATUSES.has(p.status));
       if (interestPapers.length > 0) {
-        md += `\n## AI Interest Analysis\n\n`;
+        md += `\n## User Interest Analysis\n\n`;
         md += `**Interest papers:** ${interestPapers.length} / ${filteredPapers.length} (${(interestPapers.length/filteredPapers.length*100).toFixed(1)}%)\n\n`;
         const intKw = Object.entries(getFreq(interestPapers, 'broad', '')).sort((a,b)=>b[1]-a[1]).slice(0,10);
         md += `| Rank | Interest Keyword | Count |\n|------|-----------------|-------|\n`;

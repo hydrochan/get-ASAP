@@ -21,7 +21,8 @@ def generate_report(df: pd.DataFrame, start: str, end: str) -> str:
     """분석 결과를 마크다운 리포트로 생성."""
     total = len(df)
     journals = df["journal"].nunique()
-    interest_count = len(df[df["status"] != "대기중"])
+    from analytics.analyzer import INTEREST_STATUSES
+    interest_count = len(df[df["status"].isin(INTEREST_STATUSES)])
 
     lines = [
         f"# get-ASAP 논문 분석 리포트",
@@ -29,7 +30,7 @@ def generate_report(df: pd.DataFrame, start: str, end: str) -> str:
         f"- **기간**: {start} ~ {end}",
         f"- **총 논문 수**: {total}건",
         f"- **저널 수**: {journals}개",
-        f"- **AI 관심 논문**: {interest_count}건 ({interest_count/total*100:.1f}%)" if total > 0 else f"- **AI 관심 논문**: 0건",
+        f"- **사용자 관심 논문**: {interest_count}건 ({interest_count/total*100:.1f}%)" if total > 0 else f"- **사용자 관심 논문**: 0건",
         f"- **생성일**: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
         f"",
     ]
@@ -59,7 +60,7 @@ def generate_report(df: pd.DataFrame, start: str, end: str) -> str:
     lines.append("")
 
     # AI 관심 분석
-    lines.append("## AI 관심 논문 분석")
+    lines.append("## 사용자 관심 논문 분석")
     lines.append("")
     ratio_df = interest_ratio_by_journal(df)
     top_interest = ratio_df[ratio_df["interest"] > 0].head(10)
@@ -71,7 +72,7 @@ def generate_report(df: pd.DataFrame, start: str, end: str) -> str:
                 f"| {row['journal']} | {row['total']} | {row['interest']} | {row['ratio']:.0%} |"
             )
     else:
-        lines.append("AI 관심 논문이 없습니다.")
+        lines.append("사용자 관심 논문이 없습니다.")
     lines.append("")
 
     # 관심 키워드 비교
