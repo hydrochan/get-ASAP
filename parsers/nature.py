@@ -14,8 +14,9 @@ class NatureParser(BaseParser):
 
     Nature 메일 HTML 구조:
     - 섹션 구분: <h2> 태그 (Editorial, News & Views, Articles, ...)
-    - Articles 섹션 내 논문 제목: <td> > <div> > <a>
-    - 발신자: ealert@nature.com
+    - 논문 섹션: Articles, Letters, Reviews, Perspectives, Research
+    - 논문 제목: <td> > <div> > <a> 또는 <td> > <span> > <a>
+    - 발신자: ealert@nature.com, alerts@nature.com
     """
 
     publisher_name = "Nature"
@@ -31,15 +32,17 @@ class NatureParser(BaseParser):
             papers = []
             seen_titles = set()
 
-            # Articles/Letters 섹션의 <h2> 찾기
+            # 논문 섹션의 <h2> 찾기
+            # Articles/Letters: 일반 저널, Reviews/Perspectives: 리뷰 저널, Research: 주간 알림
+            target_sections = {"articles", "letters", "reviews", "perspectives", "research"}
             article_sections = []
             for h2 in soup.find_all("h2"):
                 section_name = h2.get_text(strip=True).lower()
-                if section_name in ("articles", "letters"):
+                if section_name in target_sections:
                     article_sections.append(h2)
 
             if not article_sections:
-                logger.debug("Nature 메일에 Articles/Letters 섹션 없음")
+                logger.debug("Nature 메일에 논문 섹션 없음")
                 return []
 
             # 각 섹션에서 다음 <h2> 전까지의 <a> 태그 추출
@@ -52,11 +55,11 @@ class NatureParser(BaseParser):
                     # 다음 h2를 만나면 섹션 끝
                     if current.name == "h2":
                         break
-                    # <td> > <div> > <a> 패턴 매칭
+                    # <td> > <div|span> > <a> 패턴 매칭
                     if current.name != "a":
                         continue
                     parent = current.parent
-                    if not parent or parent.name != "div":
+                    if not parent or parent.name not in ("div", "span"):
                         continue
                     gp = parent.parent
                     if not gp or gp.name != "td":
