@@ -10,8 +10,9 @@ from datetime import date
 import pandas as pd
 
 import config
-from notion_auth import get_notion_client
-from notion_client_mod import _find_monthly_db, _get_data_source_id
+import httpx
+
+from notion_client_mod import _find_monthly_db
 
 logger = logging.getLogger(__name__)
 
@@ -95,17 +96,27 @@ def find_monthly_dbs(parent_page_id: str, start: str, end: str) -> dict[str, str
 
 
 def _fetch_all_pages(database_id: str) -> list[dict]:
-    """DB의 모든 페이지를 pagination하며 fetch"""
-    client = get_notion_client()
-    data_source_id = _get_data_source_id(database_id)
+    """DB의 모든 페이지를 pagination하며 fetch
+
+    Notion REST API POST /databases/{id}/query 직접 호출.
+    data_sources.query의 필터 버그를 우회하기 위해 httpx 사용.
+    """
+    headers = {
+        "Authorization": f"Bearer {config.NOTION_TOKEN}",
+        "Notion-Version": "2022-06-28",
+        "Content-Type": "application/json",
+    }
+    url = f"https://api.notion.com/v1/databases/{database_id}/query"
 
     all_pages = []
     cursor = None
     while True:
-        kwargs = {"page_size": 100}
+        payload = {"page_size": 100}
         if cursor:
-            kwargs["start_cursor"] = cursor
-        result = client.data_sources.query(data_source_id, **kwargs)
+            payload["start_cursor"] = cursor
+        resp = httpx.post(url, headers=headers, json=payload, timeout=30)
+        resp.raise_for_status()
+        result = resp.json()
         all_pages.extend(result.get("results", []))
         if not result.get("has_more"):
             break
