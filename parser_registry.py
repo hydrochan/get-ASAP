@@ -24,6 +24,8 @@ def load_parsers(parsers_dir: str = None) -> list[BaseParser]:
         parsers_dir = os.path.join(os.path.dirname(__file__), "parsers")
 
     # parsers/ 디렉토리의 .py 파일을 알파벳 순으로 로드
+    # 로드된 모듈을 보관하여 GC에 의한 서브클래스 해제 방지
+    _loaded_modules = []
     for fname in sorted(os.listdir(parsers_dir)):
         if not fname.endswith(".py"):
             continue
@@ -36,9 +38,10 @@ def load_parsers(parsers_dir: str = None) -> list[BaseParser]:
         spec = importlib.util.spec_from_file_location(fname[:-3], path)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)  # 실행 시 BaseParser 서브클래스가 등록됨
+        _loaded_modules.append(mod)  # GC 방지: 모듈 참조 유지
 
     # 로드된 모든 BaseParser 서브클래스를 인스턴스화하여 반환
-    # inspect.isabstract로 추상 메서드가 남은 미완성 클래스 제외 (Rule 1: 버그 수정)
+    # inspect.isabstract로 추상 메서드가 남은 미완성 클래스 제외
     import inspect
     return [
         cls()
