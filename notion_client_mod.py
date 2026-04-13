@@ -129,23 +129,32 @@ def _is_duplicate(database_id: str, title: str) -> bool:
     Notion REST API POST /databases/{id}/query 직접 호출.
     notion-client 3.0.0은 databases.query 메서드가 없고,
     data_sources.query의 title equals 필터는 작동하지 않으므로 httpx 직접 사용.
+    간헐적 404/429 에러 시 백오프 재시도.
     """
     import httpx
-    resp = httpx.post(
-        f"https://api.notion.com/v1/databases/{database_id}/query",
-        headers={
-            "Authorization": f"Bearer {config.NOTION_TOKEN}",
-            "Notion-Version": "2022-06-28",
-            "Content-Type": "application/json",
-        },
-        json={
-            "filter": {"property": "Title", "title": {"equals": title}},
-            "page_size": 1,
-        },
-        timeout=30,
-    )
-    resp.raise_for_status()
-    return len(resp.json()["results"]) > 0
+    url = f"https://api.notion.com/v1/databases/{database_id}/query"
+    headers = {
+        "Authorization": f"Bearer {config.NOTION_TOKEN}",
+        "Notion-Version": "2022-06-28",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "filter": {"property": "Title", "title": {"equals": title}},
+        "page_size": 1,
+    }
+    for attempt in range(4):
+        resp = httpx.post(url, headers=headers, json=payload, timeout=30)
+        if resp.status_code == 200:
+            return len(resp.json()["results"]) > 0
+        if resp.status_code in (404, 429, 502, 503):
+            wait = 2 ** attempt
+            logging.warning("중복 체크 %d 에러, %d초 후 재시도 (%d/3)", resp.status_code, wait, attempt + 1)
+            time.sleep(wait)
+            continue
+        resp.raise_for_status()
+    # 재시도 초과 시 안전하게 중복 아님으로 처리 (저장 시도)
+    logging.warning("중복 체크 재시도 초과, 저장 시도로 진행")
+    return False
 
 
 def _call_with_retry(fn, *args, max_retries=3, **kwargs):
