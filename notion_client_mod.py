@@ -126,15 +126,26 @@ def _build_properties(paper: PaperMetadata) -> dict:
 def _is_duplicate(database_id: str, title: str) -> bool:
     """제목 기반 중복 여부 확인 (NOTION-03)
 
-    databases.query 사용 (data_sources.query의 title equals 필터는 작동하지 않음)
+    Notion REST API POST /databases/{id}/query 직접 호출.
+    notion-client 3.0.0은 databases.query 메서드가 없고,
+    data_sources.query의 title equals 필터는 작동하지 않으므로 httpx 직접 사용.
     """
-    client = get_notion_client()
-    result = client.databases.query(
-        database_id,
-        filter={"property": "Title", "title": {"equals": title}},
-        page_size=1,
+    import httpx
+    resp = httpx.post(
+        f"https://api.notion.com/v1/databases/{database_id}/query",
+        headers={
+            "Authorization": f"Bearer {config.NOTION_TOKEN}",
+            "Notion-Version": "2022-06-28",
+            "Content-Type": "application/json",
+        },
+        json={
+            "filter": {"property": "Title", "title": {"equals": title}},
+            "page_size": 1,
+        },
+        timeout=30,
     )
-    return len(result["results"]) > 0
+    resp.raise_for_status()
+    return len(resp.json()["results"]) > 0
 
 
 def _call_with_retry(fn, *args, max_retries=3, **kwargs):
