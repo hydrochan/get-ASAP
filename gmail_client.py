@@ -27,7 +27,9 @@ def build_query(publishers: dict) -> str:
         for s in senders:
             from_filters.append(f"from:{s}")
 
-    return " OR ".join(from_filters)
+    # 이미 처리된 메일 제외 (라벨 기반 필터링)
+    from_clause = " OR ".join(from_filters)
+    return f"({from_clause}) -label:get-ASAP-processed"
 
 
 def load_state(state_path: str = "state.json") -> dict:
