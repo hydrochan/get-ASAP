@@ -53,16 +53,6 @@ def create_paper_db(parent_page_id: str, db_name: str = None) -> str:
     return response["id"]
 
 
-def _get_data_source_id(database_id: str) -> str:
-    """DB의 첫 번째 data_source_id 반환 (notion-client 3.0.0 필수)"""
-    client = get_notion_client()
-    db_info = client.databases.retrieve(database_id)
-    data_sources = db_info.get("data_sources", [])
-    if not data_sources:
-        raise ValueError(
-            f"데이터베이스 '{database_id}'에 data_sources가 없습니다."
-        )
-    return data_sources[0]["id"]
 
 
 def _find_monthly_db(parent_page_id: str, month_str: str) -> str | None:
@@ -133,37 +123,42 @@ def _build_properties(paper: PaperMetadata) -> dict:
     return props
 
 
-def _is_duplicate(data_source_id: str, title: str) -> bool:
-    """제목 기반 중복 여부 확인 (NOTION-03)"""
+def _is_duplicate(database_id: str, title: str) -> bool:
+    """제목 기반 중복 여부 확인 (NOTION-03)
+
+    databases.query 사용 (data_sources.query의 title equals 필터는 작동하지 않음)
+    """
     client = get_notion_client()
-    result = client.data_sources.query(
-        data_source_id,
+    result = client.databases.query(
+        database_id,
         filter={"property": "Title", "title": {"equals": title}},
         page_size=1,
     )
     return len(result["results"]) > 0
 
 
-def _call_with_retry(fn, *args, **kwargs):
-    """rate_limited 에러 시 1초 대기 후 1회 재시도"""
-    try:
-        return fn(*args, **kwargs)
-    except APIResponseError as e:
-        if e.code == "rate_limited":
-            time.sleep(1)
-            try:
-                return fn(*args, **kwargs)
-            except APIResponseError as retry_err:
-                logging.warning("재시도 후 Notion API 실패: %s", retry_err)
+def _call_with_retry(fn, *args, max_retries=3, **kwargs):
+    """rate_limited 에러 시 백오프 재시도 (최대 3회)"""
+    for attempt in range(max_retries + 1):
+        try:
+            return fn(*args, **kwargs)
+        except APIResponseError as e:
+            if e.code == "rate_limited" and attempt < max_retries:
+                wait = 2 ** attempt  # 1, 2, 4초
+                logging.info("Rate limited, %d초 후 재시도 (%d/%d)", wait, attempt + 1, max_retries)
+                time.sleep(wait)
+                continue
+            elif e.code == "rate_limited":
+                logging.warning("Rate limit 재시도 초과: %s", e)
                 return None
-        else:
-            logging.warning("Notion API 오류 (스킵): %s", e)
-            return None
+            else:
+                logging.warning("Notion API 오류 (스킵): %s", e)
+                return None
 
 
-def save_paper(paper: PaperMetadata, database_id: str, data_source_id: str) -> bool:
+def save_paper(paper: PaperMetadata, database_id: str) -> bool:
     """단일 논문 저장 (NOTION-02). 중복 시 스킵."""
-    if _is_duplicate(data_source_id, paper.title):
+    if _is_duplicate(database_id, paper.title):
         logging.info("중복 스킵: %s", paper.title[:60])
         return False
 
@@ -178,8 +173,6 @@ def save_paper(paper: PaperMetadata, database_id: str, data_source_id: str) -> b
 
 def save_papers(papers: list[PaperMetadata], database_id: str) -> dict:
     """배치 논문 저장. 반환: {"saved": N, "skipped": M, "failed": K}"""
-    data_source_id = _get_data_source_id(database_id)
-
     saved = 0
     skipped = 0
     failed = 0
@@ -188,7 +181,7 @@ def save_papers(papers: list[PaperMetadata], database_id: str) -> dict:
     for i, paper in enumerate(papers):
         logging.info("저장 중: %d/%d - %s", i + 1, total, paper.title[:50])
 
-        if _is_duplicate(data_source_id, paper.title):
+        if _is_duplicate(database_id, paper.title):
             logging.info("중복 스킵: %s", paper.title[:60])
             skipped += 1
             continue
