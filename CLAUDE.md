@@ -120,6 +120,21 @@ type logs\get-asap.log | findstr "WARNING ERROR"
 - `알 수 없는 발신자` → publishers.json의 sender 확인
 - `CrossRef 제목 불일치` → 정상 동작 (엉뚱한 DOI 거부)
 
+### Gmail 토큰 갱신 (token.json 만료 시)
+Google OAuth 앱이 production 모드로 전환됨 (2026-04-13). refresh token은 6개월 미사용 시에만 만료.
+만약 `RefreshError: Token has been expired or revoked` 에러가 발생하면:
+
+1. 로컬 Windows에서 Python `requests` 라이브러리의 SSL 문제가 있음 (방화벽/보안 설정 충돌)
+2. **`get_token_curl.py` 방식으로 우회**: 브라우저 인증 후 curl로 토큰 교환
+   ```bash
+   # 로컬에서 token.json 재발급 (SSL 문제 우회)
+   cd get-ASAP
+   python get_token_curl.py
+   # 서버에 복사
+   scp -i ***REDACTED-KEY*** token.json ubuntu@***REDACTED-IP***:~/get-ASAP/token.json
+   ```
+3. 일반적인 방법이 되면 (`python main.py --dry-run`으로 브라우저 인증) 그걸 써도 됨
+
 ### 서버 배포
 ```bash
 ssh ubuntu@***REDACTED-IP***
