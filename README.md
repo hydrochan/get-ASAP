@@ -1,20 +1,26 @@
 # get-ASAP
 
-Gmail에서 학술 저널 ASAP(As Soon As Published) 알림 메일을 자동으로 감지하여 논문 제목을 추출하고, Notion 데이터���이스에 저장하는 자동화 파이프라인.
+Gmail에서 학술 저널 ASAP(As Soon As Published) 알림 메일을 자동으로 감지하여 논문 제목을 추출하고, Notion 데이터베이스에 저장하는 자동화 파이프라인.
 
 ## Overview
 
-```
-Gmail 수신함                    Notion DB
-┌──────────────┐              ┌───��──────────────┐
-│ ACS          │              │ Title            │
-│ Wiley        │  ──parse──>  │ Journal          │
-│ Elsevier     │              │ Date             ��
-│ Science      │              │ Status: 대기중    │
-└──────────────┘              └──────────────────┘
-     │                               │
-     └── historyId 증분 동기화        └── 제목 기반 중복 방지
-         (새 메일만 처리)                 (동일 논문 재저장 차단)
+```mermaid
+flowchart LR
+    subgraph GMAIL["Gmail 수신함"]
+        G1["ACS"]
+        G2["Wiley"]
+        G3["Elsevier"]
+        G4["Science"]
+    end
+    subgraph NOTION["Notion DB"]
+        N1["Title"]
+        N2["Journal"]
+        N3["Date"]
+        N4["Status: 대기중"]
+    end
+    GMAIL -->|"parse"| NOTION
+    GMAIL -.->|"historyId 증분 동기화<br/>새 메일만 처리"| GMAIL
+    NOTION -.->|"제목 기반 중복 방지<br/>동일 논문 재저장 차단"| NOTION
 ```
 
 ## Features
@@ -60,40 +66,41 @@ python main.py --verbose      # DEBUG 레벨 로그 활성화
 
 ## Architecture
 
-```
-get-ASAP/
-├── main.py              # 파이프라인 오케스트레이터 (진입점)
-├── auth.py              # Gmail OAuth 2.0 인증
-├── gmail_client.py      # Gmail API 클라이언트 (필터링, 증분동기화, 라벨)
-├── notion_auth.py       # Notion API 인증
-├── notion_client_mod.py # Notion DB CRUD (생성, 저장, 중복방지)
-├── parser_registry.py   # ���서 자동 디스커버리
-├── models.py            # PaperMetadata 데이터 모��
-├── config.py            # 환경변수 관리
-├── publishers.json      # 출판사 ��정 (sender, journals, doi_prefix)
-├── deploy.sh            # 서버 배포 스크립트
-├── parsers/
-│   ├── base.py          # BaseParser ABC
-│   ├── acs.py           # ACS Publications 파서
-│   ├── wiley.py         # Wiley 파서
-│   ├── elsevier.py      # Elsevier 파서
-│   └── science.py       # Science/Science Advances 파서
-└── tests/               # 85개 단위 테스트 (pytest)
+```mermaid
+flowchart LR
+    ROOT["get-ASAP/"]
+    ROOT --> M["main.py<br/>파이프라인 오케스트레이터 (진입점)"]
+    ROOT --> AU["auth.py<br/>Gmail OAuth 2.0 인증"]
+    ROOT --> GC["gmail_client.py<br/>필터링, 증분동기화, 라벨"]
+    ROOT --> NA["notion_auth.py<br/>Notion API 인증"]
+    ROOT --> NC["notion_client_mod.py<br/>DB CRUD, 중복방지"]
+    ROOT --> PR["parser_registry.py<br/>파서 자동 디스커버리"]
+    ROOT --> MD["models.py<br/>PaperMetadata 데이터 모델"]
+    ROOT --> CFG["config.py<br/>환경변수 관리"]
+    ROOT --> PJ["publishers.json<br/>sender, journals, doi_prefix"]
+    ROOT --> DP["deploy.sh<br/>서버 배포"]
+    ROOT --> P["parsers/"]
+    P --> P0["base.py — BaseParser ABC"]
+    P --> P1["acs.py"]
+    P --> P2["wiley.py"]
+    P --> P3["elsevier.py"]
+    P --> P4["science.py"]
+    ROOT --> T["tests/<br/>85개 단위 테스트 (pytest)"]
 ```
 
 ## Pipeline Flow
 
-```
-1. Gmail API 인증 (token.json 자동 갱신)
-2. publishers.json에서 출판사 발신자 목록 로드
-3. Gmail API로 ASAP 메일 검색 (from: 필터)
-4. historyId 증분 동기화 (새 메일만)
-5. 각 메일 → 발신자로 출판사 매칭 → 해당 파서 실행
-6. BeautifulSoup4로 HTML 파싱 → 논문 제목 추출
-7. 저널명 추론 (제목/발신자/publishers.json 매핑)
-8. Notion DB에 저장 (제목 기반 중복 검사)
-9. 처리 완료 메일에 "get-ASAP-processed" 라벨 부여
-10. state.json에 historyId 저장 (다음 실행 기준점)
+```mermaid
+flowchart TD
+    S1["1. Gmail API 인증<br/>token.json 자동 갱신"] --> S2["2. publishers.json 로드<br/>출판사 발신자 목록"]
+    S2 --> S3["3. Gmail API ASAP 메일 검색<br/>from: 필터"]
+    S3 --> S4["4. historyId 증분 동기화<br/>새 메일만"]
+    S4 --> S5["5. 발신자 → 출판사 매칭<br/>→ 해당 파서 실행"]
+    S5 --> S6["6. BeautifulSoup4 HTML 파싱<br/>→ 논문 제목 추출"]
+    S6 --> S7["7. 저널명 추론<br/>제목/발신자/publishers.json 매핑"]
+    S7 --> S8["8. Notion DB 저장<br/>제목 기반 중복 검사"]
+    S8 --> S9["9. 처리 메일에 라벨 부여<br/>get-ASAP-processed"]
+    S9 --> S10["10. state.json에 historyId 저장<br/>다음 실행 기준점"]
 ```
 
 ## Adding a New Publisher
@@ -146,7 +153,7 @@ crontab -e
 | `NOTION_DATABASE_ID` | Yes* | 기존 Notion DB ID |
 | `NOTION_PARENT_PAGE_ID` | Yes* | DB 신규 생성 시 부모 페이지 ID |
 | `GMAIL_CREDENTIALS_PATH` | No | OAuth credentials 경로 (기본: credentials.json) |
-| `GMAIL_TOKEN_PATH` | No | OAuth token 경�� (기본: token.json) |
+| `GMAIL_TOKEN_PATH` | No | OAuth token 경로 (기본: token.json) |
 | `CHECK_INTERVAL_HOURS` | No | 실행 간격 (기본: 6) |
 
 *`NOTION_DATABASE_ID` 또는 `NOTION_PARENT_PAGE_ID` 중 하나 필수
