@@ -49,8 +49,9 @@
     .browse-item .count { font-size: 12px; color: #9CA3AF; font-weight: 600; }
     .browse-item.sharp { padding-left: 28px; font-size: 13px; color: #43474f; }
     .browse-item .expand-icon { width: 14px; color: #9CA3AF; font-size: 12px; }
-    .browse-date-header { font-size: 12px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 0.08em; margin: 16px 0 6px; border-top: 1px solid #E5E7EB; padding-top: 10px; }
-    .browse-date-header:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+    .browse-date-header { display: inline-flex; align-items: baseline; gap: 8px; font-size: 13px; font-weight: 800; color: #fff; background: #002F6C; padding: 5px 14px; border-radius: 9999px; letter-spacing: 0.03em; margin: 22px 0 10px; box-shadow: 0 2px 6px rgba(0, 47, 108, 0.18); }
+    .browse-date-header:first-child { margin-top: 4px; }
+    .browse-date-header .count { font-size: 11px; font-weight: 600; color: #8df5e4; opacity: 0.95; }
     .browse-paper-row { display: flex; align-items: baseline; gap: 10px; padding: 6px 0; font-size: 14px; line-height: 1.55; }
     .browse-paper-row a { color: #001B44; flex: 1 1 auto; }
     .browse-paper-row a:hover { color: #002F6C; text-decoration: underline; }
@@ -1633,7 +1634,7 @@
       </div>`];
 
       for (const [date, rows] of groups) {
-        parts.push(`<div class="browse-date-header">${date} (${rows.length})</div>`);
+        parts.push(`<div><span class="browse-date-header">${date}<span class="count">${rows.length}건</span></span></div>`);
         parts.push('<div>');
         for (const p of rows) {
           const title = (p.title || '').replace(/</g, '&lt;');
