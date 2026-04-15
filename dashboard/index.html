@@ -99,6 +99,25 @@
       </div>
     </div>
 
+    <!-- Topics (broad) 필터 바 -->
+    <div class="bg-white border-b border-slate-100 px-6 py-3">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Topics:</span>
+        <span id="broad-all-chip" class="journal-chip active" onclick="toggleAllBroads()">All</span>
+        <div id="broad-chips" class="flex items-center gap-1.5 flex-wrap"></div>
+        <span class="text-[10px] text-slate-400 ml-2 italic">All 상태 → 클릭: 그것만 보기 · 필터 중 → 클릭: 추가/제거</span>
+      </div>
+    </div>
+
+    <!-- Sharp (sub-topic) 필터 바 — broad 단일 선택 시 노출 -->
+    <div id="sharp-filter-bar" class="bg-slate-50 border-b border-slate-100 px-6 py-2 hidden">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1" id="sharp-filter-label">Sub:</span>
+        <span id="sharp-all-chip" class="journal-chip active" onclick="toggleAllSharps()">All</span>
+        <div id="sharp-chips" class="flex items-center gap-1.5 flex-wrap"></div>
+      </div>
+    </div>
+
     <main class="max-w-7xl mx-auto px-6 py-6 space-y-6">
       <!-- KPI 카드 -->
       <section class="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -322,9 +341,14 @@
     ];
 
     let allPapers = [];       // 전체 로드된 데이터
-    let filteredPapers = [];  // 저널 필터 적용된 데이터
+    let filteredPapers = [];  // 저널 + 키워드 필터 적용된 데이터
     let selectedJournals = new Set(); // 선택된 저널
-    let allJournalsMode = true;       // "All" 모드
+    let allJournalsMode = true;       // 저널 "All" 모드
+    let selectedBroads = new Set();   // 선택된 broad 키워드
+    let allBroadsMode = true;         // broad "All" 모드
+    let selectedSharps = new Set();   // 선택된 sharp (현재 단일 broad 선택 시에만)
+    let allSharpsMode = true;         // sharp "All" 모드
+    let sharpsByBroad = {};           // broad -> [sharp, ...]
     let keywordView = 'broad';       // 'broad' | 'sharp'
     let broadFilter = '';            // '' or specific broad domain (sharp view 필터)
     let expandedBroads = new Set();  // Top Keywords 트리에서 펼쳐진 broad 목록
@@ -434,6 +458,7 @@
       }
       allPapers = frames.filter(r => r.title && r.title.trim());
       buildJournalFilter();
+      buildTopicFilter();
       populateBroadFilters();
       applyFilter();
     }
@@ -503,14 +528,180 @@
     }
 
     function applyFilter() {
-      if (allJournalsMode) {
-        filteredPapers = allPapers;
-      } else {
-        filteredPapers = allPapers.filter(p => selectedJournals.has(p.journal));
+      let out = allJournalsMode ? allPapers : allPapers.filter(p => selectedJournals.has(p.journal));
+
+      if (!allBroadsMode) {
+        out = out.filter(p => {
+          const tags = parseReason(p.gpt_reason || '');
+          for (const { broad, sharp } of tags) {
+            if (!selectedBroads.has(broad)) continue;
+            // sharp 필터가 활성일 때만 검사 (단일 broad 선택 + sharp 세부 선택)
+            if (allSharpsMode) return true;
+            // sharp가 없는 태그는 'All sharp'에서만 통과
+            if (sharp && selectedSharps.has(sharp)) return true;
+          }
+          return false;
+        });
       }
+
+      filteredPapers = out;
       document.getElementById('filter-count').textContent =
         filteredPapers.length === allPapers.length ? '' : `${filteredPapers.length} / ${allPapers.length} papers`;
       renderAll();
+    }
+
+    // ---------- 키워드(broad/sharp) 필터 ----------
+    function buildTopicFilter() {
+      // broad, sharp 빈도 집계 + 계층 맵
+      const broadFreq = {};
+      sharpsByBroad = {};
+      for (const p of allPapers) {
+        const seen = new Set(); // paper 단위 broad 중복 제거
+        for (const { broad, sharp } of parseReason(p.gpt_reason || '')) {
+          if (!seen.has(broad)) { broadFreq[broad] = (broadFreq[broad]||0)+1; seen.add(broad); }
+          if (sharp) {
+            (sharpsByBroad[broad] ||= new Set()).add(sharp);
+          }
+        }
+      }
+      // Set -> sorted Array
+      for (const b of Object.keys(sharpsByBroad)) {
+        sharpsByBroad[b] = Array.from(sharpsByBroad[b]).sort();
+      }
+
+      const sorted = Object.entries(broadFreq).sort((a,b)=>b[1]-a[1]);
+      const container = document.getElementById('broad-chips');
+      container.innerHTML = '';
+      selectedBroads = new Set(sorted.map(e=>e[0]));
+      allBroadsMode = true;
+
+      for (const [b, count] of sorted) {
+        const chip = document.createElement('span');
+        chip.className = 'journal-chip active';
+        chip.textContent = `${b} (${count})`;
+        chip.dataset.broad = b;
+        chip.addEventListener('click', (e) => toggleBroad(b, chip, e));
+        container.appendChild(chip);
+      }
+      // sharp 바 초기화
+      document.getElementById('sharp-filter-bar').classList.add('hidden');
+    }
+
+    window.toggleAllBroads = function() {
+      allBroadsMode = true;
+      selectedBroads = new Set(Object.keys(sharpsByBroad).concat(
+        Array.from(document.querySelectorAll('#broad-chips .journal-chip')).map(c => c.dataset.broad)
+      ));
+      document.getElementById('broad-all-chip').classList.add('active');
+      document.querySelectorAll('#broad-chips .journal-chip').forEach(c => c.classList.add('active'));
+      // sharp 리셋
+      allSharpsMode = true;
+      selectedSharps = new Set();
+      document.getElementById('sharp-filter-bar').classList.add('hidden');
+      applyFilter();
+    };
+
+    function toggleBroad(broad, chip, ev) {
+      const allChips = document.querySelectorAll('#broad-chips .journal-chip');
+
+      if (allBroadsMode) {
+        // All 상태에서 클릭 → 그것만 배타 선택
+        allBroadsMode = false;
+        selectedBroads = new Set([broad]);
+        document.getElementById('broad-all-chip').classList.remove('active');
+        allChips.forEach(c => c.classList.toggle('active', c.dataset.broad === broad));
+      } else {
+        // 이미 필터 중 → 토글 (다중 선택)
+        if (selectedBroads.has(broad)) {
+          selectedBroads.delete(broad);
+          chip.classList.remove('active');
+        } else {
+          selectedBroads.add(broad);
+          chip.classList.add('active');
+        }
+        // 모두 해제 or 전부 활성이면 All 복귀
+        if (selectedBroads.size === 0 || selectedBroads.size === allChips.length) {
+          allBroadsMode = true;
+          selectedBroads = new Set(Array.from(allChips).map(c => c.dataset.broad));
+          document.getElementById('broad-all-chip').classList.add('active');
+          allChips.forEach(c => c.classList.add('active'));
+        }
+      }
+
+      renderSharpBar();
+      applyFilter();
+    }
+
+    function renderSharpBar() {
+      const bar = document.getElementById('sharp-filter-bar');
+      const container = document.getElementById('sharp-chips');
+      const label = document.getElementById('sharp-filter-label');
+      container.innerHTML = '';
+      // 단일 broad 선택 + 해당 broad에 sharp 존재
+      if (allBroadsMode || selectedBroads.size !== 1) {
+        bar.classList.add('hidden');
+        allSharpsMode = true;
+        selectedSharps = new Set();
+        return;
+      }
+      const broad = [...selectedBroads][0];
+      const sharps = sharpsByBroad[broad] || [];
+      if (sharps.length === 0) {
+        bar.classList.add('hidden');
+        allSharpsMode = true;
+        selectedSharps = new Set();
+        return;
+      }
+      label.textContent = `${broad} ›`;
+      bar.classList.remove('hidden');
+      allSharpsMode = true;
+      selectedSharps = new Set(sharps);
+      document.getElementById('sharp-all-chip').classList.add('active');
+      for (const s of sharps) {
+        const chip = document.createElement('span');
+        chip.className = 'journal-chip active';
+        chip.textContent = s;
+        chip.dataset.sharp = s;
+        chip.addEventListener('click', (e) => toggleSharp(s, chip, e));
+        container.appendChild(chip);
+      }
+    }
+
+    window.toggleAllSharps = function() {
+      allSharpsMode = true;
+      selectedSharps = new Set(
+        Array.from(document.querySelectorAll('#sharp-chips .journal-chip')).map(c => c.dataset.sharp)
+      );
+      document.getElementById('sharp-all-chip').classList.add('active');
+      document.querySelectorAll('#sharp-chips .journal-chip').forEach(c => c.classList.add('active'));
+      applyFilter();
+    };
+
+    function toggleSharp(sharp, chip, ev) {
+      const allChips = document.querySelectorAll('#sharp-chips .journal-chip');
+
+      if (allSharpsMode) {
+        allSharpsMode = false;
+        selectedSharps = new Set([sharp]);
+        document.getElementById('sharp-all-chip').classList.remove('active');
+        allChips.forEach(c => c.classList.toggle('active', c.dataset.sharp === sharp));
+      } else {
+        if (selectedSharps.has(sharp)) {
+          selectedSharps.delete(sharp);
+          chip.classList.remove('active');
+        } else {
+          selectedSharps.add(sharp);
+          chip.classList.add('active');
+        }
+        if (selectedSharps.size === 0 || selectedSharps.size === allChips.length) {
+          allSharpsMode = true;
+          selectedSharps = new Set(Array.from(allChips).map(c => c.dataset.sharp));
+          document.getElementById('sharp-all-chip').classList.add('active');
+          allChips.forEach(c => c.classList.add('active'));
+        }
+      }
+
+      applyFilter();
     }
 
     // ---------- 렌더링 ----------
