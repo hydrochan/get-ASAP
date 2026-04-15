@@ -35,7 +35,7 @@ class NatureParser(BaseParser):
             # 논문 섹션 찾기: <h2> (일반 저널) 또는 <h3> (본지 Research 내 서브섹션)
             # h2: Articles, Letters, Reviews, Perspectives
             # h3: Articles (Research 섹션 내 서브헤더)
-            target_h2 = {"articles", "letters", "reviews", "perspectives"}
+            target_h2 = {"articles", "letters", "reviews", "perspectives", "brief communications"}
             target_h3 = {"articles", "letters"}  # Research 내 서브섹션
 
             article_sections = []
