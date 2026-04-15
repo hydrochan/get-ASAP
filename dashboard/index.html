@@ -37,6 +37,25 @@
     .journal-chip:hover { opacity: 0.8; }
     /* 섹션 구분선 */
     .sec-divider { border-top: 1px solid #E5E7EB; margin: 0.5rem 0; }
+    /* 뷰 탭 (Analytics / Browse) */
+    .view-tab { padding: 10px 16px; font-size: 11px; font-weight: 700; color: #6B7280; border-bottom: 2px solid transparent; cursor: pointer; background: transparent; text-transform: uppercase; letter-spacing: 0.08em; }
+    .view-tab.active { color: #002F6C; border-bottom-color: #002F6C; }
+    .view-tab:hover:not(.active) { color: #002F6C; }
+    /* Browse 리스트 항목 */
+    .browse-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; gap: 8px; }
+    .browse-item:hover { background: #F3F4F5; }
+    .browse-item.active { background: #002F6C; color: #fff; }
+    .browse-item.active .count { color: #fff; opacity: 0.85; }
+    .browse-item .count { font-size: 10px; color: #9CA3AF; font-weight: 600; }
+    .browse-item.sharp { padding-left: 24px; font-size: 11px; color: #43474f; }
+    .browse-item .expand-icon { width: 14px; color: #9CA3AF; font-size: 10px; }
+    .browse-date-header { font-size: 10px; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.08em; margin: 14px 0 4px; border-top: 1px solid #E5E7EB; padding-top: 8px; }
+    .browse-date-header:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+    .browse-paper-row { display: flex; align-items: baseline; gap: 8px; padding: 4px 0; font-size: 12px; line-height: 1.5; }
+    .browse-paper-row a { color: #001B44; flex: 1 1 auto; }
+    .browse-paper-row a:hover { color: #002F6C; text-decoration: underline; }
+    .browse-paper-row .journal-tag { font-size: 10px; font-weight: 600; color: #003D8F; white-space: nowrap; }
+    .browse-paper-row .status-badge { font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 9999px; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.05em; }
   </style>
 </head>
 <body class="font-sans text-gray-800 min-h-screen">
@@ -89,6 +108,14 @@
       </div>
     </header>
 
+    <!-- 뷰 탭 (Analytics / Browse) -->
+    <nav id="view-tabs" class="bg-white border-b border-slate-200 px-6 flex gap-0">
+      <button id="tab-analytics" class="view-tab active" onclick="setView('analytics')">Analytics</button>
+      <button id="tab-browse" class="view-tab" onclick="setView('browse')">Browse</button>
+    </nav>
+
+    <!-- Analytics 필터 바 묶음 (Browse 전환 시 일괄 숨김) -->
+    <div id="analytics-filters">
     <!-- 저널 필터 바 -->
     <div class="bg-white border-b border-slate-100 px-6 py-3">
       <div class="flex items-center gap-2 flex-wrap">
@@ -117,8 +144,10 @@
         <div id="sharp-chips" class="flex items-center gap-1.5 flex-wrap"></div>
       </div>
     </div>
+    </div>
+    <!-- /analytics-filters -->
 
-    <main class="max-w-7xl mx-auto px-6 py-6 space-y-6">
+    <main id="view-analytics" class="max-w-7xl mx-auto px-6 py-6 space-y-6">
       <!-- KPI 카드 -->
       <section class="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div class="card kpi-card p-5">
@@ -320,6 +349,28 @@
       </section>
     </main>
 
+    <!-- Browse 뷰: 저널별 / 주제별 × 날짜 그룹 -->
+    <main id="view-browse" class="hidden max-w-7xl mx-auto px-6 py-6">
+      <div class="flex gap-1 mb-4 border-b border-slate-200">
+        <button id="browse-mode-journal" class="view-tab active" onclick="setBrowseMode('journal')">By Journal</button>
+        <button id="browse-mode-topic" class="view-tab" onclick="setBrowseMode('topic')">By Topic</button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4">
+        <aside class="card p-3 max-h-[75vh] overflow-y-auto">
+          <div class="flex items-center justify-between mb-2 px-1" id="browse-list-header">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Journals</span>
+            <span id="browse-list-count" class="text-[10px] text-slate-400"></span>
+          </div>
+          <div id="browse-list"></div>
+        </aside>
+        <section class="card p-4 max-h-[75vh] overflow-y-auto">
+          <div id="browse-detail">
+            <p class="text-xs text-slate-400 italic px-1 py-4">왼쪽 목록에서 항목을 선택하세요.</p>
+          </div>
+        </section>
+      </div>
+    </main>
+
     <footer class="text-center text-[10px] text-slate-400 py-4">
       get-ASAP &copy; 2026 &mdash; Built for catalysis &amp; energy research
     </footer>
@@ -349,6 +400,27 @@
     let selectedSharps = new Set();   // 선택된 sharp (현재 단일 broad 선택 시에만)
     let allSharpsMode = true;         // sharp "All" 모드
     let sharpsByBroad = {};           // broad -> [sharp, ...]
+
+    // Browse 뷰 상태
+    let currentView = 'analytics';        // 'analytics' | 'browse'
+    let browseMode = 'journal';           // 'journal' | 'topic'
+    let selectedBrowseJournal = null;
+    let selectedBrowseTopic = null;       // 'broad' 또는 'broad/sharp' key
+    let browseExpandedBroads = new Set();
+    const BROWSE_ROW_CAP = 500;
+
+    // 상태 배지 컬러 (renderPaperTable과 Browse에서 공유)
+    const STATUS_COLOR = {
+      '대기중': 'bg-yellow-100 text-yellow-700',
+      '무관': 'bg-slate-100 text-slate-500',
+      '스킵': 'bg-gray-100 text-gray-500',
+      '관심': 'bg-blue-100 text-blue-700',
+      '관련': 'bg-blue-100 text-blue-700',
+      '추출됨': 'bg-purple-100 text-purple-700',
+      '다운완료': 'bg-emerald-100 text-emerald-700',
+      '읽음': 'bg-green-100 text-green-700',
+    };
+    function statusBadgeClass(s) { return STATUS_COLOR[s] || 'bg-gray-100 text-gray-500'; }
     let keywordView = 'broad';       // 'broad' | 'sharp'
     let broadFilter = '';            // '' or specific broad domain (sharp view 필터)
     let expandedBroads = new Set();  // Top Keywords 트리에서 펼쳐진 broad 목록
@@ -716,6 +788,11 @@
       renderHeatmap();
       renderInterestAnalysis();
       renderPaperTable();
+      // Browse 뷰가 활성화된 경우, 데이터 재로드 시에도 동기화 (allPapers 기반)
+      if (currentView === 'browse') {
+        renderBrowseList();
+        renderBrowseDetail();
+      }
     }
 
     // KPI
@@ -1360,14 +1437,6 @@
       const sorted = [...papers].sort((a,b) => (b.date||'').localeCompare(a.date||''));
       const display = sorted.slice(0, 300);
 
-      const statusColor = {
-        '대기중': 'bg-yellow-100 text-yellow-700',
-        '읽음': 'bg-green-100 text-green-700',
-        '관심': 'bg-blue-100 text-blue-700',
-        '스킵': 'bg-gray-100 text-gray-500',
-        '추출됨': 'bg-purple-100 text-purple-700'
-      };
-
       tbody.innerHTML = display.map(p => `
         <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
           <td class="px-3 py-2 whitespace-nowrap text-slate-500">${(p.date||'').slice(0,10)}</td>
@@ -1376,7 +1445,7 @@
             ${p.url ? `<a href="${p.url}" target="_blank" class="text-navy-700 hover:underline">${p.title||''}</a>` : (p.title||'')}
           </td>
           <td class="px-3 py-2 whitespace-nowrap">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${statusColor[p.status]||'bg-gray-100 text-gray-500'}">${p.status||''}</span>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${statusBadgeClass(p.status)}">${p.status||''}</span>
           </td>
         </tr>
       `).join('');
@@ -1385,6 +1454,192 @@
     document.getElementById('paper-search').addEventListener('input', (e) => {
       renderPaperTable(e.target.value);
     });
+
+    // ---------- Browse 뷰 ----------
+    window.setView = function(v) {
+      currentView = v;
+      document.getElementById('tab-analytics').classList.toggle('active', v === 'analytics');
+      document.getElementById('tab-browse').classList.toggle('active', v === 'browse');
+      document.getElementById('view-analytics').classList.toggle('hidden', v !== 'analytics');
+      document.getElementById('analytics-filters').classList.toggle('hidden', v !== 'analytics');
+      document.getElementById('view-browse').classList.toggle('hidden', v !== 'browse');
+      if (v === 'browse') {
+        renderBrowseList();
+        renderBrowseDetail();
+      }
+    };
+
+    window.setBrowseMode = function(m) {
+      browseMode = m;
+      selectedBrowseJournal = null;
+      selectedBrowseTopic = null;
+      browseExpandedBroads = new Set();
+      document.getElementById('browse-mode-journal').classList.toggle('active', m === 'journal');
+      document.getElementById('browse-mode-topic').classList.toggle('active', m === 'topic');
+      document.getElementById('browse-list-header').querySelector('span').textContent = m === 'journal' ? 'Journals' : 'Topics';
+      renderBrowseList();
+      renderBrowseDetail();
+    };
+
+    function renderBrowseList() {
+      const container = document.getElementById('browse-list');
+      const countEl = document.getElementById('browse-list-count');
+      container.innerHTML = '';
+      if (browseMode === 'journal') {
+        const freq = {};
+        for (const p of allPapers) {
+          if (p.journal) freq[p.journal] = (freq[p.journal]||0) + 1;
+        }
+        const sorted = Object.entries(freq).sort((a,b) => b[1]-a[1]);
+        countEl.textContent = `${sorted.length}개`;
+        for (const [j, c] of sorted) {
+          const row = document.createElement('div');
+          row.className = 'browse-item' + (selectedBrowseJournal === j ? ' active' : '');
+          row.innerHTML = `<span class="truncate" title="${j}">${j}</span><span class="count">${c}</span>`;
+          row.onclick = () => selectBrowseJournal(j);
+          container.appendChild(row);
+        }
+      } else {
+        // Topic 모드: broad 트리
+        const broadFreq = {};
+        const sharpFreqByBroad = {};
+        for (const p of allPapers) {
+          const seenBroad = new Set();
+          const seenPair = new Set();
+          for (const { broad, sharp } of parseReason(p.gpt_reason || '')) {
+            if (!seenBroad.has(broad)) {
+              broadFreq[broad] = (broadFreq[broad]||0) + 1;
+              seenBroad.add(broad);
+            }
+            if (sharp) {
+              const k = broad + '/' + sharp;
+              if (!seenPair.has(k)) {
+                (sharpFreqByBroad[broad] ||= {})[sharp] = (sharpFreqByBroad[broad]?.[sharp]||0) + 1;
+                seenPair.add(k);
+              }
+            }
+          }
+        }
+        const sortedBroads = Object.entries(broadFreq).sort((a,b) => b[1]-a[1]);
+        countEl.textContent = `${sortedBroads.length}개`;
+        for (const [b, c] of sortedBroads) {
+          const expanded = browseExpandedBroads.has(b);
+          const hasSharps = !!sharpFreqByBroad[b];
+          const row = document.createElement('div');
+          row.className = 'browse-item' + (selectedBrowseTopic === b ? ' active' : '');
+          row.innerHTML = `
+            <span class="flex items-center gap-1 truncate">
+              <span class="expand-icon">${hasSharps ? (expanded ? '▾' : '▸') : ' '}</span>
+              <span class="truncate" title="${b}">${b}</span>
+            </span>
+            <span class="count">${c}</span>`;
+          row.onclick = (e) => {
+            // 왼쪽 화살표 영역(근사) 클릭 시 펼침, 나머지 영역은 선택
+            if (hasSharps && e.target.classList.contains('expand-icon')) {
+              toggleBroadExpand(b);
+            } else {
+              selectBrowseTopic(b);
+            }
+          };
+          container.appendChild(row);
+          if (expanded && hasSharps) {
+            const sharps = Object.entries(sharpFreqByBroad[b]).sort((a,b)=>b[1]-a[1]);
+            for (const [s, sc] of sharps) {
+              const key = b + '/' + s;
+              const sRow = document.createElement('div');
+              sRow.className = 'browse-item sharp' + (selectedBrowseTopic === key ? ' active' : '');
+              sRow.innerHTML = `<span class="truncate" title="${s}">${s}</span><span class="count">${sc}</span>`;
+              sRow.onclick = () => selectBrowseTopic(key);
+              container.appendChild(sRow);
+            }
+          }
+        }
+      }
+    }
+
+    function toggleBroadExpand(broad) {
+      if (browseExpandedBroads.has(broad)) browseExpandedBroads.delete(broad);
+      else browseExpandedBroads.add(broad);
+      renderBrowseList();
+    }
+
+    window.selectBrowseJournal = function(j) {
+      selectedBrowseJournal = j;
+      renderBrowseList();
+      renderBrowseDetail();
+    };
+
+    window.selectBrowseTopic = function(key) {
+      selectedBrowseTopic = key;
+      renderBrowseList();
+      renderBrowseDetail();
+    };
+
+    function renderBrowseDetail() {
+      const container = document.getElementById('browse-detail');
+      let papers = [];
+      if (browseMode === 'journal' && selectedBrowseJournal) {
+        papers = allPapers.filter(p => p.journal === selectedBrowseJournal);
+      } else if (browseMode === 'topic' && selectedBrowseTopic) {
+        const hasSlash = selectedBrowseTopic.includes('/');
+        papers = allPapers.filter(p => {
+          for (const { broad, sharp } of parseReason(p.gpt_reason || '')) {
+            if (hasSlash) {
+              if (broad + '/' + (sharp||'') === selectedBrowseTopic) return true;
+            } else {
+              if (broad === selectedBrowseTopic) return true;
+            }
+          }
+          return false;
+        });
+      } else {
+        container.innerHTML = `<p class="text-xs text-slate-400 italic px-1 py-4">왼쪽 목록에서 ${browseMode === 'journal' ? '저널' : '주제'}를 선택하세요.</p>`;
+        return;
+      }
+
+      // 최신순 정렬, 날짜별 그룹핑
+      papers.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+      const total = papers.length;
+      const display = papers.slice(0, BROWSE_ROW_CAP);
+
+      const groups = new Map(); // date -> [papers]
+      for (const p of display) {
+        const d = (p.date || '').slice(0, 10) || '(날짜 없음)';
+        if (!groups.has(d)) groups.set(d, []);
+        groups.get(d).push(p);
+      }
+
+      const selLabel = browseMode === 'journal'
+        ? selectedBrowseJournal
+        : selectedBrowseTopic;
+      const parts = [`<div class="flex items-baseline justify-between mb-3">
+        <h3 class="text-sm font-bold text-navy-900">${selLabel} <span class="text-xs font-normal text-slate-400">(${total}건)</span></h3>
+      </div>`];
+
+      for (const [date, rows] of groups) {
+        parts.push(`<div class="browse-date-header">${date} (${rows.length})</div>`);
+        parts.push('<div>');
+        for (const p of rows) {
+          const title = (p.title || '').replace(/</g, '&lt;');
+          const linkOpen = p.url ? `<a href="${p.url}" target="_blank" rel="noopener">` : '';
+          const linkClose = p.url ? '</a>' : '';
+          const journalTag = browseMode === 'topic'
+            ? `<span class="journal-tag">${p.journal || ''}</span>`
+            : '';
+          const statusBadge = p.status
+            ? `<span class="status-badge ${statusBadgeClass(p.status)}">${p.status}</span>`
+            : '';
+          parts.push(`<div class="browse-paper-row">${journalTag}${linkOpen}${title}${linkClose}${statusBadge}</div>`);
+        }
+        parts.push('</div>');
+      }
+
+      if (total > BROWSE_ROW_CAP) {
+        parts.push(`<p class="text-[11px] text-slate-400 italic mt-3 pt-2 border-t border-slate-100">Showing first ${BROWSE_ROW_CAP} of ${total} papers</p>`);
+      }
+
+      container.innerHTML = parts.join('');
+    }
 
     // ---------- 리포트 다운로드 ----------
     document.getElementById('report-btn').addEventListener('click', () => {
