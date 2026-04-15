@@ -492,7 +492,8 @@
     let statsDailyChart = null;
     // 특정 유저에게 감출 섹션 (예: KISTHRL은 User Interest Analysis 숨김)
     const HIDDEN_SECTIONS_BY_USER = {
-      'KISTHRL': ['section-interest-analysis']
+      'KISTHRL': ['section-interest-analysis'],
+      'getASAP': ['section-interest-analysis']
     };
     function applyUserVisibility() {
       const hideIds = HIDDEN_SECTIONS_BY_USER[currentUser] || [];
