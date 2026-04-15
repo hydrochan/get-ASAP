@@ -148,7 +148,7 @@ cd ~/get-ASAP && git pull && .venv/bin/pip install -r requirements.txt
 - **공개 URL**: https://***REDACTED-DOMAIN*** (HTTPS, Let's Encrypt, 자동 갱신)
 - **내부 포트**: 127.0.0.1:8501 (Nginx reverse proxy 경유, 외부 직접 접근 차단)
 - **도메인**: DuckDNS 무료 서브도메인, A 레코드 → ***REDACTED-IP***
-- **인증서 갱신 알림**: REDACTED_EMAIL (certbot account email)
+- **인증서 갱신 알림 이메일**: certbot account에 등록됨 (`sudo certbot show_account`로 확인, 변경은 `sudo certbot update_account --email NEW`)
 
 **운영 명령 (서버에서)**
 ```bash
