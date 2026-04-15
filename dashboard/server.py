@@ -14,7 +14,9 @@ import json
 import logging
 import os
 import secrets
+import sqlite3
 import sys
+import threading
 import time
 import urllib.parse
 
@@ -29,6 +31,114 @@ logger = logging.getLogger(__name__)
 # 경로 설정
 DASHBOARD_DIR = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = os.path.join(os.path.dirname(DASHBOARD_DIR), "cache")
+ACCESS_DB_PATH = os.path.join(os.path.dirname(DASHBOARD_DIR), "access_log.db")
+
+# 접속 로그 DB (SQLite) — 스레드 안전을 위해 락과 함께 사용
+_db_lock = threading.Lock()
+
+
+def _init_access_db():
+    """접속 로그 DB 초기화 (테이블 없으면 생성)"""
+    with _db_lock:
+        conn = sqlite3.connect(ACCESS_DB_PATH)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS access_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts REAL NOT NULL,
+                event_type TEXT NOT NULL,
+                username TEXT,
+                ip TEXT,
+                user_agent TEXT
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_ts ON access_events(ts)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_user ON access_events(username)")
+        conn.commit()
+        conn.close()
+
+
+def _log_event(event_type: str, username: str, ip: str, user_agent: str = ""):
+    """접속 이벤트 기록 (실패해도 서버 동작에 영향 없음)"""
+    try:
+        with _db_lock:
+            conn = sqlite3.connect(ACCESS_DB_PATH)
+            conn.execute(
+                "INSERT INTO access_events (ts, event_type, username, ip, user_agent) VALUES (?, ?, ?, ?, ?)",
+                (time.time(), event_type, username, ip, user_agent[:200]),
+            )
+            conn.commit()
+            conn.close()
+    except Exception as e:
+        logger.warning("이벤트 기록 실패: %s", e)
+
+
+def _query_stats() -> dict:
+    """접속 통계 집계"""
+    with _db_lock:
+        conn = sqlite3.connect(ACCESS_DB_PATH)
+        conn.row_factory = sqlite3.Row
+        now = time.time()
+        day_ago = now - 86400
+        week_ago = now - 7 * 86400
+        month_ago = now - 30 * 86400
+
+        def _count(where_sql: str, params=()) -> int:
+            cur = conn.execute(f"SELECT COUNT(*) AS c FROM access_events WHERE {where_sql}", params)
+            return cur.fetchone()["c"]
+
+        def _unique_users(where_sql: str, params=()) -> int:
+            cur = conn.execute(
+                f"SELECT COUNT(DISTINCT username) AS c FROM access_events WHERE {where_sql} AND username != ''",
+                params,
+            )
+            return cur.fetchone()["c"]
+
+        out = {
+            "total_logins": _count("event_type = 'login'"),
+            "total_page_views": _count("event_type = 'page_view'"),
+            "logins_24h": _count("event_type = 'login' AND ts >= ?", (day_ago,)),
+            "logins_7d": _count("event_type = 'login' AND ts >= ?", (week_ago,)),
+            "logins_30d": _count("event_type = 'login' AND ts >= ?", (month_ago,)),
+            "unique_users_30d": _unique_users("ts >= ?", (month_ago,)),
+            "unique_users_all": _unique_users("1 = 1"),
+        }
+
+        # 사용자별 집계
+        cur = conn.execute("""
+            SELECT username,
+                   SUM(CASE WHEN event_type = 'login' THEN 1 ELSE 0 END) AS logins,
+                   SUM(CASE WHEN event_type = 'page_view' THEN 1 ELSE 0 END) AS page_views,
+                   MAX(ts) AS last_seen
+            FROM access_events
+            WHERE username != ''
+            GROUP BY username
+            ORDER BY logins DESC
+        """)
+        out["by_user"] = [dict(r) for r in cur.fetchall()]
+
+        # 일별 로그인 (최근 30일)
+        cur = conn.execute("""
+            SELECT DATE(ts, 'unixepoch', 'localtime') AS day,
+                   COUNT(*) AS c,
+                   COUNT(DISTINCT username) AS unique_users
+            FROM access_events
+            WHERE event_type = 'login' AND ts >= ?
+            GROUP BY day
+            ORDER BY day DESC
+        """, (month_ago,))
+        out["daily_logins"] = [dict(r) for r in cur.fetchall()]
+
+        # 최근 이벤트 (20건)
+        cur = conn.execute("""
+            SELECT ts, event_type, username, ip
+            FROM access_events
+            ORDER BY ts DESC
+            LIMIT 20
+        """)
+        out["recent"] = [dict(r) for r in cur.fetchall()]
+
+        conn.close()
+        return out
 
 # 세션 저장소 (메모리)
 sessions = {}  # token -> {"user": str, "expires": float}
@@ -115,14 +225,37 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
-        # API: 세션 체크
+        # API: 세션 체크 (페이지 조회 이벤트 기록)
         if path == "/api/session":
             token = self._get_session_token()
             sess = sessions.get(token) if token else None
             if sess and time.time() <= sess["expires"]:
-                self._send_json({"ok": True, "user": sess.get("user", "")})
+                user = sess.get("user", "")
+                _log_event("page_view", user, self._get_client_ip(), self.headers.get("User-Agent", ""))
+                self._send_json({
+                    "ok": True,
+                    "user": user,
+                    "is_admin": user in config.DASHBOARD_ADMINS,
+                })
             else:
                 self._send_json({"error": "unauthorized"}, 401)
+            return
+
+        # API: 접속 통계 (관리자 전용)
+        if path == "/api/stats":
+            token = self._get_session_token()
+            sess = sessions.get(token) if token else None
+            if not sess or time.time() > sess["expires"]:
+                self._send_json({"error": "unauthorized"}, 401)
+                return
+            if sess.get("user", "") not in config.DASHBOARD_ADMINS:
+                self._send_json({"error": "forbidden"}, 403)
+                return
+            try:
+                self._send_json(_query_stats())
+            except Exception as e:
+                logger.exception("stats query failed")
+                self._send_json({"error": str(e)}, 500)
             return
 
         # API: CSV 서빙
@@ -209,11 +342,17 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
                 bcrypt.checkpw(password.encode(), stored_hash.encode())):
                 _record_attempt(ip, True)
                 token = _create_session(username)
+                # 로그인 이벤트 기록
+                _log_event("login", username, ip, self.headers.get("User-Agent", ""))
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Set-Cookie", f"session={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={SESSION_TTL}")
                 self.end_headers()
-                self.wfile.write(json.dumps({"ok": True, "user": username}).encode())
+                self.wfile.write(json.dumps({
+                    "ok": True,
+                    "user": username,
+                    "is_admin": username in config.DASHBOARD_ADMINS,
+                }).encode())
             else:
                 _record_attempt(ip, False)
                 self._send_json({"error": "invalid credentials"}, 401)
@@ -244,6 +383,10 @@ def main():
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
     )
+
+    # 접속 로그 DB 초기화
+    _init_access_db()
+    logger.info("Access log DB: %s (admins=%s)", ACCESS_DB_PATH, sorted(config.DASHBOARD_ADMINS))
 
     # ThreadingHTTPServer: 요청마다 별도 스레드 처리 → 한 요청 블록/오류가 서버 전체를 hang시키지 않음
     server = http.server.ThreadingHTTPServer((args.host, args.port), DashboardHandler)

@@ -37,5 +37,11 @@ Thumbs.db
 cache/
 reports/
 
+# Dashboard access log DB (로컬/서버 각각 유지)
+access_log.db
+access_log.db-journal
+access_log.db-wal
+access_log.db-shm
+
 #기타
 command.txt

@@ -108,10 +108,11 @@
       </div>
     </header>
 
-    <!-- 뷰 탭 (Analytics / Browse) -->
+    <!-- 뷰 탭 (Analytics / Browse / Stats) -->
     <nav id="view-tabs" class="bg-white border-b border-slate-200 px-6 flex gap-0">
       <button id="tab-analytics" class="view-tab active" onclick="setView('analytics')">Analytics</button>
       <button id="tab-browse" class="view-tab" onclick="setView('browse')">Browse</button>
+      <button id="tab-stats" class="view-tab hidden" onclick="setView('stats')">Stats</button>
     </nav>
 
     <!-- Analytics 필터 바 묶음 (Browse 전환 시 일괄 숨김) -->
@@ -370,6 +371,85 @@
       </div>
     </main>
 
+    <!-- Stats 뷰: 접속 통계 (관리자 전용) -->
+    <main id="view-stats" class="hidden max-w-7xl mx-auto px-6 py-6 space-y-6">
+      <header class="flex items-center justify-between">
+        <div>
+          <h2 class="text-xl font-black text-navy-900 tracking-tight">Access Stats</h2>
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">Admin only · 사용자 접속 기록 집계</p>
+        </div>
+        <button id="stats-refresh" class="px-4 py-2 bg-gradient-to-r from-navy-900 to-navy-800 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">Refresh</button>
+      </header>
+
+      <!-- KPI 카드 -->
+      <section class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div class="card kpi-card p-5">
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Total Logins</p>
+          <p id="stats-total-logins" class="text-2xl font-black text-navy-900 mt-1">—</p>
+        </div>
+        <div class="card kpi-card p-5">
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Total Page Views</p>
+          <p id="stats-total-views" class="text-2xl font-black text-navy-900 mt-1">—</p>
+        </div>
+        <div class="card kpi-card p-5">
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Logins 24h / 7d</p>
+          <p id="stats-logins-recent" class="text-2xl font-black text-navy-900 mt-1">—</p>
+        </div>
+        <div class="card kpi-card p-5">
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Unique Users (30d)</p>
+          <p id="stats-unique-30d" class="text-2xl font-black text-navy-900 mt-1">—</p>
+        </div>
+        <div class="card kpi-card p-5">
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Unique Users (All)</p>
+          <p id="stats-unique-all" class="text-2xl font-black text-navy-900 mt-1">—</p>
+        </div>
+      </section>
+
+      <!-- 사용자별 + 일별 -->
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card p-6">
+          <h3 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">By User</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead class="text-slate-400 uppercase text-[10px] tracking-wider">
+                <tr class="border-b border-slate-200">
+                  <th class="text-left py-2">User</th>
+                  <th class="text-right py-2">Logins</th>
+                  <th class="text-right py-2">Page Views</th>
+                  <th class="text-right py-2">Last Seen</th>
+                </tr>
+              </thead>
+              <tbody id="stats-by-user-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card p-6">
+          <h3 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Daily Logins (last 30d)</h3>
+          <div class="chart-container" style="height:280px">
+            <canvas id="stats-daily-chart"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- 최근 이벤트 -->
+      <section class="card p-6">
+        <h3 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Recent Events (last 20)</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead class="text-slate-400 uppercase text-[10px] tracking-wider">
+              <tr class="border-b border-slate-200">
+                <th class="text-left py-2">Time</th>
+                <th class="text-left py-2">Event</th>
+                <th class="text-left py-2">User</th>
+                <th class="text-left py-2">IP</th>
+              </tr>
+            </thead>
+            <tbody id="stats-recent-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
     <footer class="text-center text-[10px] text-slate-400 py-4">
       get-ASAP &copy; 2026 &mdash; Built for catalysis &amp; energy research
     </footer>
@@ -402,6 +482,8 @@
 
     // 로그인 사용자 (서버가 /api/session, /api/login 응답에 user 포함)
     let currentUser = '';
+    let isAdmin = false;
+    let statsDailyChart = null;
     // 특정 유저에게 감출 섹션 (예: KISTHRL은 User Interest Analysis 숨김)
     const HIDDEN_SECTIONS_BY_USER = {
       'KISTHRL': ['section-interest-analysis']
@@ -420,6 +502,9 @@
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
       }
+      // 관리자만 Stats 탭 노출
+      const statsTab = document.getElementById('tab-stats');
+      if (statsTab) statsTab.classList.toggle('hidden', !isAdmin);
     }
 
     // Browse 뷰 상태
@@ -520,7 +605,8 @@
           try {
             const data = await res.json();
             currentUser = data.user || '';
-          } catch { currentUser = ''; }
+            isAdmin = !!data.is_admin;
+          } catch { currentUser = ''; isAdmin = false; }
           loginScreen.classList.add('hidden');
           dashboard.classList.remove('hidden');
           applyUserVisibility();
@@ -536,6 +622,7 @@
     document.getElementById('logout-btn').addEventListener('click', async () => {
       await fetch('/api/logout', { method: 'POST' });
       currentUser = '';
+      isAdmin = false;
       dashboard.classList.add('hidden');
       loginScreen.classList.remove('hidden');
       document.getElementById('login-pass').value = '';
@@ -1481,19 +1568,97 @@
 
     // ---------- Browse 뷰 ----------
     window.setView = function(v) {
+      // Stats 접근 권한 체크 (비관리자가 URL/DevTools로 강제 전환해도 차단)
+      if (v === 'stats' && !isAdmin) v = 'analytics';
       currentView = v;
       document.getElementById('tab-analytics').classList.toggle('active', v === 'analytics');
       document.getElementById('tab-browse').classList.toggle('active', v === 'browse');
+      const statsTab = document.getElementById('tab-stats');
+      if (statsTab) statsTab.classList.toggle('active', v === 'stats');
       document.getElementById('view-analytics').classList.toggle('hidden', v !== 'analytics');
       document.getElementById('analytics-filters').classList.toggle('hidden', v !== 'analytics');
       document.getElementById('view-browse').classList.toggle('hidden', v !== 'browse');
+      document.getElementById('view-stats').classList.toggle('hidden', v !== 'stats');
       if (v === 'browse') {
         renderBrowseList();
-        // 첫 항목 자동 선택 (아무것도 선택 안 된 경우)
         autoSelectFirstBrowseItem();
         renderBrowseDetail();
+      } else if (v === 'stats') {
+        loadStats();
       }
     };
+
+    async function loadStats() {
+      try {
+        const res = await fetch('/api/stats');
+        if (!res.ok) {
+          document.getElementById('stats-total-logins').textContent = '(권한 없음)';
+          return;
+        }
+        const data = await res.json();
+        renderStats(data);
+      } catch (e) {
+        console.error('stats load failed', e);
+      }
+    }
+
+    function renderStats(s) {
+      document.getElementById('stats-total-logins').textContent = s.total_logins.toLocaleString();
+      document.getElementById('stats-total-views').textContent = s.total_page_views.toLocaleString();
+      document.getElementById('stats-logins-recent').textContent = `${s.logins_24h} / ${s.logins_7d}`;
+      document.getElementById('stats-unique-30d').textContent = s.unique_users_30d;
+      document.getElementById('stats-unique-all').textContent = s.unique_users_all;
+
+      // By user 테이블
+      const byUserTbody = document.getElementById('stats-by-user-tbody');
+      byUserTbody.innerHTML = (s.by_user || []).map(r => {
+        const last = r.last_seen ? new Date(r.last_seen * 1000).toLocaleString() : '—';
+        return `<tr class="border-b border-slate-100">
+          <td class="py-2 font-semibold text-navy-800">${r.username}</td>
+          <td class="py-2 text-right">${r.logins}</td>
+          <td class="py-2 text-right">${r.page_views}</td>
+          <td class="py-2 text-right text-slate-500 text-[11px]">${last}</td>
+        </tr>`;
+      }).join('');
+
+      // 최근 이벤트
+      const recentTbody = document.getElementById('stats-recent-tbody');
+      recentTbody.innerHTML = (s.recent || []).map(r => {
+        const time = new Date(r.ts * 1000).toLocaleString();
+        const typeColor = r.event_type === 'login' ? 'text-blue-700' : 'text-slate-500';
+        return `<tr class="border-b border-slate-100">
+          <td class="py-2 text-slate-500 whitespace-nowrap">${time}</td>
+          <td class="py-2 ${typeColor} font-semibold">${r.event_type}</td>
+          <td class="py-2 text-navy-800">${r.username || '—'}</td>
+          <td class="py-2 text-slate-400 font-mono text-[11px]">${r.ip || ''}</td>
+        </tr>`;
+      }).join('');
+
+      // 일별 차트 (Chart.js)
+      const daily = (s.daily_logins || []).slice().reverse(); // 오래→최신
+      const labels = daily.map(r => r.day);
+      const logins = daily.map(r => r.c);
+      const uniq = daily.map(r => r.unique_users);
+      const ctx = document.getElementById('stats-daily-chart').getContext('2d');
+      if (statsDailyChart) statsDailyChart.destroy();
+      statsDailyChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Logins', data: logins, backgroundColor: '#002F6C' },
+            { label: 'Unique users', data: uniq, backgroundColor: '#40ac9d' },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+        },
+      });
+    }
+
+    document.getElementById('stats-refresh').addEventListener('click', loadStats);
 
     function autoSelectFirstBrowseItem() {
       if (browseMode === 'journal' && !selectedBrowseJournal) {
@@ -1750,7 +1915,8 @@
           try {
             const data = await res.json();
             currentUser = data.user || '';
-          } catch { currentUser = ''; }
+            isAdmin = !!data.is_admin;
+          } catch { currentUser = ''; isAdmin = false; }
           loginScreen.classList.add('hidden');
           dashboard.classList.remove('hidden');
           applyUserVisibility();

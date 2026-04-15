@@ -42,3 +42,13 @@ if _users_json:
         pass
 if DASHBOARD_USERNAME and DASHBOARD_PASSWORD_HASH and DASHBOARD_USERNAME not in DASHBOARD_USERS:
     DASHBOARD_USERS[DASHBOARD_USERNAME] = DASHBOARD_PASSWORD_HASH
+
+# 관리자 사용자명 목록 (Stats 탭 접근 권한). 쉼표로 구분.
+# 기본값: 레거시 DASHBOARD_USERNAME이 자동 관리자
+_admins_raw = os.getenv("DASHBOARD_ADMINS", "").strip()
+if _admins_raw:
+    DASHBOARD_ADMINS = {u.strip() for u in _admins_raw.split(",") if u.strip()}
+elif DASHBOARD_USERNAME:
+    DASHBOARD_ADMINS = {DASHBOARD_USERNAME}
+else:
+    DASHBOARD_ADMINS = set()
