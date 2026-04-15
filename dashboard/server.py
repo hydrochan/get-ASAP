@@ -346,7 +346,10 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
                 _log_event("login", username, ip, self.headers.get("User-Agent", ""))
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
-                self.send_header("Set-Cookie", f"session={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={SESSION_TTL}")
+                # X-Forwarded-Proto(Nginx가 전달) 기반으로 HTTPS 판단 → Secure 플래그 조건부 부여
+                forwarded_proto = self.headers.get("X-Forwarded-Proto", "").lower()
+                secure_flag = "; Secure" if forwarded_proto == "https" else ""
+                self.send_header("Set-Cookie", f"session={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={SESSION_TTL}{secure_flag}")
                 self.end_headers()
                 self.wfile.write(json.dumps({
                     "ok": True,
@@ -376,7 +379,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
 def main():
     parser = argparse.ArgumentParser(description="get-ASAP Dashboard Server")
     parser.add_argument("--port", type=int, default=8501, help="서버 포트 (기본: 8501)")
-    parser.add_argument("--host", default="0.0.0.0", help="바인드 주소 (기본: 0.0.0.0)")
+    parser.add_argument("--host", default="127.0.0.1", help="바인드 주소 (기본: 127.0.0.1 — Nginx 경유 전제. 직접 외부 노출 시 0.0.0.0)")
     args = parser.parse_args()
 
     logging.basicConfig(
