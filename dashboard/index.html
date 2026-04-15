@@ -359,7 +359,13 @@
         <aside class="card p-3 max-h-[75vh] overflow-y-auto">
           <div class="flex items-center justify-between mb-2 px-1" id="browse-list-header">
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Journals</span>
-            <span id="browse-list-count" class="text-[10px] text-slate-400"></span>
+            <div class="flex items-center gap-2">
+              <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
+                <button id="browse-sort-count" class="px-2 py-0.5 bg-navy-800 text-white" onclick="setBrowseSort('count')" title="갯수 내림차순">#</button>
+                <button id="browse-sort-alpha" class="px-2 py-0.5 text-slate-500 hover:bg-slate-50" onclick="setBrowseSort('alpha')" title="알파벳 오름차순">A-Z</button>
+              </div>
+              <span id="browse-list-count" class="text-[10px] text-slate-400"></span>
+            </div>
           </div>
           <div id="browse-list"></div>
         </aside>
@@ -513,6 +519,7 @@
     let selectedBrowseJournal = null;
     let selectedBrowseTopic = null;       // 'broad' 또는 'broad/sharp' key
     let browseExpandedBroads = new Set();
+    let browseSort = 'count';             // 'count' | 'alpha'
     const BROWSE_ROW_CAP = 500;
 
     // 상태 배지 컬러 (renderPaperTable과 Browse에서 공유)
@@ -1691,6 +1698,25 @@
       renderBrowseDetail();
     };
 
+    window.setBrowseSort = function(mode) {
+      browseSort = mode;
+      document.getElementById('browse-sort-count').classList.toggle('bg-navy-800', mode === 'count');
+      document.getElementById('browse-sort-count').classList.toggle('text-white', mode === 'count');
+      document.getElementById('browse-sort-count').classList.toggle('text-slate-500', mode !== 'count');
+      document.getElementById('browse-sort-alpha').classList.toggle('bg-navy-800', mode === 'alpha');
+      document.getElementById('browse-sort-alpha').classList.toggle('text-white', mode === 'alpha');
+      document.getElementById('browse-sort-alpha').classList.toggle('text-slate-500', mode !== 'alpha');
+      renderBrowseList();
+    };
+
+    function _sortByMode(entries) {
+      // entries: [[name, count], ...]
+      if (browseSort === 'alpha') {
+        return entries.slice().sort((a,b) => a[0].localeCompare(b[0], undefined, {sensitivity:'base'}));
+      }
+      return entries.slice().sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0]));
+    }
+
     function renderBrowseList() {
       const container = document.getElementById('browse-list');
       const countEl = document.getElementById('browse-list-count');
@@ -1700,7 +1726,7 @@
         for (const p of allPapers) {
           if (p.journal) freq[p.journal] = (freq[p.journal]||0) + 1;
         }
-        const sorted = Object.entries(freq).sort((a,b) => b[1]-a[1]);
+        const sorted = _sortByMode(Object.entries(freq));
         countEl.textContent = `${sorted.length}개`;
         for (const [j, c] of sorted) {
           const row = document.createElement('div');
@@ -1730,7 +1756,7 @@
             }
           }
         }
-        const sortedBroads = Object.entries(broadFreq).sort((a,b) => b[1]-a[1]);
+        const sortedBroads = _sortByMode(Object.entries(broadFreq));
         countEl.textContent = `${sortedBroads.length}개`;
         for (const [b, c] of sortedBroads) {
           const expanded = browseExpandedBroads.has(b);
@@ -1753,7 +1779,7 @@
           };
           container.appendChild(row);
           if (expanded && hasSharps) {
-            const sharps = Object.entries(sharpFreqByBroad[b]).sort((a,b)=>b[1]-a[1]);
+            const sharps = _sortByMode(Object.entries(sharpFreqByBroad[b]));
             for (const [s, sc] of sharps) {
               const key = b + '/' + s;
               const sRow = document.createElement('div');
