@@ -102,6 +102,9 @@
         <button id="report-btn" class="px-4 py-2 border border-navy-800 text-navy-800 text-xs font-bold rounded-lg hover:bg-navy-800 hover:text-white transition-all">
           Download Report
         </button>
+        <button id="feedback-btn" class="px-4 py-2 border border-emerald-600 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-600 hover:text-white transition-all" title="버그 제보 · 기능 제안 · 기타 의견">
+          💬 피드백
+        </button>
         <button id="logout-btn" class="text-xs font-semibold text-slate-400 hover:text-red-500 transition-colors">
           Logout
         </button>
@@ -437,6 +440,19 @@
         </div>
       </section>
 
+      <!-- 사용자 피드백 -->
+      <section class="card p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">📮 User Feedback <span id="stats-feedback-unread" class="ml-2 text-[10px] font-bold text-red-500"></span></h3>
+          <div class="flex items-center gap-2">
+            <label class="text-[10px] font-semibold text-slate-500"><input type="checkbox" id="stats-feedback-unread-only" class="mr-1">미확인만</label>
+          </div>
+        </div>
+        <div id="stats-feedback-list" class="space-y-2 max-h-[500px] overflow-y-auto">
+          <p class="text-xs text-slate-400 text-center py-6">로딩…</p>
+        </div>
+      </section>
+
       <!-- 최근 이벤트 -->
       <section class="card p-6">
         <h3 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Recent Events (last 20)</h3>
@@ -459,6 +475,39 @@
     <footer class="text-center text-[10px] text-slate-400 py-4">
       get-ASAP &copy; 2026 &mdash; Built for catalysis &amp; energy research
     </footer>
+  </div>
+
+  <!-- ========== 피드백 모달 ========== -->
+  <div id="feedback-modal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div class="card p-6 w-full max-w-md">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-black text-navy-900">💬 피드백 보내기</h3>
+        <button id="feedback-close" class="text-slate-400 hover:text-slate-700 text-xl font-bold">&times;</button>
+      </div>
+      <p class="text-xs text-slate-500 mb-4">버그, 기능 제안, 칭찬/불만 등 자유롭게 남겨주세요. 관리자만 조회합니다.</p>
+      <form id="feedback-form" class="space-y-3">
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">카테고리</label>
+          <select id="feedback-category" class="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-800">
+            <option value="bug">🐞 버그 제보</option>
+            <option value="feature" selected>💡 기능 제안</option>
+            <option value="other">✏️ 기타 의견</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">내용</label>
+          <textarea id="feedback-message" rows="5" maxlength="2000" required
+            class="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 resize-none"
+            placeholder="예) 저널 ABC가 누락된 것 같습니다 / 날짜 범위를 커스텀으로 설정하고 싶어요"></textarea>
+          <p class="text-[10px] text-slate-400 text-right mt-1"><span id="feedback-charcount">0</span> / 2000</p>
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="button" id="feedback-cancel" class="flex-1 py-2 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50">취소</button>
+          <button type="submit" id="feedback-submit" class="flex-1 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">보내기</button>
+        </div>
+        <p id="feedback-status" class="text-xs text-center font-semibold hidden"></p>
+      </form>
+    </div>
   </div>
 
   <!-- ========== JS ========== -->
@@ -1593,6 +1642,7 @@
         renderBrowseDetail();
       } else if (v === 'stats') {
         loadStats();
+        loadFeedback();
       }
     };
 
@@ -1666,7 +1716,129 @@
       });
     }
 
-    document.getElementById('stats-refresh').addEventListener('click', loadStats);
+    document.getElementById('stats-refresh').addEventListener('click', () => { loadStats(); loadFeedback(); });
+
+    // ---------- 피드백 (관리자 조회) ----------
+    let _feedbackCache = [];
+    async function loadFeedback() {
+      try {
+        const res = await fetch('/api/feedback');
+        if (!res.ok) return;
+        const data = await res.json();
+        _feedbackCache = data.items || [];
+        renderFeedback();
+      } catch (e) { console.error('feedback load failed', e); }
+    }
+
+    function _escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    const CATEGORY_LABEL = { bug: '🐞 버그', feature: '💡 기능제안', other: '✏️ 기타' };
+
+    function renderFeedback() {
+      const unreadOnly = document.getElementById('stats-feedback-unread-only')?.checked;
+      const items = unreadOnly ? _feedbackCache.filter(f => !f.read_at) : _feedbackCache;
+      const unreadCount = _feedbackCache.filter(f => !f.read_at).length;
+      const unreadBadge = document.getElementById('stats-feedback-unread');
+      if (unreadBadge) unreadBadge.textContent = unreadCount ? `미확인 ${unreadCount}건` : '';
+      const listEl = document.getElementById('stats-feedback-list');
+      if (!listEl) return;
+      if (!items.length) {
+        listEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">아직 피드백이 없습니다.</p>';
+        return;
+      }
+      listEl.innerHTML = items.map(f => {
+        const time = new Date(f.ts * 1000).toLocaleString();
+        const isRead = !!f.read_at;
+        const catLabel = CATEGORY_LABEL[f.category] || '✏️ 기타';
+        return `<div class="border ${isRead ? 'border-slate-200 bg-slate-50' : 'border-emerald-300 bg-emerald-50'} rounded-lg p-3">
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${isRead ? 'bg-slate-200 text-slate-600' : 'bg-emerald-600 text-white'}">${catLabel}</span>
+              <span class="text-xs font-bold text-navy-800">${_escapeHtml(f.username || '익명')}</span>
+              <span class="text-[10px] text-slate-400">${time}</span>
+              <span class="text-[10px] text-slate-400 font-mono">${_escapeHtml(f.ip || '')}</span>
+            </div>
+            <button data-fid="${f.id}" data-read="${isRead ? 1 : 0}"
+              class="fb-toggle text-[10px] font-bold px-2 py-1 rounded ${isRead ? 'text-slate-500 hover:bg-slate-200' : 'text-emerald-700 hover:bg-emerald-200'}">
+              ${isRead ? '↩ 미확인으로' : '✓ 확인'}
+            </button>
+          </div>
+          <p class="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">${_escapeHtml(f.message)}</p>
+        </div>`;
+      }).join('');
+      listEl.querySelectorAll('.fb-toggle').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const fid = parseInt(btn.getAttribute('data-fid'), 10);
+          const wasRead = btn.getAttribute('data-read') === '1';
+          await fetch('/api/feedback/mark_read', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: fid, read: !wasRead }),
+          });
+          loadFeedback();
+        });
+      });
+    }
+
+    document.getElementById('stats-feedback-unread-only')?.addEventListener('change', renderFeedback);
+
+    // ---------- 피드백 제출 모달 ----------
+    const fbModal = document.getElementById('feedback-modal');
+    const fbMsg = document.getElementById('feedback-message');
+    const fbCount = document.getElementById('feedback-charcount');
+    const fbStatus = document.getElementById('feedback-status');
+
+    function openFeedback() {
+      fbMsg.value = '';
+      fbCount.textContent = '0';
+      fbStatus.classList.add('hidden');
+      fbStatus.textContent = '';
+      fbModal.classList.remove('hidden');
+      setTimeout(() => fbMsg.focus(), 50);
+    }
+    function closeFeedback() { fbModal.classList.add('hidden'); }
+
+    document.getElementById('feedback-btn').addEventListener('click', openFeedback);
+    document.getElementById('feedback-close').addEventListener('click', closeFeedback);
+    document.getElementById('feedback-cancel').addEventListener('click', closeFeedback);
+    fbModal.addEventListener('click', (e) => { if (e.target === fbModal) closeFeedback(); });
+    fbMsg.addEventListener('input', () => { fbCount.textContent = fbMsg.value.length; });
+
+    document.getElementById('feedback-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const category = document.getElementById('feedback-category').value;
+      const message = fbMsg.value.trim();
+      if (!message) return;
+      const submitBtn = document.getElementById('feedback-submit');
+      submitBtn.disabled = true;
+      submitBtn.textContent = '전송 중…';
+      try {
+        const res = await fetch('/api/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category, message }),
+        });
+        if (res.ok) {
+          fbStatus.textContent = '✓ 소중한 피드백 감사합니다!';
+          fbStatus.className = 'text-xs text-center font-semibold text-emerald-600';
+          fbStatus.classList.remove('hidden');
+          setTimeout(closeFeedback, 1400);
+        } else {
+          throw new Error('전송 실패');
+        }
+      } catch (err) {
+        fbStatus.textContent = '✗ 전송에 실패했습니다. 잠시 후 다시 시도해주세요.';
+        fbStatus.className = 'text-xs text-center font-semibold text-red-500';
+        fbStatus.classList.remove('hidden');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '보내기';
+      }
+    });
 
     function autoSelectFirstBrowseItem() {
       if (browseMode === 'journal' && !selectedBrowseJournal) {

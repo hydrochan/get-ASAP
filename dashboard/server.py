@@ -53,6 +53,20 @@ def _init_access_db():
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_ts ON access_events(ts)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_user ON access_events(username)")
+        # 사용자 피드백 테이블
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts REAL NOT NULL,
+                username TEXT,
+                ip TEXT,
+                category TEXT,
+                message TEXT NOT NULL,
+                user_agent TEXT,
+                read_at REAL
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_fb_ts ON feedback(ts)")
         conn.commit()
         conn.close()
 
@@ -139,6 +153,52 @@ def _query_stats() -> dict:
 
         conn.close()
         return out
+
+
+# ---------- 피드백 CRUD ----------
+MAX_FEEDBACK_LEN = 2000
+ALLOWED_FEEDBACK_CATEGORIES = {"bug", "feature", "other"}
+
+
+def _insert_feedback(username: str, ip: str, category: str, message: str, user_agent: str = "") -> int:
+    """피드백 저장. id 반환."""
+    with _db_lock:
+        conn = sqlite3.connect(ACCESS_DB_PATH)
+        cur = conn.execute(
+            "INSERT INTO feedback (ts, username, ip, category, message, user_agent) VALUES (?, ?, ?, ?, ?, ?)",
+            (time.time(), username, ip, category, message[:MAX_FEEDBACK_LEN], user_agent[:200]),
+        )
+        fid = cur.lastrowid
+        conn.commit()
+        conn.close()
+    return fid
+
+
+def _list_feedback(limit: int = 200) -> list:
+    """피드백 목록 (최신순)."""
+    with _db_lock:
+        conn = sqlite3.connect(ACCESS_DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.execute(
+            "SELECT id, ts, username, ip, category, message, read_at FROM feedback ORDER BY ts DESC LIMIT ?",
+            (limit,),
+        )
+        rows = [dict(r) for r in cur.fetchall()]
+        conn.close()
+        return rows
+
+
+def _mark_feedback_read(fid: int, read: bool = True) -> bool:
+    """피드백 읽음/안읽음 토글."""
+    with _db_lock:
+        conn = sqlite3.connect(ACCESS_DB_PATH)
+        ts = time.time() if read else None
+        cur = conn.execute("UPDATE feedback SET read_at = ? WHERE id = ?", (ts, fid))
+        changed = cur.rowcount > 0
+        conn.commit()
+        conn.close()
+    return changed
+
 
 # 세션 저장소 (메모리)
 sessions = {}  # token -> {"user": str, "expires": float}
@@ -239,6 +299,23 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
                 })
             else:
                 self._send_json({"error": "unauthorized"}, 401)
+            return
+
+        # API: 피드백 목록 (관리자 전용)
+        if path == "/api/feedback":
+            token = self._get_session_token()
+            sess = sessions.get(token) if token else None
+            if not sess or time.time() > sess["expires"]:
+                self._send_json({"error": "unauthorized"}, 401)
+                return
+            if sess.get("user", "") not in config.DASHBOARD_ADMINS:
+                self._send_json({"error": "forbidden"}, 403)
+                return
+            try:
+                self._send_json({"items": _list_feedback()})
+            except Exception as e:
+                logger.exception("feedback list failed")
+                self._send_json({"error": str(e)}, 500)
             return
 
         # API: 접속 통계 (관리자 전용)
@@ -359,6 +436,65 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             else:
                 _record_attempt(ip, False)
                 self._send_json({"error": "invalid credentials"}, 401)
+            return
+
+        # 피드백 제출 (로그인 사용자)
+        if path == "/api/feedback":
+            token = self._get_session_token()
+            sess = sessions.get(token) if token else None
+            if not sess or time.time() > sess["expires"]:
+                self._send_json({"error": "unauthorized"}, 401)
+                return
+            try:
+                data = json.loads(body)
+            except (json.JSONDecodeError, ValueError):
+                self._send_json({"error": "bad request"}, 400)
+                return
+            category = str(data.get("category", "other"))
+            if category not in ALLOWED_FEEDBACK_CATEGORIES:
+                category = "other"
+            message = str(data.get("message", "")).strip()
+            if not message:
+                self._send_json({"error": "empty message"}, 400)
+                return
+            if len(message) > MAX_FEEDBACK_LEN:
+                message = message[:MAX_FEEDBACK_LEN]
+            try:
+                fid = _insert_feedback(
+                    username=sess.get("user", ""),
+                    ip=self._get_client_ip(),
+                    category=category,
+                    message=message,
+                    user_agent=self.headers.get("User-Agent", ""),
+                )
+                self._send_json({"ok": True, "id": fid})
+            except Exception as e:
+                logger.exception("feedback insert failed")
+                self._send_json({"error": str(e)}, 500)
+            return
+
+        # 피드백 읽음 토글 (관리자 전용)
+        if path == "/api/feedback/mark_read":
+            token = self._get_session_token()
+            sess = sessions.get(token) if token else None
+            if not sess or time.time() > sess["expires"]:
+                self._send_json({"error": "unauthorized"}, 401)
+                return
+            if sess.get("user", "") not in config.DASHBOARD_ADMINS:
+                self._send_json({"error": "forbidden"}, 403)
+                return
+            try:
+                data = json.loads(body)
+            except (json.JSONDecodeError, ValueError):
+                self._send_json({"error": "bad request"}, 400)
+                return
+            fid = data.get("id")
+            read = bool(data.get("read", True))
+            if not isinstance(fid, int):
+                self._send_json({"error": "invalid id"}, 400)
+                return
+            ok = _mark_feedback_read(fid, read)
+            self._send_json({"ok": ok})
             return
 
         # 로그아웃
