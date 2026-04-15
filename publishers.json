@@ -36,9 +36,9 @@
     "doi_prefix": "10.1126/"
   },
   "rsc": {
-    "sender": ["MaterialsA@rsc.org", "ees@rsc.org", "catalysis@rsc.org"],
+    "sender": ["MaterialsA@rsc.org", "ees@rsc.org", "catalysis@rsc.org", "green@rsc.org"],
     "name": "RSC",
-    "journals": ["Journal of Materials Chemistry A", "Energy & Environmental Science", "Catalysis Science & Technology"],
+    "journals": ["Journal of Materials Chemistry A", "Energy & Environmental Science", "Catalysis Science & Technology", "Green Chemistry"],
     "doi_prefix": "10.1039/"
   }
 }
