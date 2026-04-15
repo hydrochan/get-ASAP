@@ -340,7 +340,6 @@
                 <th class="px-3 py-2">Date</th>
                 <th class="px-3 py-2">Journal</th>
                 <th class="px-3 py-2">Title</th>
-                <th class="px-3 py-2">Status</th>
               </tr>
             </thead>
             <tbody id="paper-tbody"></tbody>
@@ -1444,9 +1443,6 @@
           <td class="px-3 py-2">
             ${p.url ? `<a href="${p.url}" target="_blank" class="text-navy-700 hover:underline">${p.title||''}</a>` : (p.title||'')}
           </td>
-          <td class="px-3 py-2 whitespace-nowrap">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${statusBadgeClass(p.status)}">${p.status||''}</span>
-          </td>
         </tr>
       `).join('');
     }
@@ -1465,9 +1461,29 @@
       document.getElementById('view-browse').classList.toggle('hidden', v !== 'browse');
       if (v === 'browse') {
         renderBrowseList();
+        // 첫 항목 자동 선택 (아무것도 선택 안 된 경우)
+        autoSelectFirstBrowseItem();
         renderBrowseDetail();
       }
     };
+
+    function autoSelectFirstBrowseItem() {
+      if (browseMode === 'journal' && !selectedBrowseJournal) {
+        const firstItem = document.querySelector('#browse-list .browse-item');
+        if (firstItem) {
+          const j = firstItem.querySelector('.truncate').getAttribute('title') || firstItem.querySelector('.truncate').textContent;
+          selectedBrowseJournal = j;
+          firstItem.classList.add('active');
+        }
+      } else if (browseMode === 'topic' && !selectedBrowseTopic) {
+        const firstItem = document.querySelector('#browse-list .browse-item');
+        if (firstItem) {
+          const b = firstItem.querySelector('[title]').getAttribute('title');
+          selectedBrowseTopic = b;
+          firstItem.classList.add('active');
+        }
+      }
+    }
 
     window.setBrowseMode = function(m) {
       browseMode = m;
@@ -1478,6 +1494,7 @@
       document.getElementById('browse-mode-topic').classList.toggle('active', m === 'topic');
       document.getElementById('browse-list-header').querySelector('span').textContent = m === 'journal' ? 'Journals' : 'Topics';
       renderBrowseList();
+      autoSelectFirstBrowseItem();
       renderBrowseDetail();
     };
 
@@ -1626,10 +1643,7 @@
           const journalTag = browseMode === 'topic'
             ? `<span class="journal-tag">${p.journal || ''}</span>`
             : '';
-          const statusBadge = p.status
-            ? `<span class="status-badge ${statusBadgeClass(p.status)}">${p.status}</span>`
-            : '';
-          parts.push(`<div class="browse-paper-row">${journalTag}${linkOpen}${title}${linkClose}${statusBadge}</div>`);
+          parts.push(`<div class="browse-paper-row">${journalTag}${linkOpen}${title}${linkClose}</div>`);
         }
         parts.push('</div>');
       }
