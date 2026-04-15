@@ -1653,6 +1653,16 @@
       }
 
       container.innerHTML = parts.join('');
+      // 선택 변경 시 스크롤 맨 위로 — 스크롤 조상(overflow-y:auto 가진 section)까지 올라가서 리셋
+      let scrollParent = container.parentElement;
+      while (scrollParent && scrollParent !== document.body) {
+        const style = getComputedStyle(scrollParent);
+        if (/(auto|scroll)/.test(style.overflowY)) {
+          scrollParent.scrollTop = 0;
+          break;
+        }
+        scrollParent = scrollParent.parentElement;
+      }
     }
 
     // ---------- 리포트 다운로드 ----------
