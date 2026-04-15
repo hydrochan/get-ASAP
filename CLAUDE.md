@@ -143,6 +143,37 @@ cd ~/get-ASAP && git pull && .venv/bin/pip install -r requirements.txt
 # 0 */6 * * * cd /home/ubuntu/get-ASAP && .venv/bin/python main.py >> logs/cron.log 2>&1
 ```
 
+### 대시보드 접속 / 관리
+
+- **공개 URL**: https://***REDACTED-DOMAIN*** (HTTPS, Let's Encrypt, 자동 갱신)
+- **내부 포트**: 127.0.0.1:8501 (Nginx reverse proxy 경유, 외부 직접 접근 차단)
+- **도메인**: DuckDNS 무료 서브도메인, A 레코드 → ***REDACTED-IP***
+- **인증서 갱신 알림**: REDACTED_EMAIL (certbot account email)
+
+**운영 명령 (서버에서)**
+```bash
+# 서비스 상태/제어 (systemd로 자동 재시작됨)
+sudo systemctl status get-asap-dashboard
+sudo systemctl restart get-asap-dashboard
+journalctl -u get-asap-dashboard -f    # 실시간 로그
+
+# Nginx 재적재 (TLS 설정 변경 시)
+sudo nginx -t && sudo systemctl reload nginx
+
+# 인증서 수동 갱신 테스트 (dry-run)
+sudo certbot renew --dry-run
+```
+
+**계정 관리**
+- 관리자: `journalsearchchan` (Analytics/Browse/Stats 탭 전체)
+- 연구실 공용: `KISTHRL` / `***REDACTED-PW***` (User Interest Analysis 섹션 숨김)
+- 추가/변경: 서버 `~/get-ASAP/.env`의 `DASHBOARD_USERS` JSON 수정 후 `sudo systemctl restart get-asap-dashboard`
+- bcrypt 해시 생성: `.venv/bin/python -c "import bcrypt; print(bcrypt.hashpw(b'PASS', bcrypt.gensalt()).decode())"`
+
+**접속 통계**
+- `access_log.db` (SQLite, git 제외) — login/page_view 이벤트 누적
+- 관리자 로그인 시 Stats 탭에서 KPI + 사용자별 집계 + 일별 차트 + 최근 이벤트 확인
+
 <!-- GSD:workflow-start source:GSD defaults -->
 ## GSD Workflow Enforcement
 
