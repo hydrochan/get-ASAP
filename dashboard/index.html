@@ -268,7 +268,7 @@
       </section>
 
       <!-- AI 관심 분석 -->
-      <section class="card p-6">
+      <section id="section-interest-analysis" class="card p-6">
         <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">User Interest Analysis</h2>
         <div id="interest-empty" class="text-xs text-slate-400 hidden">No interest-marked papers found.</div>
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -400,6 +400,28 @@
     let allSharpsMode = true;         // sharp "All" 모드
     let sharpsByBroad = {};           // broad -> [sharp, ...]
 
+    // 로그인 사용자 (서버가 /api/session, /api/login 응답에 user 포함)
+    let currentUser = '';
+    // 특정 유저에게 감출 섹션 (예: KISTHRL은 User Interest Analysis 숨김)
+    const HIDDEN_SECTIONS_BY_USER = {
+      'KISTHRL': ['section-interest-analysis']
+    };
+    function applyUserVisibility() {
+      const hideIds = HIDDEN_SECTIONS_BY_USER[currentUser] || [];
+      // 모든 해당 섹션 표시로 리셋
+      for (const ids of Object.values(HIDDEN_SECTIONS_BY_USER)) {
+        for (const id of ids) {
+          const el = document.getElementById(id);
+          if (el) el.classList.remove('hidden');
+        }
+      }
+      // 현재 사용자에 대해 숨김 적용
+      for (const id of hideIds) {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+      }
+    }
+
     // Browse 뷰 상태
     let currentView = 'analytics';        // 'analytics' | 'browse'
     let browseMode = 'journal';           // 'journal' | 'topic'
@@ -495,8 +517,13 @@
           body: JSON.stringify({ username: user, password: pass })
         });
         if (res.ok) {
+          try {
+            const data = await res.json();
+            currentUser = data.user || '';
+          } catch { currentUser = ''; }
           loginScreen.classList.add('hidden');
           dashboard.classList.remove('hidden');
+          applyUserVisibility();
           loadData();
         } else {
           document.getElementById('login-error').classList.remove('hidden');
@@ -508,6 +535,7 @@
 
     document.getElementById('logout-btn').addEventListener('click', async () => {
       await fetch('/api/logout', { method: 'POST' });
+      currentUser = '';
       dashboard.classList.add('hidden');
       loginScreen.classList.remove('hidden');
       document.getElementById('login-pass').value = '';
@@ -1719,8 +1747,13 @@
       try {
         const res = await fetch('/api/session');
         if (res.ok) {
+          try {
+            const data = await res.json();
+            currentUser = data.user || '';
+          } catch { currentUser = ''; }
           loginScreen.classList.add('hidden');
           dashboard.classList.remove('hidden');
+          applyUserVisibility();
           loadData();
         }
       } catch {}

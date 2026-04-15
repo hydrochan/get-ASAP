@@ -22,5 +22,23 @@ NOTION_PARENT_PAGE_ID = os.getenv("NOTION_PARENT_PAGE_ID")
 CHECK_INTERVAL_HOURS = int(os.getenv("CHECK_INTERVAL_HOURS", "6"))
 
 # 대시보드 설정
+# 단일 사용자 (레거시 호환)
 DASHBOARD_USERNAME = os.getenv("DASHBOARD_USERNAME", "")
 DASHBOARD_PASSWORD_HASH = os.getenv("DASHBOARD_PASSWORD_HASH", "")
+
+# 다중 사용자 지원: DASHBOARD_USERS JSON 형식 {"username": "bcrypt_hash", ...}
+# 예: DASHBOARD_USERS={"alice":"$2b$12$...","bob":"$2b$12$..."}
+# 레거시 DASHBOARD_USERNAME/DASHBOARD_PASSWORD_HASH도 아래 dict에 자동 병합
+import json
+DASHBOARD_USERS: dict[str, str] = {}
+_users_json = os.getenv("DASHBOARD_USERS", "").strip()
+if _users_json:
+    try:
+        parsed = json.loads(_users_json)
+        if isinstance(parsed, dict):
+            DASHBOARD_USERS.update({str(k): str(v) for k, v in parsed.items()})
+    except json.JSONDecodeError:
+        # 파싱 실패 시 로거 없이 무시 (단일 사용자만 활성화)
+        pass
+if DASHBOARD_USERNAME and DASHBOARD_PASSWORD_HASH and DASHBOARD_USERNAME not in DASHBOARD_USERS:
+    DASHBOARD_USERS[DASHBOARD_USERNAME] = DASHBOARD_PASSWORD_HASH

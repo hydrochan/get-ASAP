@@ -117,8 +117,10 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
 
         # API: 세션 체크
         if path == "/api/session":
-            if self._is_authenticated():
-                self._send_json({"ok": True})
+            token = self._get_session_token()
+            sess = sessions.get(token) if token else None
+            if sess and time.time() <= sess["expires"]:
+                self._send_json({"ok": True, "user": sess.get("user", "")})
             else:
                 self._send_json({"error": "unauthorized"}, 401)
             return
@@ -201,17 +203,17 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             username = data.get("username", "")
             password = data.get("password", "")
 
-            # 인증 검증
-            if (username == config.DASHBOARD_USERNAME and
-                config.DASHBOARD_PASSWORD_HASH and
-                bcrypt.checkpw(password.encode(), config.DASHBOARD_PASSWORD_HASH.encode())):
+            # 다중 사용자 인증 (DASHBOARD_USERS dict + 레거시 단일 사용자 자동 병합)
+            stored_hash = config.DASHBOARD_USERS.get(username, "")
+            if (stored_hash and
+                bcrypt.checkpw(password.encode(), stored_hash.encode())):
                 _record_attempt(ip, True)
                 token = _create_session(username)
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Set-Cookie", f"session={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={SESSION_TTL}")
                 self.end_headers()
-                self.wfile.write(json.dumps({"ok": True}).encode())
+                self.wfile.write(json.dumps({"ok": True, "user": username}).encode())
             else:
                 _record_attempt(ip, False)
                 self._send_json({"error": "invalid credentials"}, 401)
