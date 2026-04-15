@@ -243,8 +243,11 @@ def main():
         format="%(asctime)s [%(levelname)s] %(message)s",
     )
 
-    server = http.server.HTTPServer((args.host, args.port), DashboardHandler)
-    logger.info("Dashboard server: http://%s:%d", args.host, args.port)
+    # ThreadingHTTPServer: 요청마다 별도 스레드 처리 → 한 요청 블록/오류가 서버 전체를 hang시키지 않음
+    server = http.server.ThreadingHTTPServer((args.host, args.port), DashboardHandler)
+    server.daemon_threads = True  # 프로세스 종료 시 미완료 스레드 자동 정리
+    server.request_queue_size = 128  # listen backlog 기본 5 → 128로 확대
+    logger.info("Dashboard server (threading): http://%s:%d", args.host, args.port)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
