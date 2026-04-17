@@ -209,10 +209,11 @@ def _mark_feedback_read(fid: int, read: bool = True) -> bool:
 sessions = {}  # token -> {"user": str, "expires": float}
 SESSION_TTL = 3600  # 1시간
 
-# 브루트포스 방지
+# 브루트포스 방지 (NAT 공유 환경 대응 — 연구실 공용 와이파이처럼 여러 명이 같은 공인 IP 뒤에 있는 경우
+# 너무 빡빡하면 한 사람 오타가 전체 네트워크 차단으로 이어짐. bcrypt + 세션으로 실제 공격 난이도는 충분)
 login_attempts = {}  # ip -> {"count": int, "locked_until": float}
-MAX_ATTEMPTS = 5
-LOCKOUT_SECONDS = 300  # 5분
+MAX_ATTEMPTS = 20
+LOCKOUT_SECONDS = 120  # 2분
 
 
 def _check_lockout(ip: str) -> bool:
