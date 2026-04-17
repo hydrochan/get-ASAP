@@ -365,7 +365,8 @@ def infer_journal(sender: str, subject: str, publishers: dict) -> str:
     # 예: "Advanced Energy Materials <WileyOnlineLibrary@wiley.com>" → "Advanced Energy Materials"
     # 서비스명은 저널이 아니므로 제외
     _SERVICE_NAMES = {"ScienceDirect Message Center", "ACS e-Alerts Service",
-                      "AAAS Science Advances", "Nature Portfolio eAlerts"}
+                      "AAAS Science Advances", "Nature Portfolio eAlerts",
+                      "Science Table of Contents", "Science Advances Table of Contents"}
     display_match = re.match(r'^(.+?)\s*<', sender)
     if display_match:
         display_name = display_match.group(1).strip().strip('"')
