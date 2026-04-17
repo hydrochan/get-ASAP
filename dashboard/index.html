@@ -745,22 +745,11 @@
             if (label === '__ALL__') {
               _userFocusAllMode = true;
               _userFocusActiveGroups = new Set(allLabels);
-            } else if (_userFocusAllMode) {
-              // All 상태에서 특정 칩 클릭 → 그것만 배타 선택
+            } else {
+              // 그룹 칩 클릭 → 항상 그것만 단일 선택 (라디오 동작)
+              // 전체 보고 싶으면 All 버튼 사용
               _userFocusAllMode = false;
               _userFocusActiveGroups = new Set([label]);
-            } else {
-              // 이미 필터 중 → 토글 (추가/제거)
-              if (_userFocusActiveGroups.has(label)) {
-                _userFocusActiveGroups.delete(label);
-              } else {
-                _userFocusActiveGroups.add(label);
-              }
-              // 전부 해제 or 전부 활성 → All 모드 복귀
-              if (_userFocusActiveGroups.size === 0 || _userFocusActiveGroups.size === allLabels.length) {
-                _userFocusAllMode = true;
-                _userFocusActiveGroups = new Set(allLabels);
-              }
             }
             renderUserFocus();
           });
