@@ -143,8 +143,19 @@
 
     <!-- 필터 바 묶음 (Analytics 탭에서만 노출 · 기본 숨김) -->
     <div id="analytics-filters" class="hidden">
+      <!-- 모바일 전용 토글 헤더 -->
+      <div id="filters-mobile-toggle" class="sm:hidden bg-white border-b border-slate-100 px-4 py-2 flex items-center justify-between">
+        <button id="filters-toggle-btn" type="button" class="flex items-center gap-2 text-[11px] font-bold text-navy-800">
+          <span id="filters-toggle-icon" class="text-slate-400">▸</span>
+          <span>Filters</span>
+          <span id="filters-mobile-summary" class="text-[10px] font-semibold text-slate-400 ml-1">All</span>
+        </button>
+        <span id="filter-count-mobile" class="text-[10px] font-semibold text-slate-400"></span>
+      </div>
+      <!-- 필터 본문 (모바일에선 토글로 접힘, sm 이상은 항상 열림) -->
+      <div id="filters-body" class="hidden sm:block">
       <!-- 저널 필터 바 -->
-      <div class="bg-white border-b border-slate-100 px-6 py-3">
+      <div class="bg-white border-b border-slate-100 px-4 sm:px-6 py-3">
         <div class="flex items-center gap-2 flex-wrap">
           <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Journals:</span>
           <span id="journal-all-chip" class="journal-chip active" onclick="toggleAllJournals()">All</span>
@@ -154,23 +165,25 @@
       </div>
 
       <!-- Topics (broad) 필터 바 -->
-      <div class="bg-white border-b border-slate-100 px-6 py-3">
+      <div class="bg-white border-b border-slate-100 px-4 sm:px-6 py-3">
         <div class="flex items-center gap-2 flex-wrap">
           <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Topics:</span>
           <span id="broad-all-chip" class="journal-chip active" onclick="toggleAllBroads()">All</span>
           <div id="broad-chips" class="flex items-center gap-1.5 flex-wrap"></div>
-          <span class="text-[10px] text-slate-400 ml-2 italic">All 상태 → 클릭: 그것만 보기 · 필터 중 → 클릭: 추가/제거</span>
+          <span class="hidden sm:inline text-[10px] text-slate-400 ml-2 italic">All 상태 → 클릭: 그것만 보기 · 필터 중 → 클릭: 추가/제거</span>
         </div>
       </div>
 
       <!-- Sharp (sub-topic) 필터 바 — broad 단일 선택 시 노출 -->
-      <div id="sharp-filter-bar" class="bg-slate-50 border-b border-slate-100 px-6 py-2 hidden">
+      <div id="sharp-filter-bar" class="bg-slate-50 border-b border-slate-100 px-4 sm:px-6 py-2 hidden">
         <div class="flex items-center gap-2 flex-wrap">
           <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1" id="sharp-filter-label">Sub:</span>
           <span id="sharp-all-chip" class="journal-chip active" onclick="toggleAllSharps()">All</span>
           <div id="sharp-chips" class="flex items-center gap-1.5 flex-wrap"></div>
         </div>
       </div>
+      </div>
+      <!-- /filters-body -->
     </div>
     <!-- /analytics-filters -->
 
@@ -1075,10 +1088,41 @@
       }
 
       filteredPapers = out;
-      document.getElementById('filter-count').textContent =
-        filteredPapers.length === allPapers.length ? '' : `${filteredPapers.length} / ${allPapers.length} papers`;
+      const countLabel = filteredPapers.length === allPapers.length ? '' : `${filteredPapers.length} / ${allPapers.length} papers`;
+      document.getElementById('filter-count').textContent = countLabel;
+      const mobileCount = document.getElementById('filter-count-mobile');
+      if (mobileCount) mobileCount.textContent = countLabel;
+      updateFiltersMobileSummary();
       renderAll();
     }
+
+    // 모바일 필터 토글 (sm 이상에서는 무시됨 — 본문이 항상 sm:block)
+    function _setFiltersExpanded(expanded) {
+      const body = document.getElementById('filters-body');
+      const icon = document.getElementById('filters-toggle-icon');
+      if (!body || !icon) return;
+      // sm 미만에서만 hidden 토글 (sm 이상은 sm:block으로 항상 보임)
+      body.classList.toggle('hidden', !expanded);
+      icon.textContent = expanded ? '▾' : '▸';
+    }
+    function updateFiltersMobileSummary() {
+      const sum = document.getElementById('filters-mobile-summary');
+      if (!sum) return;
+      const parts = [];
+      parts.push(allJournalsMode ? 'All journals' : `${selectedJournals.size} journals`);
+      parts.push(allBroadsMode ? 'All topics' : `${selectedBroads.size} topics`);
+      sum.textContent = parts.join(' · ');
+      const hasFilter = !allJournalsMode || !allBroadsMode;
+      sum.classList.toggle('text-navy-800', hasFilter);
+      sum.classList.toggle('text-slate-400', !hasFilter);
+    }
+    (function() {
+      const btn = document.getElementById('filters-toggle-btn');
+      if (btn) btn.addEventListener('click', () => {
+        const body = document.getElementById('filters-body');
+        _setFiltersExpanded(body && body.classList.contains('hidden'));
+      });
+    })();
 
     // ---------- 키워드(broad/sharp) 필터 ----------
     function buildTopicFilter() {
