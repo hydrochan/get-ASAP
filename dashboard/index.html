@@ -540,6 +540,66 @@
     </footer>
   </div>
 
+  <!-- ========== Report 설정 모달 ========== -->
+  <div id="report-modal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div class="card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-black text-navy-900">📄 리포트 다운로드 설정</h3>
+        <button id="report-close" class="text-slate-400 hover:text-slate-700 text-xl font-bold">&times;</button>
+      </div>
+      <div class="space-y-5">
+        <!-- 기간 -->
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">기간</label>
+          <select id="report-months" class="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-800">
+            <option value="1">최근 1개월</option>
+            <option value="3" selected>최근 3개월</option>
+            <option value="6">최근 6개월</option>
+            <option value="12">최근 12개월</option>
+          </select>
+        </div>
+
+        <!-- 포함 섹션 -->
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">포함 섹션</label>
+          <div class="mt-2 space-y-2 text-sm">
+            <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-summary" checked> <span>요약 (총 논문수 · 저널수)</span></label>
+            <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-topkw" checked> <span>Top 20 Keywords 표</span></label>
+            <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-journals" checked> <span>Journal Frequency (Top 15)</span></label>
+            <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-papers-by-kw"> <span>키워드별 논문 목록 (아래에서 선택)</span></label>
+            <label id="report-inc-interest-wrap" class="flex items-center gap-2 hidden"><input type="checkbox" id="report-inc-interest"> <span>User Interest Analysis (관리자 전용)</span></label>
+          </div>
+        </div>
+
+        <!-- 키워드 선택 (키워드별 논문 목록 체크 시만 활성) -->
+        <div id="report-kw-section" class="opacity-50 pointer-events-none transition-opacity">
+          <div class="flex items-baseline justify-between">
+            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">분석할 키워드 (Broad)</label>
+            <div class="flex items-center gap-2 text-[10px]">
+              <button type="button" id="report-kw-all" class="text-navy-700 font-bold hover:underline">전체</button>
+              <button type="button" id="report-kw-none" class="text-slate-400 font-bold hover:underline">전체해제</button>
+            </div>
+          </div>
+          <div id="report-kw-chips" class="mt-2 flex flex-wrap gap-1.5 max-h-40 overflow-y-auto border border-slate-100 rounded-lg p-2 bg-slate-50"></div>
+          <div class="mt-2 flex items-center gap-2">
+            <label class="text-[10px] font-semibold text-slate-500">키워드당 최대 논문 수:</label>
+            <select id="report-papers-per-kw" class="text-xs border border-slate-200 rounded px-2 py-1">
+              <option value="10">10</option>
+              <option value="20" selected>20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-2 border-t border-slate-100">
+          <button type="button" id="report-cancel" class="flex-1 py-2 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50">취소</button>
+          <button type="button" id="report-generate" class="flex-1 py-2 bg-gradient-to-r from-navy-900 to-navy-800 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">다운로드</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ========== 피드백 모달 ========== -->
   <div id="feedback-modal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
     <div class="card p-6 w-full max-w-md">
@@ -2523,87 +2583,169 @@
     // 검색 입력 중 렌더가 스크롤을 리셋하지 않도록 하는 플래그
     let _browseSearchTypingFlag = false;
 
-    // ---------- 리포트 다운로드 ----------
-    document.getElementById('report-btn').addEventListener('click', () => {
-      const months = document.getElementById('month-range').value;
+    // ---------- 리포트 설정 모달 ----------
+    const reportModal = document.getElementById('report-modal');
+
+    function openReportModal() {
+      // 헤더 Month Range 값을 모달 기본값으로 복사
+      const headerMonths = document.getElementById('month-range').value;
+      document.getElementById('report-months').value = headerMonths;
+
+      // 관리자만 Interest 옵션 노출
+      const interestWrap = document.getElementById('report-inc-interest-wrap');
+      if (isAdmin) {
+        interestWrap.classList.remove('hidden');
+        document.getElementById('report-inc-interest').checked = true;
+      } else {
+        interestWrap.classList.add('hidden');
+        document.getElementById('report-inc-interest').checked = false;
+      }
+
+      // 현재 필터된 데이터에서 사용 가능한 broad 키워드 수집
+      const broadFreq = getFreq(filteredPapers, 'broad', '');
+      const sortedKw = Object.entries(broadFreq).sort((a,b)=>b[1]-a[1]);
+      const chipsEl = document.getElementById('report-kw-chips');
+      chipsEl.innerHTML = sortedKw.map(([kw, c], i) => {
+        // 기본: 상위 10개만 선택
+        const checked = i < 10 ? 'checked' : '';
+        return `<label class="inline-flex items-center gap-1 bg-white border border-slate-200 rounded-full px-2.5 py-1 text-[11px] cursor-pointer hover:border-navy-600 transition-colors">
+          <input type="checkbox" class="report-kw-chip" value="${_escapeHtml(kw)}" ${checked}>
+          <span>${_escapeHtml(kw)}</span>
+          <span class="text-slate-400">(${c})</span>
+        </label>`;
+      }).join('');
+
+      // 키워드별 섹션 활성 토글 동기화
+      _syncReportKwSection();
+
+      reportModal.classList.remove('hidden');
+    }
+    function closeReportModal() { reportModal.classList.add('hidden'); }
+
+    function _syncReportKwSection() {
+      const on = document.getElementById('report-inc-papers-by-kw').checked;
+      const sec = document.getElementById('report-kw-section');
+      sec.classList.toggle('opacity-50', !on);
+      sec.classList.toggle('pointer-events-none', !on);
+    }
+    document.getElementById('report-inc-papers-by-kw').addEventListener('change', _syncReportKwSection);
+
+    document.getElementById('report-kw-all').addEventListener('click', () => {
+      document.querySelectorAll('.report-kw-chip').forEach(c => c.checked = true);
+    });
+    document.getElementById('report-kw-none').addEventListener('click', () => {
+      document.querySelectorAll('.report-kw-chip').forEach(c => c.checked = false);
+    });
+
+    document.getElementById('report-btn').addEventListener('click', openReportModal);
+    document.getElementById('report-close').addEventListener('click', closeReportModal);
+    document.getElementById('report-cancel').addEventListener('click', closeReportModal);
+    reportModal.addEventListener('click', (e) => { if (e.target === reportModal) closeReportModal(); });
+
+    document.getElementById('report-generate').addEventListener('click', () => {
+      const months = parseInt(document.getElementById('report-months').value);
       const now = new Date();
-      const range = getMonthRange(parseInt(months));
+      const range = getMonthRange(months);
       const start = range[range.length-1];
       const end = range[0];
 
-      const globalFreq = getFreq(filteredPapers, 'broad', '');
-      const top20 = Object.entries(globalFreq).sort((a,b)=>b[1]-a[1]).slice(0,20);
+      // 선택 옵션
+      const opts = {
+        summary: document.getElementById('report-inc-summary').checked,
+        topkw: document.getElementById('report-inc-topkw').checked,
+        journals: document.getElementById('report-inc-journals').checked,
+        papersByKw: document.getElementById('report-inc-papers-by-kw').checked,
+        interest: document.getElementById('report-inc-interest').checked && isAdmin,
+        selectedKw: Array.from(document.querySelectorAll('.report-kw-chip:checked')).map(c => c.value),
+        papersPerKw: parseInt(document.getElementById('report-papers-per-kw').value),
+      };
 
-      const journalFreq = {};
-      for (const p of filteredPapers) { if (p.journal) journalFreq[p.journal]=(journalFreq[p.journal]||0)+1; }
-      const topJournals = Object.entries(journalFreq).sort((a,b)=>b[1]-a[1]).slice(0,15);
+      // 기간 필터 (월별 범위)
+      const monthSet = new Set(range);
+      const scoped = filteredPapers.filter(p => {
+        const m = (p.date || '').slice(0, 7);
+        return monthSet.has(m);
+      });
 
       let md = `# get-ASAP Paper Analysis Report\n\n`;
       md += `**Period:** ${start} ~ ${end}\n`;
       md += `**Generated:** ${now.toISOString().slice(0,10)}\n`;
-      md += `**Total Papers:** ${filteredPapers.length}\n`;
-      md += `**Active Journals:** ${new Set(filteredPapers.map(p=>p.journal).filter(Boolean)).size}\n\n`;
 
-      md += `## Top 20 Keywords\n\n`;
-      md += `| Rank | Keyword | Count |\n|------|---------|-------|\n`;
-      top20.forEach(([kw,c], i) => { md += `| ${i+1} | ${kw} | ${c} |\n`; });
-
-      md += `\n## Journal Frequency (Top 15)\n\n`;
-      md += `| Journal | Papers |\n|---------|--------|\n`;
-      topJournals.forEach(([j,c]) => { md += `| ${j} | ${c} |\n`; });
-
-      // ---------- 키워드별 논문 분석 (Top 10 keywords × 최대 20건) ----------
-      md += `\n## Papers by Keyword (Top 10)\n\n`;
-      md += `_각 주요 키워드(Broad)에 해당하는 논문 목록. 키워드별 최대 20건._\n\n`;
-      const PAPERS_PER_KEYWORD = 20;
-      const top10Kw = top20.slice(0, 10);
-      for (const [kw, kwCount] of top10Kw) {
-        // 이 키워드가 broad에 등장하는 논문 필터
-        const kwPapers = filteredPapers.filter(p => {
-          for (const { broad } of parseReason(p.gpt_reason || '')) {
-            if (broad === kw) return true;
-          }
-          return false;
-        });
-        // 최신순 정렬
-        kwPapers.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-        md += `### ${kw} (${kwCount} papers)\n\n`;
-        const show = kwPapers.slice(0, PAPERS_PER_KEYWORD);
-        for (const p of show) {
-          const title = (p.title || '(no title)').replace(/\|/g, '\\|');
-          const journal = p.journal || '';
-          const date = (p.date || '').slice(0, 10);
-          const url = p.url || (p.doi ? `https://doi.org/${p.doi}` : '');
-          const titleCell = url ? `[${title}](${url})` : title;
-          md += `- ${date} · *${journal}* · ${titleCell}\n`;
-        }
-        if (kwPapers.length > PAPERS_PER_KEYWORD) {
-          md += `\n_… and ${kwPapers.length - PAPERS_PER_KEYWORD} more_\n`;
-        }
+      if (opts.summary) {
+        md += `**Total Papers:** ${scoped.length}\n`;
+        md += `**Active Journals:** ${new Set(scoped.map(p=>p.journal).filter(Boolean)).size}\n\n`;
+      } else {
         md += '\n';
       }
 
-      // User Interest Analysis — 관리자(journalsearchchan)만 포함
-      if (currentUser === 'journalsearchchan') {
-        const interestPapers = filteredPapers.filter(p => INTEREST_STATUSES.has(p.status));
-        if (interestPapers.length > 0) {
-          md += `\n## User Interest Analysis\n\n`;
-          md += `**Interest papers:** ${interestPapers.length} / ${filteredPapers.length} (${(interestPapers.length/filteredPapers.length*100).toFixed(1)}%)\n\n`;
-          const intKw = Object.entries(getFreq(interestPapers, 'broad', '')).sort((a,b)=>b[1]-a[1]).slice(0,10);
-          md += `| Rank | Interest Keyword | Count |\n|------|-----------------|-------|\n`;
-          intKw.forEach(([kw,c], i) => { md += `| ${i+1} | ${kw} | ${c} |\n`; });
+      if (opts.topkw) {
+        const globalFreq = getFreq(scoped, 'broad', '');
+        const top20 = Object.entries(globalFreq).sort((a,b)=>b[1]-a[1]).slice(0,20);
+        md += `## Top 20 Keywords\n\n`;
+        md += `| Rank | Keyword | Count |\n|------|---------|-------|\n`;
+        top20.forEach(([kw,c], i) => { md += `| ${i+1} | ${kw} | ${c} |\n`; });
+        md += '\n';
+      }
+
+      if (opts.journals) {
+        const journalFreq = {};
+        for (const p of scoped) { if (p.journal) journalFreq[p.journal]=(journalFreq[p.journal]||0)+1; }
+        const topJournals = Object.entries(journalFreq).sort((a,b)=>b[1]-a[1]).slice(0,15);
+        md += `## Journal Frequency (Top 15)\n\n`;
+        md += `| Journal | Papers |\n|---------|--------|\n`;
+        topJournals.forEach(([j,c]) => { md += `| ${j} | ${c} |\n`; });
+        md += '\n';
+      }
+
+      if (opts.papersByKw && opts.selectedKw.length > 0) {
+        md += `## Papers by Keyword\n\n`;
+        md += `_선택된 키워드별 논문 목록. 키워드당 최대 ${opts.papersPerKw}건._\n\n`;
+        for (const kw of opts.selectedKw) {
+          const kwPapers = scoped.filter(p => {
+            for (const { broad } of parseReason(p.gpt_reason || '')) {
+              if (broad === kw) return true;
+            }
+            return false;
+          });
+          kwPapers.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+          md += `### ${kw} (${kwPapers.length} papers)\n\n`;
+          const show = kwPapers.slice(0, opts.papersPerKw);
+          for (const p of show) {
+            const title = (p.title || '(no title)').replace(/\|/g, '\\|');
+            const journal = p.journal || '';
+            const date = (p.date || '').slice(0, 10);
+            const url = p.url || (p.doi ? `https://doi.org/${p.doi}` : '');
+            const titleCell = url ? `[${title}](${url})` : title;
+            md += `- ${date} · *${journal}* · ${titleCell}\n`;
+          }
+          if (kwPapers.length > opts.papersPerKw) {
+            md += `\n_… and ${kwPapers.length - opts.papersPerKw} more_\n`;
+          }
+          md += '\n';
         }
       }
 
-      md += `\n---\n*Generated by get-ASAP Analytics Dashboard*\n`;
+      if (opts.interest) {
+        const interestPapers = scoped.filter(p => INTEREST_STATUSES.has(p.status));
+        if (interestPapers.length > 0) {
+          md += `## User Interest Analysis\n\n`;
+          md += `**Interest papers:** ${interestPapers.length} / ${scoped.length} (${(interestPapers.length/scoped.length*100).toFixed(1)}%)\n\n`;
+          const intKw = Object.entries(getFreq(interestPapers, 'broad', '')).sort((a,b)=>b[1]-a[1]).slice(0,10);
+          md += `| Rank | Interest Keyword | Count |\n|------|-----------------|-------|\n`;
+          intKw.forEach(([kw,c], i) => { md += `| ${i+1} | ${kw} | ${c} |\n`; });
+          md += '\n';
+        }
+      }
 
-      // 다운로드
+      md += `---\n*Generated by get-ASAP Analytics Dashboard*\n`;
+
       const blob = new Blob([md], { type: 'text/markdown' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = `${start}_to_${end}_analysis.md`;
       a.click();
       URL.revokeObjectURL(a.href);
+      closeReportModal();
     });
 
     // ---------- 세션 체크 ----------
