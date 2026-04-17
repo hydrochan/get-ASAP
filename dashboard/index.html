@@ -146,17 +146,17 @@
 
     <!-- 필터 바 묶음 (Analytics 탭에서만 노출 · 기본 숨김) -->
     <div id="analytics-filters" class="hidden">
-      <!-- 모바일 전용 토글 헤더 -->
-      <div id="filters-mobile-toggle" class="sm:hidden bg-white border-b border-slate-100 px-4 py-2 flex items-center justify-between">
-        <button id="filters-toggle-btn" type="button" class="flex items-center gap-2 text-[11px] font-bold text-navy-800">
+      <!-- 필터 토글 헤더 (PC/모바일 공통 · 기본 접힘) -->
+      <div id="filters-mobile-toggle" class="bg-white border-b border-slate-100 px-4 sm:px-6 py-2 flex items-center justify-between">
+        <button id="filters-toggle-btn" type="button" class="flex items-center gap-2 text-[11px] font-bold text-navy-800 hover:text-navy-900 transition-colors">
           <span id="filters-toggle-icon" class="text-slate-400">▸</span>
           <span>Filters</span>
-          <span id="filters-mobile-summary" class="text-[10px] font-semibold text-slate-400 ml-1">All</span>
+          <span id="filters-mobile-summary" class="text-[10px] font-semibold text-slate-400 ml-1">All journals · All topics</span>
         </button>
         <span id="filter-count-mobile" class="text-[10px] font-semibold text-slate-400"></span>
       </div>
-      <!-- 필터 본문 (모바일에선 토글로 접힘, sm 이상은 항상 열림) -->
-      <div id="filters-body" class="hidden sm:block">
+      <!-- 필터 본문 (클릭 시 펼침, 기본 접힘) -->
+      <div id="filters-body" class="hidden">
       <!-- 저널 필터 바 -->
       <div class="bg-white border-b border-slate-100 px-4 sm:px-6 py-3">
         <div class="flex items-center gap-2 flex-wrap">
