@@ -308,19 +308,20 @@
         </div>
       </section>
 
-      <!-- 키워드 → 저널 검색 -->
+      <!-- 전역 검색 (논문 · 저널 · 키워드 · DOI) -->
       <section class="card p-6">
-        <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Keyword &rarr; Journal Search</h2>
-        <div class="flex items-center gap-3 mb-4">
-          <input id="kw-search-input" type="text" placeholder="Enter keyword (e.g. catalysis, perovskite, hydrogen)..."
-            class="text-xs border border-slate-200 rounded-lg px-3 py-2 w-72 focus:outline-none focus:ring-2 focus:ring-navy-800">
-          <button id="kw-search-btn" class="px-4 py-2 bg-navy-800 text-white text-xs font-bold rounded-lg hover:bg-navy-700 transition-colors">
-            Search
-          </button>
-          <span id="kw-search-count" class="text-[10px] font-semibold text-slate-400"></span>
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">🔍 Search</h2>
+          <span class="text-[10px] font-semibold text-slate-400">제목 · 저널 · 키워드 · DOI 전범위 · 공백으로 토큰 AND 검색</span>
         </div>
-        <div class="chart-container" style="height:250px">
-          <canvas id="chart-kw-search"></canvas>
+        <div class="flex items-center gap-3 mb-4">
+          <input id="main-search-input" type="text" placeholder="예) catalysis hydrogen, perovskite solar, 10.1021/..."
+            class="flex-1 text-sm border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-navy-800" autocomplete="off">
+          <button id="main-search-clear" class="px-3 py-2 text-xs font-bold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50">지우기</button>
+          <span id="main-search-count" class="text-[11px] font-semibold text-slate-400 whitespace-nowrap"></span>
+        </div>
+        <div id="main-search-results" class="space-y-1 max-h-[560px] overflow-y-auto">
+          <p class="text-xs text-slate-400 text-center py-8">검색어를 입력하세요.</p>
         </div>
       </section>
 
@@ -1568,52 +1569,80 @@
       tbody.innerHTML = rows;
     }
 
-    // 키워드 → 저널 검색
-    function searchKeywordJournal() {
-      const kw = document.getElementById('kw-search-input').value.trim().toLowerCase();
-      if (!kw) return;
+    // 전역 검색 (Analytics 본문 카드) — 헤더 검색과 동일 로직, 결과를 인라인 리스트로 렌더
+    const MAIN_SEARCH_LIMIT = 100;
+    const mainSearchInput = document.getElementById('main-search-input');
+    const mainSearchResults = document.getElementById('main-search-results');
+    const mainSearchCount = document.getElementById('main-search-count');
+    let _mainSearchDebounce = null;
 
-      // reason의 broad 또는 sharp 슬러그와 substring 매칭
-      const needle = kw.replace(/\s+/g, '-');
-      const matched = filteredPapers.filter(p =>
-        parseReason(p.gpt_reason||'').some(({ broad, sharp }) =>
-          broad.includes(needle) || (sharp && sharp.includes(needle))
-        )
-      );
-      document.getElementById('kw-search-count').textContent = matched.length ? `${matched.length} papers found` : 'No results';
-
-      if (!matched.length) {
-        if (charts.kwSearch) { charts.kwSearch.destroy(); charts.kwSearch = null; }
+    function runMainSearch(q) {
+      q = (q || '').trim();
+      if (!q) {
+        mainSearchResults.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">검색어를 입력하세요.</p>';
+        mainSearchCount.textContent = '';
         return;
       }
-
-      const freq = {};
-      for (const p of matched) {
-        if (p.journal) freq[p.journal] = (freq[p.journal]||0)+1;
+      const tokens = q.toLowerCase().split(/\s+/).filter(Boolean);
+      const matches = [];
+      for (const p of allPapers) {
+        if (_paperMatchesQuery(p, q)) matches.push(p);
       }
-      const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0, 10);
+      const total = matches.length;
+      mainSearchCount.textContent = total ? `${total}건 매칭${total > MAIN_SEARCH_LIMIT ? ` (상위 ${MAIN_SEARCH_LIMIT}건 표시)` : ''}` : '결과 없음';
 
-      if (charts.kwSearch) charts.kwSearch.destroy();
-      charts.kwSearch = new Chart(document.getElementById('chart-kw-search'), {
-        type: 'bar',
-        data: {
-          labels: sorted.map(e => e[0].length > 28 ? e[0].slice(0,25)+'...' : e[0]),
-          datasets: [{ data: sorted.map(e=>e[1]), backgroundColor: '#002F6C', borderRadius: 4 }]
-        },
-        options: {
-          indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { beginAtZero: true, ticks: { font: { size: 10 } } },
-            y: { ticks: { font: { size: 10, family: 'Manrope' } } }
-          }
-        }
-      });
+      if (!total) {
+        mainSearchResults.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">매칭되는 논문이 없습니다.</p>';
+        return;
+      }
+      matches.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      const show = matches.slice(0, MAIN_SEARCH_LIMIT);
+
+      // 날짜별 그룹
+      const groups = {};
+      for (const p of show) {
+        const d = (p.date || '').slice(0, 10) || '날짜 없음';
+        (groups[d] ||= []).push(p);
+      }
+      const dateKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+
+      mainSearchResults.innerHTML = dateKeys.map(d => {
+        const items = groups[d].map(p => {
+          const title = _highlightTokens(p.title || '(제목 없음)', tokens);
+          const journal = _highlightTokens(p.journal || '', tokens);
+          const doi = _highlightTokens(p.doi || '', tokens);
+          const tags = parseReason(p.gpt_reason || '');
+          const tagHtml = tags.slice(0, 5).map(t => {
+            const label = t.sharp ? `${t.broad} / ${t.sharp}` : t.broad;
+            return `<span class="inline-block text-[10px] bg-slate-100 text-slate-600 rounded px-1.5 py-0.5">${_highlightTokens(label, tokens)}</span>`;
+          }).join(' ');
+          const href = p.url || (p.doi ? `https://doi.org/${p.doi}` : '');
+          const linkOpen = href ? `<a href="${_escapeHtml(href)}" target="_blank" rel="noopener" class="block hover:bg-slate-50 px-3 py-2 rounded-md border border-transparent hover:border-slate-200 transition-all">` : `<div class="block px-3 py-2">`;
+          const linkClose = href ? '</a>' : '</div>';
+          return `${linkOpen}
+            <div class="flex items-baseline justify-between gap-3 mb-1">
+              <span class="text-xs font-bold text-navy-800 truncate">${journal || '&nbsp;'}</span>
+              ${doi ? `<span class="text-[10px] font-mono text-slate-400 truncate">${doi}</span>` : ''}
+            </div>
+            <div class="text-sm text-slate-800 leading-snug">${title}</div>
+            ${tagHtml ? `<div class="mt-1 flex flex-wrap gap-1">${tagHtml}</div>` : ''}
+          ${linkClose}`;
+        }).join('');
+        return `<div class="browse-date-header">${d} <span class="count">${groups[d].length}</span></div>${items}`;
+      }).join('');
     }
 
-    document.getElementById('kw-search-btn').addEventListener('click', searchKeywordJournal);
-    document.getElementById('kw-search-input').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') searchKeywordJournal();
+    mainSearchInput.addEventListener('input', (e) => {
+      clearTimeout(_mainSearchDebounce);
+      _mainSearchDebounce = setTimeout(() => runMainSearch(e.target.value), 120);
+    });
+    mainSearchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { mainSearchInput.value = ''; runMainSearch(''); }
+    });
+    document.getElementById('main-search-clear').addEventListener('click', () => {
+      mainSearchInput.value = '';
+      runMainSearch('');
+      mainSearchInput.focus();
     });
 
     // 논문 목록
