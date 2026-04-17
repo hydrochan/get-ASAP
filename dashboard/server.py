@@ -284,6 +284,20 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         return token and _validate_session(token)
 
     def _get_client_ip(self):
+        """실제 클라이언트 IP 획득.
+
+        Nginx reverse proxy 뒤에 있으므로 self.client_address[0]은 항상 127.0.0.1.
+        Nginx가 설정해주는 X-Real-IP / X-Forwarded-For 헤더에서 원본 IP를 추출.
+        127.0.0.1에 bind되어 있어 외부에서 헤더 위조가 불가능하므로 안전하게 신뢰.
+        """
+        # X-Real-IP 우선 (Nginx에서 단일 값으로 넘어옴)
+        real_ip = self.headers.get("X-Real-IP", "").strip()
+        if real_ip:
+            return real_ip
+        # X-Forwarded-For: "client, proxy1, proxy2" → 가장 왼쪽이 원본 client
+        xff = self.headers.get("X-Forwarded-For", "").strip()
+        if xff:
+            return xff.split(",")[0].strip()
         return self.client_address[0]
 
     def do_GET(self):
