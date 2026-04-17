@@ -41,6 +41,11 @@ def _init_access_db():
     """접속 로그 DB 초기화 (테이블 없으면 생성)"""
     with _db_lock:
         conn = sqlite3.connect(ACCESS_DB_PATH)
+        # WAL 모드: reader-writer 동시성 개선. 한 번 설정하면 DB 파일에 영구 저장됨.
+        # - read는 write를 블록하지 않음, write끼리만 직렬화
+        # - synchronous=NORMAL: 약간의 내구성 완화로 write 처리량 향상 (크래시 시 최근 수초 로그 손실 가능, 통계 용도라 허용)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS access_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
