@@ -2057,9 +2057,8 @@
       document.getElementById('view-analytics').classList.toggle('hidden', v !== 'analytics');
       document.getElementById('view-browse').classList.toggle('hidden', v !== 'browse');
       document.getElementById('view-stats').classList.toggle('hidden', v !== 'stats');
-      // 필터 바는 Home과 Analytics에서만 노출
-      const showFilters = (v === 'home' || v === 'analytics');
-      document.getElementById('analytics-filters').classList.toggle('hidden', !showFilters);
+      // 필터 바는 Analytics에서만 노출
+      document.getElementById('analytics-filters').classList.toggle('hidden', v !== 'analytics');
       if (v === 'browse') {
         renderBrowseList();
         autoSelectFirstBrowseItem();
