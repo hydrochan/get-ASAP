@@ -620,7 +620,9 @@
       }
     }
 
-    // 사용자별 맞춤 포커스 섹션 렌더 (LOHC/Ammonia 등)
+    // 사용자별 맞춤 포커스 섹션 상태 (선택된 키워드 집합)
+    let _userFocusActiveKeywords = null;  // Set(lowercase) | null (아직 미초기화)
+
     function renderUserFocus() {
       const cfg = USER_FOCUS_BY_USER[currentUser];
       if (!cfg) return;
@@ -633,13 +635,43 @@
         return;
       }
 
-      const needles = cfg.keywords.map(k => k.toLowerCase());
-      const keywordChips = cfg.keywords.map(k =>
-        `<span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 rounded-full px-2 py-0.5">${_escapeHtml(k)}</span>`
-      ).join('');
-      if (chipsEl) chipsEl.innerHTML = keywordChips;
+      const allNeedles = cfg.keywords.map(k => k.toLowerCase());
+      // 활성 키워드 초기값: 전부 선택
+      if (!_userFocusActiveKeywords) {
+        _userFocusActiveKeywords = new Set(allNeedles);
+      }
 
-      // broad 또는 sharp 슬러그에 needle이 부분 매칭되는 논문
+      // 칩 UI (토글 가능) — 각 칩은 버튼으로 렌더
+      if (chipsEl) {
+        chipsEl.innerHTML = cfg.keywords.map(k => {
+          const lk = k.toLowerCase();
+          const active = _userFocusActiveKeywords.has(lk);
+          const cls = active
+            ? 'bg-emerald-600 text-white border-emerald-600'
+            : 'bg-white text-slate-500 border-slate-300 hover:border-emerald-400';
+          return `<button type="button" data-kw="${_escapeHtml(lk)}" class="user-focus-chip text-[10px] font-bold rounded-full px-2.5 py-1 border transition-colors ${cls}">${_escapeHtml(k)}</button>`;
+        }).join('');
+        // 클릭 핸들러 바인딩 (중복 방지 위해 매번 재바인딩)
+        chipsEl.querySelectorAll('.user-focus-chip').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const kw = btn.getAttribute('data-kw');
+            if (_userFocusActiveKeywords.has(kw)) {
+              _userFocusActiveKeywords.delete(kw);
+              // 전부 해제 시 전체 복귀 (한개는 항상 활성 보장)
+              if (_userFocusActiveKeywords.size === 0) {
+                _userFocusActiveKeywords = new Set(allNeedles);
+              }
+            } else {
+              _userFocusActiveKeywords.add(kw);
+            }
+            renderUserFocus();
+          });
+        });
+      }
+
+      // 현재 활성 키워드 기준 매칭
+      const needles = Array.from(_userFocusActiveKeywords);
       const matched = allPapers.filter(p => {
         for (const { broad, sharp } of parseReason(p.gpt_reason || '')) {
           const b = (broad || '').toLowerCase();
@@ -655,7 +687,7 @@
         return;
       }
       matched.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-      const show = matched.slice(0, 200);  // 너무 많으면 상위 200건만
+      const show = matched.slice(0, 200);
 
       // 날짜별 그룹
       const groups = {};
@@ -664,14 +696,13 @@
         (groups[d] ||= []).push(p);
       }
       const dateKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
-      const tokenArr = needles;  // 하이라이트용
 
       resultsEl.innerHTML = dateKeys.map(d => {
         const items = groups[d].map(p => {
-          const title = _highlightTokens(p.title || '(제목 없음)', tokenArr);
-          const journal = _highlightTokens(p.journal || '', tokenArr);
+          // 제목/저널은 하이라이트 없이 그대로 (요청)
+          const title = _escapeHtml(p.title || '(제목 없음)');
+          const journal = _escapeHtml(p.journal || '');
           const tags = parseReason(p.gpt_reason || '');
-          // 매칭된 태그만 하이라이트 표시
           const tagHtml = tags.slice(0, 6).map(t => {
             const label = t.sharp ? `${t.broad} / ${t.sharp}` : t.broad;
             const isMatch = needles.some(n => (t.broad || '').toLowerCase().includes(n) || (t.sharp || '').toLowerCase().includes(n));
