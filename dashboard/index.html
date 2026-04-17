@@ -127,34 +127,46 @@
       <button id="tab-stats" class="view-tab hidden" onclick="setView('stats')">Stats</button>
     </nav>
 
-    <!-- Analytics 필터 바 묶음 (Browse 전환 시 일괄 숨김) -->
+    <!-- Analytics 필터 바 묶음 (Browse 전환 시 일괄 숨김 · 평상시 접힘) -->
     <div id="analytics-filters">
-    <!-- 저널 필터 바 -->
-    <div class="bg-white border-b border-slate-100 px-6 py-3">
-      <div class="flex items-center gap-2 flex-wrap">
-        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Journals:</span>
-        <span id="journal-all-chip" class="journal-chip active" onclick="toggleAllJournals()">All</span>
-        <div id="journal-chips" class="flex items-center gap-1.5 flex-wrap"></div>
-        <span id="filter-count" class="text-[10px] font-semibold text-slate-400 ml-2"></span>
-      </div>
+    <!-- 필터 토글 헤더 (항상 노출) -->
+    <div class="bg-white border-b border-slate-100 px-6 py-2 flex items-center gap-3 flex-wrap">
+      <button id="filters-toggle-btn" type="button"
+        class="flex items-center gap-1.5 text-[11px] font-bold text-navy-800 hover:text-navy-900 transition-colors">
+        <span id="filters-toggle-icon" class="inline-block transition-transform text-slate-400">▸</span>
+        <span>Filters</span>
+      </button>
+      <span id="filters-summary" class="text-[10px] font-semibold text-slate-400">All journals · All topics</span>
+      <span id="filter-count" class="text-[10px] font-semibold text-slate-400 ml-auto"></span>
     </div>
-
-    <!-- Topics (broad) 필터 바 -->
-    <div class="bg-white border-b border-slate-100 px-6 py-3">
-      <div class="flex items-center gap-2 flex-wrap">
-        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Topics:</span>
-        <span id="broad-all-chip" class="journal-chip active" onclick="toggleAllBroads()">All</span>
-        <div id="broad-chips" class="flex items-center gap-1.5 flex-wrap"></div>
-        <span class="text-[10px] text-slate-400 ml-2 italic">All 상태 → 클릭: 그것만 보기 · 필터 중 → 클릭: 추가/제거</span>
+    <!-- 접힘 가능한 필터 본문 -->
+    <div id="filters-body" class="hidden">
+      <!-- 저널 필터 바 -->
+      <div class="bg-white border-b border-slate-100 px-6 py-3">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Journals:</span>
+          <span id="journal-all-chip" class="journal-chip active" onclick="toggleAllJournals()">All</span>
+          <div id="journal-chips" class="flex items-center gap-1.5 flex-wrap"></div>
+        </div>
       </div>
-    </div>
 
-    <!-- Sharp (sub-topic) 필터 바 — broad 단일 선택 시 노출 -->
-    <div id="sharp-filter-bar" class="bg-slate-50 border-b border-slate-100 px-6 py-2 hidden">
-      <div class="flex items-center gap-2 flex-wrap">
-        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1" id="sharp-filter-label">Sub:</span>
-        <span id="sharp-all-chip" class="journal-chip active" onclick="toggleAllSharps()">All</span>
-        <div id="sharp-chips" class="flex items-center gap-1.5 flex-wrap"></div>
+      <!-- Topics (broad) 필터 바 -->
+      <div class="bg-white border-b border-slate-100 px-6 py-3">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Topics:</span>
+          <span id="broad-all-chip" class="journal-chip active" onclick="toggleAllBroads()">All</span>
+          <div id="broad-chips" class="flex items-center gap-1.5 flex-wrap"></div>
+          <span class="text-[10px] text-slate-400 ml-2 italic">All 상태 → 클릭: 그것만 보기 · 필터 중 → 클릭: 추가/제거</span>
+        </div>
+      </div>
+
+      <!-- Sharp (sub-topic) 필터 바 — broad 단일 선택 시 노출 -->
+      <div id="sharp-filter-bar" class="bg-slate-50 border-b border-slate-100 px-6 py-2 hidden">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1" id="sharp-filter-label">Sub:</span>
+          <span id="sharp-all-chip" class="journal-chip active" onclick="toggleAllSharps()">All</span>
+          <div id="sharp-chips" class="flex items-center gap-1.5 flex-wrap"></div>
+        </div>
       </div>
     </div>
     </div>
@@ -1046,8 +1058,50 @@
       filteredPapers = out;
       document.getElementById('filter-count').textContent =
         filteredPapers.length === allPapers.length ? '' : `${filteredPapers.length} / ${allPapers.length} papers`;
+      updateFiltersSummary();
       renderAll();
     }
+
+    // 필터 토글 (접기/펼치기) + summary 텍스트 갱신
+    function setFiltersExpanded(expanded) {
+      const body = document.getElementById('filters-body');
+      const icon = document.getElementById('filters-toggle-icon');
+      if (!body || !icon) return;
+      body.classList.toggle('hidden', !expanded);
+      icon.style.transform = expanded ? 'rotate(90deg)' : 'rotate(0)';
+      icon.textContent = expanded ? '▾' : '▸';
+    }
+    function updateFiltersSummary() {
+      const sum = document.getElementById('filters-summary');
+      if (!sum) return;
+      const parts = [];
+      if (allJournalsMode) {
+        parts.push('All journals');
+      } else {
+        parts.push(`${selectedJournals.size} journal${selectedJournals.size === 1 ? '' : 's'}`);
+      }
+      if (allBroadsMode) {
+        parts.push('All topics');
+      } else {
+        const arr = Array.from(selectedBroads);
+        const preview = arr.slice(0, 2).join(', ');
+        const more = arr.length > 2 ? '…' : '';
+        parts.push(`${arr.length} topic${arr.length === 1 ? '' : 's'} (${preview}${more})`);
+      }
+      sum.textContent = parts.join(' · ');
+      // 필터가 적용되어 있으면 summary를 강조색으로
+      const hasFilter = !allJournalsMode || !allBroadsMode;
+      sum.classList.toggle('text-navy-800', hasFilter);
+      sum.classList.toggle('text-slate-400', !hasFilter);
+    }
+    // 토글 버튼 (DOMContentLoaded 기다릴 필요 없음 — 스크립트가 body 끝)
+    (function() {
+      const btn = document.getElementById('filters-toggle-btn');
+      if (btn) btn.addEventListener('click', () => {
+        const body = document.getElementById('filters-body');
+        setFiltersExpanded(body && body.classList.contains('hidden'));
+      });
+    })();
 
     // ---------- 키워드(broad/sharp) 필터 ----------
     function buildTopicFilter() {
