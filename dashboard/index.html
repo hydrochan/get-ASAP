@@ -571,19 +571,57 @@
       'KISTHRL': ['section-interest-analysis'],
       'getASAP': ['section-interest-analysis']
     };
-    // 특정 유저에게만 노출되는 맞춤 포커스 섹션 (키워드 필터 기반 논문 하이라이트)
-    // keywords: broad 또는 sharp 슬러그에 **부분 문자열 매칭** (대소문자 무시). broad/sharp 원문(하이픈 포함) 기준.
-    const USER_FOCUS_BY_USER = {
-      'KISTHRL': {
+    // 특정 유저에게만 노출되는 맞춤 포커스 섹션 (그룹 단위 토글 필터)
+    // 각 group은 keywordMatch(broad/sharp 부분 매칭) + titleMatch(제목 부분 매칭) 둘 중 하나라도 매칭되면 통과.
+    // 모두 소문자 기준으로 contains 비교. 너무 일반적인 단어(e.g. toluene)는 오탐 많아 제외.
+    // 공통 KISTHRL 포커스 설정 (admin도 공유)
+    const _KISTHRL_FOCUS_CFG = {
         sectionId: 'section-user-focus',
         title: 'KISTHRL Focus',
-        subtitle: 'LOHC · Ammonia 키워드 논문 하이라이트',
-        keywords: ['lohc', 'ammonia'],
-      },
-      // 'journalsearchchan': {  // 관리자도 테스트용 노출하려면 주석 해제
-      //   sectionId: 'section-user-focus', title: 'Admin Preview',
-      //   subtitle: 'KISTHRL Focus 미리보기', keywords: ['lohc', 'ammonia'],
-      // }
+        subtitle: 'LOHC · Ammonia · SBH 논문 하이라이트',
+        groups: [
+          {
+            label: 'LOHC',
+            keywordMatch: ['lohc'],
+            // 주요 LOHC carrier 화합물명 (제목에 등장하면 포함)
+            titleMatch: [
+              'methylcyclohexane',      // MCH (toluene-MCH pair)
+              'dibenzyltoluene',        // DBT — 가장 상용화된 LOHC
+              'benzyltoluene',
+              'perhydro-dibenzyltoluene',
+              'perhydrodibenzyltoluene',
+              'n-ethylcarbazole',       // NEC
+              'ethylcarbazole',
+              'dodecahydro-n-ethylcarbazole',
+              'decalin',                // naphthalene/decalin pair
+              'dimethylbenzene',
+              'dimethyl benzene',
+              'dimethyl-benzene',
+              'liquid organic hydrogen carrier',
+            ],
+          },
+          {
+            label: 'Ammonia',
+            keywordMatch: ['ammonia'],
+            titleMatch: ['ammonia', 'nh3', 'nh_3'],
+          },
+          {
+            label: 'SBH',
+            keywordMatch: ['sbh', 'borohydride'],
+            titleMatch: [
+              'sodium borohydride',
+              'sodium-borohydride',
+              'nabh4',
+              'nabh_4',
+              'na bh4',
+              'borohydride',
+            ],
+          },
+        ],
+      };
+    const USER_FOCUS_BY_USER = {
+      'KISTHRL': _KISTHRL_FOCUS_CFG,
+      'journalsearchchan': _KISTHRL_FOCUS_CFG,  // 관리자도 동일 포커스 섹션 노출
     };
     function applyUserVisibility() {
       const hideIds = HIDDEN_SECTIONS_BY_USER[currentUser] || [];
@@ -620,8 +658,29 @@
       }
     }
 
-    // 사용자별 맞춤 포커스 섹션 상태 (선택된 키워드 집합)
-    let _userFocusActiveKeywords = null;  // Set(lowercase) | null (아직 미초기화)
+    // 사용자별 맞춤 포커스 섹션 상태 (Topic 필터와 동일 UX)
+    let _userFocusActiveGroups = null;  // Set(label) | null
+    let _userFocusAllMode = true;       // true면 전체보기 (모든 그룹 매칭)
+
+    // 한 논문이 특정 group에 매칭되는지 (keywordMatch OR titleMatch)
+    function _paperMatchesFocusGroup(p, group) {
+      const kwLc = (group.keywordMatch || []).map(s => s.toLowerCase());
+      if (kwLc.length) {
+        for (const { broad, sharp } of parseReason(p.gpt_reason || '')) {
+          const b = (broad || '').toLowerCase();
+          const s = (sharp || '').toLowerCase();
+          if (kwLc.some(n => b.includes(n) || (s && s.includes(n)))) return true;
+        }
+      }
+      const titleLc = (group.titleMatch || []).map(s => s.toLowerCase());
+      if (titleLc.length) {
+        const title = (p.title || '').toLowerCase();
+        for (const phrase of titleLc) {
+          if (title.includes(phrase)) return true;
+        }
+      }
+      return false;
+    }
 
     function renderUserFocus() {
       const cfg = USER_FOCUS_BY_USER[currentUser];
@@ -635,51 +694,85 @@
         return;
       }
 
-      const allNeedles = cfg.keywords.map(k => k.toLowerCase());
-      // 활성 키워드 초기값: 전부 선택
-      if (!_userFocusActiveKeywords) {
-        _userFocusActiveKeywords = new Set(allNeedles);
+      const groups = cfg.groups || [];
+      const allLabels = groups.map(g => g.label);
+      // 활성 그룹 초기값: 전부 선택 + All 모드
+      if (!_userFocusActiveGroups) {
+        _userFocusActiveGroups = new Set(allLabels);
+        _userFocusAllMode = true;
+      }
+      // 설정이 바뀌어서 없는 라벨이 남아있으면 정리
+      for (const l of Array.from(_userFocusActiveGroups)) {
+        if (!allLabels.includes(l)) _userFocusActiveGroups.delete(l);
+      }
+      if (_userFocusActiveGroups.size === 0) {
+        _userFocusActiveGroups = new Set(allLabels);
+        _userFocusAllMode = true;
       }
 
-      // 칩 UI (토글 가능) — 각 칩은 버튼으로 렌더
+      // 그룹별 매칭 수 사전 계산 (칩에 표시)
+      const countByLabel = {};
+      let totalCount = 0;
+      const seenIds = new Set();  // 전체(All) 중복 제거 카운트
+      for (const g of groups) {
+        let c = 0;
+        for (const p of allPapers) if (_paperMatchesFocusGroup(p, g)) c++;
+        countByLabel[g.label] = c;
+      }
+      for (const p of allPapers) {
+        if (groups.some(g => _paperMatchesFocusGroup(p, g))) totalCount++;
+      }
+
+      // 칩 UI — All 칩 + 각 그룹 칩 (Topic 필터와 동일 스타일)
       if (chipsEl) {
-        chipsEl.innerHTML = cfg.keywords.map(k => {
-          const lk = k.toLowerCase();
-          const active = _userFocusActiveKeywords.has(lk);
+        const allChipCls = _userFocusAllMode
+          ? 'bg-emerald-600 text-white border-emerald-600'
+          : 'bg-white text-slate-500 border-slate-300 hover:border-emerald-400';
+        const allChip = `<button type="button" data-label="__ALL__" class="user-focus-chip text-[10px] font-bold rounded-full px-2.5 py-1 border transition-colors ${allChipCls}">All <span class="opacity-75">${totalCount}</span></button>`;
+        const groupChips = groups.map(g => {
+          // All 모드에서는 모든 그룹 칩도 active 스타일 (Topic 필터와 동일)
+          const active = _userFocusAllMode || _userFocusActiveGroups.has(g.label);
           const cls = active
             ? 'bg-emerald-600 text-white border-emerald-600'
             : 'bg-white text-slate-500 border-slate-300 hover:border-emerald-400';
-          return `<button type="button" data-kw="${_escapeHtml(lk)}" class="user-focus-chip text-[10px] font-bold rounded-full px-2.5 py-1 border transition-colors ${cls}">${_escapeHtml(k)}</button>`;
+          return `<button type="button" data-label="${_escapeHtml(g.label)}" class="user-focus-chip text-[10px] font-bold rounded-full px-2.5 py-1 border transition-colors ${cls}">${_escapeHtml(g.label)} <span class="opacity-75">${countByLabel[g.label]}</span></button>`;
         }).join('');
-        // 클릭 핸들러 바인딩 (중복 방지 위해 매번 재바인딩)
+        chipsEl.innerHTML = allChip + groupChips;
         chipsEl.querySelectorAll('.user-focus-chip').forEach(btn => {
           btn.addEventListener('click', (e) => {
             e.preventDefault();
-            const kw = btn.getAttribute('data-kw');
-            if (_userFocusActiveKeywords.has(kw)) {
-              _userFocusActiveKeywords.delete(kw);
-              // 전부 해제 시 전체 복귀 (한개는 항상 활성 보장)
-              if (_userFocusActiveKeywords.size === 0) {
-                _userFocusActiveKeywords = new Set(allNeedles);
-              }
+            const label = btn.getAttribute('data-label');
+            if (label === '__ALL__') {
+              _userFocusAllMode = true;
+              _userFocusActiveGroups = new Set(allLabels);
+            } else if (_userFocusAllMode) {
+              // All 상태에서 특정 칩 클릭 → 그것만 배타 선택
+              _userFocusAllMode = false;
+              _userFocusActiveGroups = new Set([label]);
             } else {
-              _userFocusActiveKeywords.add(kw);
+              // 이미 필터 중 → 토글 (추가/제거)
+              if (_userFocusActiveGroups.has(label)) {
+                _userFocusActiveGroups.delete(label);
+              } else {
+                _userFocusActiveGroups.add(label);
+              }
+              // 전부 해제 or 전부 활성 → All 모드 복귀
+              if (_userFocusActiveGroups.size === 0 || _userFocusActiveGroups.size === allLabels.length) {
+                _userFocusAllMode = true;
+                _userFocusActiveGroups = new Set(allLabels);
+              }
             }
             renderUserFocus();
           });
         });
       }
 
-      // 현재 활성 키워드 기준 매칭
-      const needles = Array.from(_userFocusActiveKeywords);
-      const matched = allPapers.filter(p => {
-        for (const { broad, sharp } of parseReason(p.gpt_reason || '')) {
-          const b = (broad || '').toLowerCase();
-          const s = (sharp || '').toLowerCase();
-          if (needles.some(n => b.includes(n) || (s && s.includes(n)))) return true;
-        }
-        return false;
-      });
+      // 현재 활성 그룹 기준 매칭 (OR: 어떤 그룹이든 매칭되면 포함)
+      // All 모드면 모든 그룹 사용
+      const activeGroups = _userFocusAllMode
+        ? groups
+        : groups.filter(g => _userFocusActiveGroups.has(g.label));
+      const matched = allPapers.filter(p => activeGroups.some(g => _paperMatchesFocusGroup(p, g)));
 
       countEl.textContent = matched.length ? `${matched.length}건` : '매칭 없음';
       if (!matched.length) {
@@ -689,23 +782,27 @@
       matched.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
       const show = matched.slice(0, 200);
 
-      // 날짜별 그룹
-      const groups = {};
+      // 날짜별 그룹 (변수명 dateGroups: 상위 groups(focus 설정)와 충돌 방지)
+      const dateGroups = {};
       for (const p of show) {
         const d = (p.date || '').slice(0, 10) || '날짜 없음';
-        (groups[d] ||= []).push(p);
+        (dateGroups[d] ||= []).push(p);
       }
-      const dateKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+      const dateKeys = Object.keys(dateGroups).sort((a, b) => b.localeCompare(a));
+
+      // 태그 하이라이트용 needle: 활성 그룹의 keywordMatch 합집합 (소문자)
+      const kwNeedles = [];
+      for (const g of activeGroups) for (const n of (g.keywordMatch || [])) kwNeedles.push(n.toLowerCase());
 
       resultsEl.innerHTML = dateKeys.map(d => {
-        const items = groups[d].map(p => {
+        const items = dateGroups[d].map(p => {
           // 제목/저널은 하이라이트 없이 그대로 (요청)
           const title = _escapeHtml(p.title || '(제목 없음)');
           const journal = _escapeHtml(p.journal || '');
           const tags = parseReason(p.gpt_reason || '');
           const tagHtml = tags.slice(0, 6).map(t => {
             const label = t.sharp ? `${t.broad} / ${t.sharp}` : t.broad;
-            const isMatch = needles.some(n => (t.broad || '').toLowerCase().includes(n) || (t.sharp || '').toLowerCase().includes(n));
+            const isMatch = kwNeedles.some(n => (t.broad || '').toLowerCase().includes(n) || (t.sharp || '').toLowerCase().includes(n));
             const cls = isMatch ? 'bg-emerald-100 text-emerald-800 font-bold' : 'bg-slate-100 text-slate-600';
             return `<span class="inline-block text-[10px] rounded px-1.5 py-0.5 ${cls}">${_escapeHtml(label)}</span>`;
           }).join(' ');
@@ -720,7 +817,7 @@
             ${tagHtml ? `<div class="mt-1 flex flex-wrap gap-1">${tagHtml}</div>` : ''}
           ${linkClose}`;
         }).join('');
-        return `<div class="browse-date-header">${d} <span class="count">${groups[d].length}</span></div>${items}`;
+        return `<div class="browse-date-header">${d} <span class="count">${dateGroups[d].length}</span></div>${items}`;
       }).join('');
     }
 
