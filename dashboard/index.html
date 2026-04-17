@@ -185,6 +185,23 @@
         </div>
       </section>
 
+      <!-- KISTHRL 맞춤 포커스 (LOHC · Ammonia) · 해당 사용자에게만 노출 -->
+      <section id="section-user-focus" class="card p-6 hidden" style="border-top: 3px solid #40ac9d;">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <div>
+            <h2 class="text-sm font-black text-navy-900 tracking-tight">🧪 <span id="user-focus-title">KISTHRL Focus</span></h2>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.12em] mt-0.5"><span id="user-focus-subtitle">LOHC · Ammonia 키워드 논문 하이라이트</span></p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="user-focus-count" class="text-[11px] font-semibold text-slate-500"></span>
+            <div id="user-focus-chips" class="flex items-center gap-1.5 flex-wrap"></div>
+          </div>
+        </div>
+        <div id="user-focus-results" class="space-y-1 max-h-[520px] overflow-y-auto">
+          <p class="text-xs text-slate-400 text-center py-8">로딩 중…</p>
+        </div>
+      </section>
+
       <!-- 키워드 트렌드 + 워드클라우드 -->
       <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="card p-6 lg:col-span-2">
@@ -554,6 +571,20 @@
       'KISTHRL': ['section-interest-analysis'],
       'getASAP': ['section-interest-analysis']
     };
+    // 특정 유저에게만 노출되는 맞춤 포커스 섹션 (키워드 필터 기반 논문 하이라이트)
+    // keywords: broad 또는 sharp 슬러그에 **부분 문자열 매칭** (대소문자 무시). broad/sharp 원문(하이픈 포함) 기준.
+    const USER_FOCUS_BY_USER = {
+      'KISTHRL': {
+        sectionId: 'section-user-focus',
+        title: 'KISTHRL Focus',
+        subtitle: 'LOHC · Ammonia 키워드 논문 하이라이트',
+        keywords: ['lohc', 'ammonia'],
+      },
+      // 'journalsearchchan': {  // 관리자도 테스트용 노출하려면 주석 해제
+      //   sectionId: 'section-user-focus', title: 'Admin Preview',
+      //   subtitle: 'KISTHRL Focus 미리보기', keywords: ['lohc', 'ammonia'],
+      // }
+    };
     function applyUserVisibility() {
       const hideIds = HIDDEN_SECTIONS_BY_USER[currentUser] || [];
       // 모든 해당 섹션 표시로 리셋
@@ -571,6 +602,95 @@
       // 관리자만 Stats 탭 노출
       const statsTab = document.getElementById('tab-stats');
       if (statsTab) statsTab.classList.toggle('hidden', !isAdmin);
+
+      // 사용자별 맞춤 포커스 섹션 토글 + 헤더 텍스트 갱신
+      const focusSec = document.getElementById('section-user-focus');
+      if (focusSec) {
+        const cfg = USER_FOCUS_BY_USER[currentUser];
+        if (cfg) {
+          focusSec.classList.remove('hidden');
+          const t = document.getElementById('user-focus-title');
+          const s = document.getElementById('user-focus-subtitle');
+          if (t) t.textContent = cfg.title;
+          if (s) s.textContent = cfg.subtitle;
+          renderUserFocus();  // 데이터 준비돼 있으면 즉시 렌더
+        } else {
+          focusSec.classList.add('hidden');
+        }
+      }
+    }
+
+    // 사용자별 맞춤 포커스 섹션 렌더 (LOHC/Ammonia 등)
+    function renderUserFocus() {
+      const cfg = USER_FOCUS_BY_USER[currentUser];
+      if (!cfg) return;
+      const resultsEl = document.getElementById('user-focus-results');
+      const countEl = document.getElementById('user-focus-count');
+      const chipsEl = document.getElementById('user-focus-chips');
+      if (!resultsEl) return;
+      if (!Array.isArray(allPapers) || !allPapers.length) {
+        resultsEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">데이터 로딩 중…</p>';
+        return;
+      }
+
+      const needles = cfg.keywords.map(k => k.toLowerCase());
+      const keywordChips = cfg.keywords.map(k =>
+        `<span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 rounded-full px-2 py-0.5">${_escapeHtml(k)}</span>`
+      ).join('');
+      if (chipsEl) chipsEl.innerHTML = keywordChips;
+
+      // broad 또는 sharp 슬러그에 needle이 부분 매칭되는 논문
+      const matched = allPapers.filter(p => {
+        for (const { broad, sharp } of parseReason(p.gpt_reason || '')) {
+          const b = (broad || '').toLowerCase();
+          const s = (sharp || '').toLowerCase();
+          if (needles.some(n => b.includes(n) || (s && s.includes(n)))) return true;
+        }
+        return false;
+      });
+
+      countEl.textContent = matched.length ? `${matched.length}건` : '매칭 없음';
+      if (!matched.length) {
+        resultsEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">해당 키워드 논문이 아직 없습니다.</p>';
+        return;
+      }
+      matched.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      const show = matched.slice(0, 200);  // 너무 많으면 상위 200건만
+
+      // 날짜별 그룹
+      const groups = {};
+      for (const p of show) {
+        const d = (p.date || '').slice(0, 10) || '날짜 없음';
+        (groups[d] ||= []).push(p);
+      }
+      const dateKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+      const tokenArr = needles;  // 하이라이트용
+
+      resultsEl.innerHTML = dateKeys.map(d => {
+        const items = groups[d].map(p => {
+          const title = _highlightTokens(p.title || '(제목 없음)', tokenArr);
+          const journal = _highlightTokens(p.journal || '', tokenArr);
+          const tags = parseReason(p.gpt_reason || '');
+          // 매칭된 태그만 하이라이트 표시
+          const tagHtml = tags.slice(0, 6).map(t => {
+            const label = t.sharp ? `${t.broad} / ${t.sharp}` : t.broad;
+            const isMatch = needles.some(n => (t.broad || '').toLowerCase().includes(n) || (t.sharp || '').toLowerCase().includes(n));
+            const cls = isMatch ? 'bg-emerald-100 text-emerald-800 font-bold' : 'bg-slate-100 text-slate-600';
+            return `<span class="inline-block text-[10px] rounded px-1.5 py-0.5 ${cls}">${_escapeHtml(label)}</span>`;
+          }).join(' ');
+          const href = p.url || (p.doi ? `https://doi.org/${p.doi}` : '');
+          const linkOpen = href ? `<a href="${_escapeHtml(href)}" target="_blank" rel="noopener" class="block hover:bg-slate-50 px-3 py-2 rounded-md border border-transparent hover:border-slate-200 transition-all">` : `<div class="block px-3 py-2">`;
+          const linkClose = href ? '</a>' : '</div>';
+          return `${linkOpen}
+            <div class="flex items-baseline justify-between gap-3 mb-1">
+              <span class="text-xs font-bold text-navy-800 truncate">${journal || '&nbsp;'}</span>
+            </div>
+            <div class="text-sm text-slate-800 leading-snug">${title}</div>
+            ${tagHtml ? `<div class="mt-1 flex flex-wrap gap-1">${tagHtml}</div>` : ''}
+          ${linkClose}`;
+        }).join('');
+        return `<div class="browse-date-header">${d} <span class="count">${groups[d].length}</span></div>${items}`;
+      }).join('');
     }
 
     // Browse 뷰 상태
@@ -968,6 +1088,7 @@
 
     // ---------- 렌더링 ----------
     function renderAll() {
+      renderUserFocus();  // 맞춤 포커스 (해당 사용자만 섹션 노출)
       renderKPIs();
       renderKeywordChart();
       renderWordCloud();
