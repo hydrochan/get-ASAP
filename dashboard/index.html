@@ -67,6 +67,9 @@
       .browse-date-header { font-size: 12px; padding: 4px 11px; margin: 16px 0 8px; }
       /* iOS Safari 자동 확대 방지 — 입력 focus 시 최소 16px 필요 */
       input, select, textarea { font-size: 16px !important; }
+      /* 히트맵 모바일 컴팩트 */
+      #heatmap-table th, #heatmap-table td { padding: 4px 6px !important; font-size: 11px !important; }
+      #heatmap-table th.rotate { font-size: 10px !important; }
     }
   </style>
 </head>
@@ -361,23 +364,23 @@
 
       <!-- 저널 × 키워드 히트맵 -->
       <section class="card p-4 sm:p-6">
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
           <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Journal &times; Keyword Matrix</h2>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 flex-wrap">
             <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
               <button id="hm-kv-broad" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setHeatmapView('broad')">Broad</button>
               <button id="hm-kv-sharp" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapView('sharp')">Sharp</button>
             </div>
-            <select id="hm-broad-filter" class="text-xs border border-slate-200 rounded px-2 py-1" disabled>
+            <select id="hm-broad-filter" class="text-xs border border-slate-200 rounded px-2 py-1 min-w-0 flex-1 sm:flex-none" disabled>
               <option value="">All domains</option>
             </select>
-            <button id="hm-expand-btn" class="px-3 py-1 text-[10px] font-bold border border-slate-200 rounded text-slate-500 hover:bg-slate-50 transition-colors" onclick="toggleHeatmapExpand()">
+            <button id="hm-expand-btn" class="px-3 py-1 text-[10px] font-bold border border-slate-200 rounded text-slate-500 hover:bg-slate-50 transition-colors whitespace-nowrap" onclick="toggleHeatmapExpand()">
               Expand All
             </button>
           </div>
         </div>
         <div id="heatmap-container" class="overflow-x-auto" style="max-height:500px; overflow-y:auto">
-          <table id="heatmap-table" class="text-xs w-full"></table>
+          <table id="heatmap-table" class="text-xs w-auto"></table>
         </div>
       </section>
 
