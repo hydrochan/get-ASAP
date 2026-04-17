@@ -77,7 +77,7 @@
           class="w-full py-3 bg-gradient-to-r from-navy-900 to-navy-800 text-white font-bold rounded-lg text-sm tracking-wide hover:shadow-lg transition-shadow">
           Sign In
         </button>
-        <p id="login-error" class="text-red-500 text-xs font-semibold hidden">Invalid credentials</p>
+        <p id="login-error" class="text-red-500 text-xs font-semibold hidden">아이디 또는 비밀번호가 올바르지 않습니다</p>
       </form>
     </div>
   </div>
@@ -925,10 +925,21 @@
           applyUserVisibility();
           loadData();
         } else {
-          document.getElementById('login-error').classList.remove('hidden');
+          // 서버 응답에 따라 에러 문구 분기
+          const errEl = document.getElementById('login-error');
+          if (res.status === 429) {
+            errEl.textContent = '로그인 실패 횟수를 초과했습니다. 잠시 후 다시 시도해주세요. (약 2분)';
+          } else if (res.status === 401) {
+            errEl.textContent = '아이디 또는 비밀번호가 올바르지 않습니다';
+          } else {
+            errEl.textContent = `로그인 오류 (${res.status})`;
+          }
+          errEl.classList.remove('hidden');
         }
       } catch {
-        document.getElementById('login-error').classList.remove('hidden');
+        const errEl = document.getElementById('login-error');
+        errEl.textContent = '네트워크 오류 — 연결을 확인하세요';
+        errEl.classList.remove('hidden');
       }
     });
 
