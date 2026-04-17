@@ -2328,6 +2328,7 @@
       selectedBrowseJournal = null;
       selectedBrowseTopic = null;
       browseExpandedBroads = new Set();
+      _browseDetailFilter = '';  // 모드 전환 시 상세 검색 리셋
       document.getElementById('browse-mode-journal').classList.toggle('active', m === 'journal');
       document.getElementById('browse-mode-topic').classList.toggle('active', m === 'topic');
       document.getElementById('browse-list-header').querySelector('span').textContent = m === 'journal' ? 'Journals' : 'Topics';
@@ -2439,15 +2440,20 @@
 
     window.selectBrowseJournal = function(j) {
       selectedBrowseJournal = j;
+      _browseDetailFilter = '';  // 선택 변경 시 상세 검색 리셋
       renderBrowseList();
       renderBrowseDetail();
     };
 
     window.selectBrowseTopic = function(key) {
       selectedBrowseTopic = key;
+      _browseDetailFilter = '';
       renderBrowseList();
       renderBrowseDetail();
     };
+
+    // Browse 상세 뷰 내부 검색 필터 (선택 변경 시 리셋)
+    let _browseDetailFilter = '';
 
     function renderBrowseDetail() {
       const container = document.getElementById('browse-detail');
@@ -2471,6 +2477,12 @@
         return;
       }
 
+      const totalAll = papers.length;
+      // 상세 검색 필터 적용
+      if (_browseDetailFilter) {
+        papers = papers.filter(p => _paperMatchesQuery(p, _browseDetailFilter));
+      }
+
       // 최신순 정렬, 날짜별 그룹핑
       papers.sort((a,b) => (b.date||'').localeCompare(a.date||''));
       const total = papers.length;
@@ -2486,8 +2498,22 @@
       const selLabel = browseMode === 'journal'
         ? selectedBrowseJournal
         : selectedBrowseTopic;
-      const parts = [`<div class="flex items-baseline justify-between mb-3">
-        <h3 class="text-sm font-bold text-navy-900">${selLabel} <span class="text-xs font-normal text-slate-400">(${total}건)</span></h3>
+      const countLabel = _browseDetailFilter
+        ? `${total} / ${totalAll}건 일치`
+        : `${total}건`;
+      const clearBtn = _browseDetailFilter
+        ? `<button id="browse-detail-search-clear" type="button" class="text-[10px] text-slate-400 hover:text-red-500 font-semibold px-1" title="검색 지우기">&times; 지우기</button>`
+        : '';
+      const parts = [`<div class="mb-3">
+        <div class="flex items-baseline justify-between mb-2">
+          <h3 class="text-sm font-bold text-navy-900">${_escapeHtml(selLabel)} <span class="text-xs font-normal text-slate-400">(${countLabel})</span></h3>
+        </div>
+        <div class="flex items-center gap-2">
+          <input id="browse-detail-search" type="text" value="${_escapeHtml(_browseDetailFilter)}"
+            placeholder="이 ${browseMode === 'journal' ? '저널' : '주제'} 내에서 검색 (제목 · 키워드 · DOI)…"
+            class="flex-1 text-xs border border-slate-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-navy-800" autocomplete="off">
+          ${clearBtn}
+        </div>
       </div>`];
 
       for (const [date, rows] of groups) {
@@ -2510,17 +2536,58 @@
       }
 
       container.innerHTML = parts.join('');
-      // 선택 변경 시 스크롤 맨 위로 — 스크롤 조상(overflow-y:auto 가진 section)까지 올라가서 리셋
-      let scrollParent = container.parentElement;
-      while (scrollParent && scrollParent !== document.body) {
-        const style = getComputedStyle(scrollParent);
-        if (/(auto|scroll)/.test(style.overflowY)) {
-          scrollParent.scrollTop = 0;
-          break;
+
+      // 검색 입력창 이벤트 바인딩 (매 렌더마다 innerHTML로 대체되므로 재바인딩 필요)
+      const searchInput = document.getElementById('browse-detail-search');
+      if (searchInput) {
+        let deb = null;
+        searchInput.addEventListener('input', (e) => {
+          clearTimeout(deb);
+          const v = e.target.value;
+          deb = setTimeout(() => {
+            _browseDetailFilter = v;
+            _browseSearchTypingFlag = true;  // 스크롤 리셋 차단
+            renderBrowseDetail();
+            _browseSearchTypingFlag = false;
+            const after = document.getElementById('browse-detail-search');
+            if (after) {
+              after.focus();
+              after.setSelectionRange(v.length, v.length);
+            }
+          }, 120);
+        });
+        searchInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+            _browseDetailFilter = '';
+            _browseSearchTypingFlag = true;
+            renderBrowseDetail();
+            _browseSearchTypingFlag = false;
+          }
+        });
+      }
+      const clearEl = document.getElementById('browse-detail-search-clear');
+      if (clearEl) {
+        clearEl.addEventListener('click', () => {
+          _browseDetailFilter = '';
+          renderBrowseDetail();
+        });
+      }
+
+      // 선택 변경 시 스크롤 맨 위로 — 단, 검색 입력 중에는 스크롤 리셋 방지
+      if (!_browseSearchTypingFlag) {
+        let scrollParent = container.parentElement;
+        while (scrollParent && scrollParent !== document.body) {
+          const style = getComputedStyle(scrollParent);
+          if (/(auto|scroll)/.test(style.overflowY)) {
+            scrollParent.scrollTop = 0;
+            break;
+          }
+          scrollParent = scrollParent.parentElement;
         }
-        scrollParent = scrollParent.parentElement;
       }
     }
+    // 검색 입력 중 렌더가 스크롤을 리셋하지 않도록 하는 플래그
+    let _browseSearchTypingFlag = false;
 
     // ---------- 리포트 다운로드 ----------
     document.getElementById('report-btn').addEventListener('click', () => {
