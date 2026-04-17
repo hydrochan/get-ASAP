@@ -1232,13 +1232,15 @@
 
     // KPI
     function renderKPIs() {
-      const total = filteredPapers.length;
-      const journals = new Set(filteredPapers.map(p => p.journal).filter(Boolean));
+      // Home 전용 — 필터 무시하고 전체 데이터로 KPI 집계
+      const papers = allPapers;
+      const total = papers.length;
+      const journals = new Set(papers.map(p => p.journal).filter(Boolean));
       const now = new Date();
       const curMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-      const thisMonth = filteredPapers.filter(p => (p.date||'').startsWith(curMonth)).length;
+      const thisMonth = papers.filter(p => (p.date||'').startsWith(curMonth)).length;
 
-      const dates = filteredPapers.map(p => p.date).filter(Boolean).sort();
+      const dates = papers.map(p => p.date).filter(Boolean).sort();
       let daily = 0;
       if (dates.length > 1) {
         const first = new Date(dates[0]);
@@ -1247,7 +1249,7 @@
         daily = (total / days).toFixed(1);
       }
 
-      const globalFreq = getFreq(filteredPapers, 'broad', '');
+      const globalFreq = getFreq(papers, 'broad', '');
       const topKw = Object.entries(globalFreq).sort((a,b)=>b[1]-a[1]);
       const topKwName = topKw.length ? topKw[0][0] : '—';
 
@@ -1569,10 +1571,10 @@
       });
     }
 
-    // 일별/주별/월별
+    // 일별/주별/월별 (Home 전용 — 필터 무시)
     function renderDailyChart() {
       const freq = {};
-      for (const p of filteredPapers) {
+      for (const p of allPapers) {
         const d = periodKey(p.date||'', dailyPeriodMode);
         if (d) freq[d] = (freq[d]||0)+1;
       }
@@ -1906,10 +1908,11 @@
     }
 
     function renderPaperTable(filter='') {
+      // Home 전용 — 필터 무시하고 전체에서 검색
       const tbody = document.getElementById('paper-tbody');
       const papers = filter
-        ? filteredPapers.filter(p => _paperMatchesQuery(p, filter))
-        : filteredPapers;
+        ? allPapers.filter(p => _paperMatchesQuery(p, filter))
+        : allPapers;
 
       const sorted = [...papers].sort((a,b) => (b.date||'').localeCompare(a.date||''));
       const display = sorted.slice(0, 300);
