@@ -57,6 +57,17 @@
     .browse-paper-row a { color: #001B44; flex: 1 1 auto; }
     .browse-paper-row a:hover { color: #002F6C; text-decoration: underline; }
     .browse-paper-row .journal-tag { font-size: 12px; font-weight: 600; color: #003D8F; white-space: nowrap; }
+    /* 모바일 전용 반응형 */
+    @media (max-width: 640px) {
+      .view-tab { padding: 10px 12px; font-size: 12px; letter-spacing: 0.04em; }
+      .journal-chip { font-size: 11px; padding: 3px 9px; }
+      .kpi-card p.text-2xl { font-size: 1.25rem; }
+      .browse-paper-row { flex-direction: column; gap: 2px; padding: 8px 0; line-height: 1.45; }
+      .browse-paper-row .journal-tag { font-size: 11px; }
+      .browse-date-header { font-size: 12px; padding: 4px 11px; margin: 16px 0 8px; }
+      /* iOS Safari 자동 확대 방지 — 입력 focus 시 최소 16px 필요 */
+      input, select, textarea { font-size: 16px !important; }
+    }
   </style>
 </head>
 <body class="font-sans text-gray-800 min-h-screen">
@@ -85,12 +96,12 @@
   <!-- ========== 대시보드 ========== -->
   <div id="dashboard" class="hidden">
     <!-- 상단 헤더 -->
-    <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between flex-wrap gap-3">
-      <div>
-        <h1 class="text-xl font-black text-navy-900 tracking-tight">get-ASAP Analytics</h1>
-        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">Paper Trend Dashboard</p>
+    <header class="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between flex-wrap gap-2 sm:gap-3">
+      <div class="min-w-0">
+        <h1 class="text-lg sm:text-xl font-black text-navy-900 tracking-tight">get-ASAP Analytics</h1>
+        <p class="hidden sm:block text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">Paper Trend Dashboard</p>
       </div>
-      <div class="flex items-center gap-3 flex-wrap justify-end">
+      <div class="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
         <div class="w-full flex justify-end -mb-1">
           <span class="text-[9px] text-slate-300 tracking-wide">
             Developed by
@@ -101,29 +112,29 @@
                class="text-slate-400 hover:text-pink-600 transition-colors">@hydro_chan</a>
           </span>
         </div>
-        <select id="month-range" class="text-xs font-semibold border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-800">
-          <option value="1">Last 1 month</option>
-          <option value="3" selected>Last 3 months</option>
-          <option value="6">Last 6 months</option>
-          <option value="12">Last 12 months</option>
+        <select id="month-range" class="text-xs font-semibold border border-slate-200 rounded-lg px-2 sm:px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-800">
+          <option value="1">1개월</option>
+          <option value="3" selected>3개월</option>
+          <option value="6">6개월</option>
+          <option value="12">12개월</option>
         </select>
-        <button id="refresh-btn" class="px-4 py-2 bg-gradient-to-r from-navy-900 to-navy-800 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">
-          Refresh
+        <button id="refresh-btn" class="px-3 sm:px-4 py-2 bg-gradient-to-r from-navy-900 to-navy-800 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow" title="새로고침">
+          <span class="sm:hidden">🔄</span><span class="hidden sm:inline">Refresh</span>
         </button>
-        <button id="report-btn" class="px-4 py-2 border border-navy-800 text-navy-800 text-xs font-bold rounded-lg hover:bg-navy-800 hover:text-white transition-all">
-          Download Report
+        <button id="report-btn" class="px-3 sm:px-4 py-2 border border-navy-800 text-navy-800 text-xs font-bold rounded-lg hover:bg-navy-800 hover:text-white transition-all" title="리포트 다운로드">
+          <span class="sm:hidden">📄</span><span class="hidden sm:inline">Download Report</span>
         </button>
-        <button id="feedback-btn" class="px-4 py-2 border border-emerald-600 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-600 hover:text-white transition-all" title="버그 제보 · 기능 제안 · 기타 의견">
-          💬 피드백
+        <button id="feedback-btn" class="px-3 sm:px-4 py-2 border border-emerald-600 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-600 hover:text-white transition-all" title="버그 제보 · 기능 제안 · 기타 의견">
+          <span class="sm:hidden">💬</span><span class="hidden sm:inline">💬 피드백</span>
         </button>
-        <button id="logout-btn" class="text-xs font-semibold text-slate-400 hover:text-red-500 transition-colors">
-          Logout
+        <button id="logout-btn" class="text-xs font-semibold text-slate-400 hover:text-red-500 transition-colors px-1" title="로그아웃">
+          <span class="sm:hidden">↪</span><span class="hidden sm:inline">Logout</span>
         </button>
       </div>
     </header>
 
     <!-- 뷰 탭 (Home / Analytics / Browse / Stats) -->
-    <nav id="view-tabs" class="bg-white border-b border-slate-200 px-6 flex gap-0">
+    <nav id="view-tabs" class="bg-white border-b border-slate-200 px-4 sm:px-6 flex gap-0 overflow-x-auto whitespace-nowrap">
       <button id="tab-home" class="view-tab active" onclick="setView('home')">Home</button>
       <button id="tab-analytics" class="view-tab" onclick="setView('analytics')">Analytics</button>
       <button id="tab-browse" class="view-tab" onclick="setView('browse')">Browse</button>
@@ -163,26 +174,26 @@
     </div>
     <!-- /analytics-filters -->
 
-    <main id="view-home" class="max-w-7xl mx-auto px-6 py-6 space-y-6">
+    <main id="view-home" class="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6">
       <!-- KPI 카드 -->
       <section class="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div class="card kpi-card p-5">
+        <div class="card kpi-card p-3 sm:p-5">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Total Papers</p>
           <p id="kpi-total" class="text-2xl font-black text-navy-900 mt-1">—</p>
         </div>
-        <div class="card kpi-card p-5">
+        <div class="card kpi-card p-3 sm:p-5">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Journals</p>
           <p id="kpi-journals" class="text-2xl font-black text-navy-900 mt-1">—</p>
         </div>
-        <div class="card kpi-card p-5">
+        <div class="card kpi-card p-3 sm:p-5">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">This Month</p>
           <p id="kpi-month" class="text-2xl font-black text-navy-900 mt-1">—</p>
         </div>
-        <div class="card kpi-card p-5">
+        <div class="card kpi-card p-3 sm:p-5">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Daily Average</p>
           <p id="kpi-daily" class="text-2xl font-black text-navy-900 mt-1">—</p>
         </div>
-        <div class="card kpi-card p-5">
+        <div class="card kpi-card p-3 sm:p-5">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Top Keyword</p>
           <p id="kpi-topkw" class="text-2xl font-black text-navy-900 mt-1">—</p>
         </div>
@@ -206,7 +217,7 @@
       </section>
 
       <!-- 전역 검색 (논문 · 저널 · 키워드 · DOI) -->
-      <section class="card p-6">
+      <section class="card p-4 sm:p-6">
         <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
           <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">🔍 Search</h2>
           <span class="text-[10px] font-semibold text-slate-400">제목 · 저널 · 키워드 · DOI 전범위 · 공백으로 토큰 AND 검색</span>
@@ -223,7 +234,7 @@
       </section>
 
       <!-- Paper Count (Home 하단) -->
-      <section class="card p-6">
+      <section class="card p-4 sm:p-6">
         <div class="flex items-center gap-2 mb-4">
           <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Paper Count</h2>
           <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
@@ -238,11 +249,11 @@
       </section>
 
       <!-- Recent Papers (Home 하단) -->
-      <section class="card p-6">
-        <div class="flex items-center justify-between mb-4">
+      <section class="card p-4 sm:p-6">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
           <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Recent Papers</h2>
           <input id="paper-search" type="text" placeholder="Search (title · journal · keyword · DOI)..."
-            class="text-xs border border-slate-200 rounded-lg px-3 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-navy-800">
+            class="text-xs border border-slate-200 rounded-lg px-3 py-2 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-navy-800">
         </div>
         <div class="overflow-x-auto max-h-[500px] overflow-y-auto">
           <table class="w-full text-xs">
@@ -261,10 +272,10 @@
     <!-- /view-home -->
 
     <!-- Analytics: 차트 · 히트맵 · 관심분석 -->
-    <main id="view-analytics" class="hidden max-w-7xl mx-auto px-6 py-6 space-y-6">
+    <main id="view-analytics" class="hidden max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6">
       <!-- 키워드 트렌드 + 워드클라우드 -->
       <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="card p-6 lg:col-span-2">
+        <div class="card p-4 sm:p-6 lg:col-span-2">
           <div class="flex items-center justify-between mb-4 flex-wrap gap-y-2">
             <div class="flex items-center gap-2 shrink-0">
               <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] whitespace-nowrap">Keyword Trends</h2>
@@ -292,14 +303,14 @@
           </div>
         </div>
         <!-- 워드클라우드 -->
-        <div class="card p-6">
+        <div class="card p-4 sm:p-6">
           <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Word Cloud</h2>
           <canvas id="wordcloud-canvas" width="400" height="320" class="w-full"></canvas>
         </div>
       </section>
 
       <!-- Top 키워드 트리 (Broad ▸ Sharp 계층) -->
-      <section class="card p-6">
+      <section class="card p-4 sm:p-6">
         <div class="flex items-center justify-between mb-4">
           <div>
             <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Top Keywords</h2>
@@ -315,13 +326,13 @@
 
       <!-- 저널 빈도 + 저널별 월별 -->
       <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="card p-6">
+        <div class="card p-4 sm:p-6">
           <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Journal Frequency</h2>
           <div class="chart-container" style="height:360px">
             <canvas id="chart-journal"></canvas>
           </div>
         </div>
-        <div class="card p-6">
+        <div class="card p-4 sm:p-6">
           <div class="flex items-center gap-2 mb-4">
             <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] whitespace-nowrap">Frequent Journals Trend</h2>
             <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
@@ -336,7 +347,7 @@
       </section>
 
       <!-- 저널 × 키워드 히트맵 -->
-      <section class="card p-6">
+      <section class="card p-4 sm:p-6">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Journal &times; Keyword Matrix</h2>
           <div class="flex items-center gap-2">
@@ -358,7 +369,7 @@
       </section>
 
       <!-- AI 관심 분석 -->
-      <section id="section-interest-analysis" class="card p-6">
+      <section id="section-interest-analysis" class="card p-4 sm:p-6">
         <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">User Interest Analysis</h2>
         <div id="interest-empty" class="text-xs text-slate-400 hidden">No interest-marked papers found.</div>
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -389,13 +400,13 @@
     <!-- /view-analytics -->
 
     <!-- Browse 뷰: 저널별 / 주제별 × 날짜 그룹 -->
-    <main id="view-browse" class="hidden max-w-7xl mx-auto px-6 py-6">
+    <main id="view-browse" class="hidden max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
       <div class="flex gap-1 mb-4 border-b border-slate-200">
         <button id="browse-mode-journal" class="view-tab active" onclick="setBrowseMode('journal')">By Journal</button>
         <button id="browse-mode-topic" class="view-tab" onclick="setBrowseMode('topic')">By Topic</button>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4">
-        <aside class="card p-3 max-h-[75vh] overflow-y-auto">
+        <aside class="card p-3 max-h-[40vh] md:max-h-[75vh] overflow-y-auto">
           <div class="flex items-center justify-between mb-2 px-1" id="browse-list-header">
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Journals</span>
             <div class="flex items-center gap-2">
@@ -417,7 +428,7 @@
     </main>
 
     <!-- Stats 뷰: 접속 통계 (관리자 전용) -->
-    <main id="view-stats" class="hidden max-w-7xl mx-auto px-6 py-6 space-y-6">
+    <main id="view-stats" class="hidden max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6">
       <header class="flex items-center justify-between">
         <div>
           <h2 class="text-xl font-black text-navy-900 tracking-tight">Access Stats</h2>
@@ -428,23 +439,23 @@
 
       <!-- KPI 카드 -->
       <section class="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div class="card kpi-card p-5">
+        <div class="card kpi-card p-3 sm:p-5">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Total Logins</p>
           <p id="stats-total-logins" class="text-2xl font-black text-navy-900 mt-1">—</p>
         </div>
-        <div class="card kpi-card p-5">
+        <div class="card kpi-card p-3 sm:p-5">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Total Page Views</p>
           <p id="stats-total-views" class="text-2xl font-black text-navy-900 mt-1">—</p>
         </div>
-        <div class="card kpi-card p-5">
+        <div class="card kpi-card p-3 sm:p-5">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Logins 24h / 7d</p>
           <p id="stats-logins-recent" class="text-2xl font-black text-navy-900 mt-1">—</p>
         </div>
-        <div class="card kpi-card p-5">
+        <div class="card kpi-card p-3 sm:p-5">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Unique Users (30d)</p>
           <p id="stats-unique-30d" class="text-2xl font-black text-navy-900 mt-1">—</p>
         </div>
-        <div class="card kpi-card p-5">
+        <div class="card kpi-card p-3 sm:p-5">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Unique Users (All)</p>
           <p id="stats-unique-all" class="text-2xl font-black text-navy-900 mt-1">—</p>
         </div>
@@ -452,7 +463,7 @@
 
       <!-- 사용자별 + 일별 -->
       <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="card p-6">
+        <div class="card p-4 sm:p-6">
           <h3 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">By User</h3>
           <div class="overflow-x-auto">
             <table class="w-full text-xs">
@@ -468,7 +479,7 @@
             </table>
           </div>
         </div>
-        <div class="card p-6">
+        <div class="card p-4 sm:p-6">
           <h3 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Daily Logins (last 30d)</h3>
           <div class="chart-container" style="height:280px">
             <canvas id="stats-daily-chart"></canvas>
@@ -477,7 +488,7 @@
       </section>
 
       <!-- 사용자 피드백 -->
-      <section class="card p-6">
+      <section class="card p-4 sm:p-6">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">📮 User Feedback <span id="stats-feedback-unread" class="ml-2 text-[10px] font-bold text-red-500"></span></h3>
           <div class="flex items-center gap-2">
@@ -490,7 +501,7 @@
       </section>
 
       <!-- 최근 이벤트 -->
-      <section class="card p-6">
+      <section class="card p-4 sm:p-6">
         <h3 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Recent Events (last 20)</h3>
         <div class="overflow-x-auto">
           <table class="w-full text-xs">
