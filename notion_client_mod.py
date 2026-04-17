@@ -142,18 +142,27 @@ def _is_duplicate(database_id: str, title: str) -> bool:
         "filter": {"property": "Title", "title": {"equals": title}},
         "page_size": 1,
     }
-    for attempt in range(4):
-        resp = httpx.post(url, headers=headers, json=payload, timeout=30)
+    # 네트워크 예외(타임아웃/연결 오류)도 재시도 대상 — 파이프라인 전체 크래시 방지
+    # 재시도: 1→2→4→8→16초 (최대 5회, 총 대기 약 31초)
+    for attempt in range(5):
+        try:
+            resp = httpx.post(url, headers=headers, json=payload, timeout=30)
+        except (httpx.TimeoutException, httpx.NetworkError, httpx.RemoteProtocolError) as e:
+            wait = 2 ** attempt
+            logging.warning("중복 체크 네트워크 에러(%s), %d초 후 재시도 (%d/5)", type(e).__name__, wait, attempt + 1)
+            time.sleep(wait)
+            continue
         if resp.status_code == 200:
             return len(resp.json()["results"]) > 0
-        if resp.status_code in (404, 429, 502, 503):
+        if resp.status_code in (404, 429, 500, 502, 503, 504):
             wait = 2 ** attempt
-            logging.warning("중복 체크 %d 에러, %d초 후 재시도 (%d/3)", resp.status_code, wait, attempt + 1)
+            logging.warning("중복 체크 %d 에러, %d초 후 재시도 (%d/5)", resp.status_code, wait, attempt + 1)
             time.sleep(wait)
             continue
         resp.raise_for_status()
-    # 재시도 초과 시 안전하게 중복 아님으로 처리 (저장 시도)
-    logging.warning("중복 체크 재시도 초과, 저장 시도로 진행")
+    # 재시도 초과 시 안전하게 중복 아님으로 처리 (저장 시도 — 실제 중복이면 Notion이 거부 안 하고 신규 생성함.
+    # 진짜 중복이 생길 수 있지만 파이프라인이 크래시하는 것보다는 낫다.)
+    logging.warning("중복 체크 재시도 초과, 저장 시도로 진행 (중복일 경우 수동 정리 필요)")
     return False
 
 
