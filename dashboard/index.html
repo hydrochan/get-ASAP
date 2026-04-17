@@ -101,14 +101,6 @@
                class="text-slate-400 hover:text-pink-600 transition-colors">@hydro_chan</a>
           </span>
         </div>
-        <!-- 전역 검색 -->
-        <div class="relative">
-          <input id="global-search" type="text" placeholder="🔍 전체 검색 (제목 · 저널 · 키워드 · DOI)"
-            class="text-xs font-medium border border-slate-200 rounded-lg pl-3 pr-8 py-2 w-72 focus:outline-none focus:ring-2 focus:ring-navy-800 focus:w-80 transition-all"
-            autocomplete="off">
-          <button id="global-search-clear" class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-sm font-bold">&times;</button>
-          <div id="global-search-results" class="hidden absolute top-full mt-1 right-0 w-[480px] max-h-[70vh] overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-xl z-40"></div>
-        </div>
         <select id="month-range" class="text-xs font-semibold border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-800">
           <option value="1">Last 1 month</option>
           <option value="3" selected>Last 3 months</option>
@@ -1942,13 +1934,7 @@
       renderPaperTable(e.target.value);
     });
 
-    // ---------- 전역 검색 (헤더) ----------
-    const globalSearchInput = document.getElementById('global-search');
-    const globalSearchResults = document.getElementById('global-search-results');
-    const globalSearchClear = document.getElementById('global-search-clear');
-    const GLOBAL_SEARCH_LIMIT = 30;
-    let _globalSearchDebounce = null;
-
+    // ---------- 매칭 토큰 하이라이트 헬퍼 (Home Search 카드에서 사용) ----------
     function _highlightTokens(text, tokens) {
       if (!tokens.length) return _escapeHtml(text);
       let safe = _escapeHtml(text);
@@ -1961,98 +1947,6 @@
       }
       return safe;
     }
-
-    function runGlobalSearch(q) {
-      q = (q || '').trim();
-      if (!q) {
-        globalSearchResults.classList.add('hidden');
-        globalSearchResults.innerHTML = '';
-        globalSearchClear.classList.add('hidden');
-        return;
-      }
-      globalSearchClear.classList.remove('hidden');
-      const tokens = q.toLowerCase().split(/\s+/).filter(Boolean);
-
-      // allPapers 전체에서 검색 (현재 필터 영향 X — 진짜 전역)
-      const matches = [];
-      for (const p of allPapers) {
-        if (_paperMatchesQuery(p, q)) matches.push(p);
-        if (matches.length >= GLOBAL_SEARCH_LIMIT + 1) break; // +1은 "더 있음" 판정용
-      }
-      const hasMore = matches.length > GLOBAL_SEARCH_LIMIT;
-      const show = matches.slice(0, GLOBAL_SEARCH_LIMIT);
-
-      if (!show.length) {
-        globalSearchResults.innerHTML = '<div class="p-4 text-xs text-slate-400 text-center">검색 결과가 없습니다.</div>';
-        globalSearchResults.classList.remove('hidden');
-        return;
-      }
-
-      // 최신순 정렬
-      show.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-
-      globalSearchResults.innerHTML = `
-        <div class="sticky top-0 bg-slate-50 border-b border-slate-200 px-3 py-2 flex items-center justify-between">
-          <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">${show.length}${hasMore ? '+' : ''} results</span>
-          <span class="text-[10px] text-slate-400">Esc to close</span>
-        </div>
-        ${show.map(p => {
-          const title = _highlightTokens(p.title || '(제목 없음)', tokens);
-          const journal = _highlightTokens(p.journal || '', tokens);
-          const doi = _highlightTokens(p.doi || '', tokens);
-          const date = (p.date || '').slice(0, 10);
-          const tags = parseReason(p.gpt_reason || '');
-          const tagHtml = tags.slice(0, 4).map(t => {
-            const label = t.sharp ? `${t.broad} / ${t.sharp}` : t.broad;
-            return `<span class="inline-block text-[10px] bg-slate-100 text-slate-600 rounded px-1.5 py-0.5">${_highlightTokens(label, tokens)}</span>`;
-          }).join(' ');
-          const href = p.url || (p.doi ? `https://doi.org/${p.doi}` : '');
-          const linkOpen = href ? `<a href="${_escapeHtml(href)}" target="_blank" rel="noopener" class="block hover:bg-slate-50 px-3 py-3 border-b border-slate-100">` : `<div class="block px-3 py-3 border-b border-slate-100">`;
-          const linkClose = href ? '</a>' : '</div>';
-          return `${linkOpen}
-            <div class="flex items-baseline justify-between gap-2 mb-1">
-              <span class="text-xs font-bold text-navy-800 truncate">${journal || '&nbsp;'}</span>
-              <span class="text-[10px] text-slate-400 whitespace-nowrap">${date}</span>
-            </div>
-            <div class="text-xs text-slate-700 leading-snug mb-1">${title}</div>
-            ${doi ? `<div class="text-[10px] font-mono text-slate-400 truncate">${doi}</div>` : ''}
-            ${tagHtml ? `<div class="mt-1 flex flex-wrap gap-1">${tagHtml}</div>` : ''}
-          ${linkClose}`;
-        }).join('')}
-        ${hasMore ? `<div class="px-3 py-2 text-[10px] text-slate-400 text-center bg-slate-50">${GLOBAL_SEARCH_LIMIT}건까지만 표시. 더 구체적인 검색어를 입력하세요.</div>` : ''}
-      `;
-      globalSearchResults.classList.remove('hidden');
-    }
-
-    globalSearchInput.addEventListener('input', (e) => {
-      clearTimeout(_globalSearchDebounce);
-      const v = e.target.value;
-      _globalSearchDebounce = setTimeout(() => runGlobalSearch(v), 120);
-    });
-    globalSearchInput.addEventListener('focus', () => {
-      if (globalSearchInput.value.trim()) runGlobalSearch(globalSearchInput.value);
-    });
-    globalSearchInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        globalSearchInput.value = '';
-        runGlobalSearch('');
-        globalSearchInput.blur();
-      }
-    });
-    globalSearchClear.addEventListener('click', () => {
-      globalSearchInput.value = '';
-      runGlobalSearch('');
-      globalSearchInput.focus();
-    });
-    // 바깥 클릭 시 결과 닫기 (입력창 유지)
-    document.addEventListener('click', (e) => {
-      if (!globalSearchResults.classList.contains('hidden')
-          && !globalSearchInput.contains(e.target)
-          && !globalSearchResults.contains(e.target)
-          && !globalSearchClear.contains(e.target)) {
-        globalSearchResults.classList.add('hidden');
-      }
-    });
 
     // ---------- Browse 뷰 ----------
     window.setView = function(v) {
