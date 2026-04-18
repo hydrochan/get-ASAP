@@ -52,3 +52,22 @@ elif DASHBOARD_USERNAME:
     DASHBOARD_ADMINS = {DASHBOARD_USERNAME}
 else:
     DASHBOARD_ADMINS = set()
+
+# 사용자별 프로필 매핑 (프론트엔드 노출 금지 정보. 서버에서만 조회)
+# 형식: {"username": {"hidden_sections": ["section-id", ...], "focus_profile": "profile_key" | null}}
+# 프론트엔드는 로그인 시 "본인의" hidden_sections와 focus_config만 전달받음
+# 예: DASHBOARD_USER_PROFILES={"USER1":{"hidden_sections":["section-interest-analysis"],"focus_profile":"kisthrl"},"USER2":{"hidden_sections":[],"focus_profile":"kisthrl"}}
+DASHBOARD_USER_PROFILES: dict[str, dict] = {}
+_profiles_json = os.getenv("DASHBOARD_USER_PROFILES", "").strip()
+if _profiles_json:
+    try:
+        parsed = json.loads(_profiles_json)
+        if isinstance(parsed, dict):
+            for k, v in parsed.items():
+                if isinstance(v, dict):
+                    DASHBOARD_USER_PROFILES[str(k)] = {
+                        "hidden_sections": list(v.get("hidden_sections", [])),
+                        "focus_profile": v.get("focus_profile"),
+                    }
+    except json.JSONDecodeError:
+        pass

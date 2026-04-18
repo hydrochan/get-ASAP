@@ -33,6 +33,71 @@ DASHBOARD_DIR = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = os.path.join(os.path.dirname(DASHBOARD_DIR), "cache")
 ACCESS_DB_PATH = os.path.join(os.path.dirname(DASHBOARD_DIR), "access_log.db")
 
+# ---------- 포커스 프로필 (맞춤 섹션 데이터) ----------
+# 프론트엔드 소스에 하드코딩된 사용자 매핑을 피하기 위해 서버에서 관리.
+# config.DASHBOARD_USER_PROFILES의 "focus_profile" 키가 여기 키를 참조.
+# 데이터 자체는 민감 정보 아님(공개 화합물명). 민감한 건 "누가 보는가" = 프로필 매핑 (.env).
+FOCUS_PROFILES = {
+    "kisthrl": {
+        "title": "KISTHRL Focus",
+        "subtitle": "LOHC · Ammonia · SBH 논문 하이라이트",
+        "groups": [
+            {
+                "label": "LOHC",
+                "keywordMatch": ["lohc"],
+                "titleMatch": [
+                    "methylcyclohexane",
+                    "dibenzyltoluene",
+                    "benzyltoluene",
+                    "perhydro-dibenzyltoluene",
+                    "perhydrodibenzyltoluene",
+                    "n-ethylcarbazole",
+                    "ethylcarbazole",
+                    "dodecahydro-n-ethylcarbazole",
+                    "decalin",
+                    "dimethylbenzene",
+                    "dimethyl benzene",
+                    "dimethyl-benzene",
+                    "liquid organic hydrogen carrier",
+                ],
+            },
+            {
+                "label": "Ammonia",
+                "keywordMatch": ["ammonia"],
+                "titleMatch": ["ammonia", "nh3", "nh_3"],
+            },
+            {
+                "label": "SBH",
+                "keywordMatch": ["sbh", "borohydride"],
+                "titleMatch": [
+                    "sodium borohydride",
+                    "sodium-borohydride",
+                    "nabh4",
+                    "nabh_4",
+                    "na bh4",
+                    "borohydride",
+                ],
+            },
+        ],
+    },
+}
+
+
+def _build_user_payload(username: str) -> dict:
+    """로그인/세션 응답에 담을 사용자 맞춤 필드 계산.
+
+    hidden_sections, focus_config를 서버에서 결정해 내려주므로
+    프론트엔드는 username → 프로필 매핑을 몰라도 됨.
+    """
+    profile = config.DASHBOARD_USER_PROFILES.get(username, {})
+    hidden_sections = list(profile.get("hidden_sections", []))
+    focus_key = profile.get("focus_profile")
+    focus_config = FOCUS_PROFILES.get(focus_key) if focus_key else None
+    return {
+        "hidden_sections": hidden_sections,
+        "focus_config": focus_config,
+    }
+
 # 접속 로그 DB (SQLite) — 스레드 안전을 위해 락과 함께 사용
 _db_lock = threading.Lock()
 
@@ -312,11 +377,13 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             if sess and time.time() <= sess["expires"]:
                 user = sess.get("user", "")
                 _log_event("page_view", user, self._get_client_ip(), self.headers.get("User-Agent", ""))
-                self._send_json({
+                payload = {
                     "ok": True,
                     "user": user,
                     "is_admin": user in config.DASHBOARD_ADMINS,
-                })
+                }
+                payload.update(_build_user_payload(user))
+                self._send_json(payload)
             else:
                 self._send_json({"error": "unauthorized"}, 401)
             return
@@ -448,11 +515,13 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
                 secure_flag = "; Secure" if forwarded_proto == "https" else ""
                 self.send_header("Set-Cookie", f"session={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={SESSION_TTL}{secure_flag}")
                 self.end_headers()
-                self.wfile.write(json.dumps({
+                login_payload = {
                     "ok": True,
                     "user": username,
                     "is_admin": username in config.DASHBOARD_ADMINS,
-                }).encode())
+                }
+                login_payload.update(_build_user_payload(username))
+                self.wfile.write(json.dumps(login_payload).encode())
             else:
                 _record_attempt(ip, False)
                 self._send_json({"error": "invalid credentials"}, 401)
