@@ -2,10 +2,6 @@
 
 촉매·에너지 분야 연구자가 최신 논문을 놓치지 않도록, Gmail에 도착하는 학술 저널 ASAP(As Soon As Published) 알림 메일을 자동 수집해 Notion DB에 저장하고, 브라우저 대시보드로 시각화하는 엔드투엔드 파이프라인.
 
-**🚀 2026.04.17 KIST 수소연구단 정식 배포 · 30+ 연구원 동시 사용**
-
-Live: https://***REDACTED-DOMAIN***
-
 ---
 
 ## System Overview
