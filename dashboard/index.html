@@ -2008,20 +2008,36 @@
       const sorted = [...papers].sort((a,b) => (b.date||'').localeCompare(a.date||''));
       const display = sorted.slice(0, 300);
 
-      tbody.innerHTML = display.map(p => `
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-3 py-2 whitespace-nowrap text-slate-500">${(p.date||'').slice(0,10)}</td>
-          <td class="px-3 py-2 whitespace-nowrap font-semibold text-navy-800">${p.journal||''}</td>
-          <td class="px-3 py-2">
-            ${p.url ? `<a href="${p.url}" target="_blank" class="text-navy-700 hover:underline">${p.title||''}</a>` : (p.title||'')}
-          </td>
-        </tr>
-      `).join('');
+      tbody.innerHTML = display.map(p => {
+        const title = _escapeHtml(p.title || '');
+        const journal = _escapeHtml(p.journal || '');
+        const date = _escapeHtml((p.date || '').slice(0, 10));
+        const url = _safeUrl(p.url);
+        const titleCell = url
+          ? `<a href="${_escapeHtml(url)}" target="_blank" rel="noopener" class="text-navy-700 hover:underline">${title}</a>`
+          : title;
+        return `<tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-3 py-2 whitespace-nowrap text-slate-500">${date}</td>
+          <td class="px-3 py-2 whitespace-nowrap font-semibold text-navy-800">${journal}</td>
+          <td class="px-3 py-2">${titleCell}</td>
+        </tr>`;
+      }).join('');
     }
 
     document.getElementById('paper-search').addEventListener('input', (e) => {
       renderPaperTable(e.target.value);
     });
+
+    // ---------- URL 안전성 검증 ----------
+    // href에 'javascript:' 'data:' 'vbscript:' 프리픽스 차단 → click-to-XSS 방지
+    function _safeUrl(url) {
+      if (!url) return '';
+      const trimmed = String(url).trim();
+      // 프로토콜 허용 목록: http/https/mailto, 절대·상대경로는 OK
+      if (/^(https?:|mailto:|\/|\.\/|\.\.\/|#)/i.test(trimmed)) return trimmed;
+      // 그 외 (javascript:, data:, vbscript: 등) 전부 차단
+      return '';
+    }
 
     // ---------- 매칭 토큰 하이라이트 헬퍼 (Home Search 카드에서 사용) ----------
     function _highlightTokens(text, tokens) {
@@ -2089,11 +2105,11 @@
       // By user 테이블
       const byUserTbody = document.getElementById('stats-by-user-tbody');
       byUserTbody.innerHTML = (s.by_user || []).map(r => {
-        const last = r.last_seen ? new Date(r.last_seen * 1000).toLocaleString() : '—';
+        const last = r.last_seen ? _escapeHtml(new Date(r.last_seen * 1000).toLocaleString()) : '—';
         return `<tr class="border-b border-slate-100">
-          <td class="py-2 font-semibold text-navy-800">${r.username}</td>
-          <td class="py-2 text-right">${r.logins}</td>
-          <td class="py-2 text-right">${r.page_views}</td>
+          <td class="py-2 font-semibold text-navy-800">${_escapeHtml(r.username)}</td>
+          <td class="py-2 text-right">${Number(r.logins) || 0}</td>
+          <td class="py-2 text-right">${Number(r.page_views) || 0}</td>
           <td class="py-2 text-right text-slate-500 text-[11px]">${last}</td>
         </tr>`;
       }).join('');
@@ -2101,13 +2117,13 @@
       // 최근 이벤트
       const recentTbody = document.getElementById('stats-recent-tbody');
       recentTbody.innerHTML = (s.recent || []).map(r => {
-        const time = new Date(r.ts * 1000).toLocaleString();
+        const time = _escapeHtml(new Date(r.ts * 1000).toLocaleString());
         const typeColor = r.event_type === 'login' ? 'text-blue-700' : 'text-slate-500';
         return `<tr class="border-b border-slate-100">
           <td class="py-2 text-slate-500 whitespace-nowrap">${time}</td>
-          <td class="py-2 ${typeColor} font-semibold">${r.event_type}</td>
-          <td class="py-2 text-navy-800">${r.username || '—'}</td>
-          <td class="py-2 text-slate-400 font-mono text-[11px]">${r.ip || ''}</td>
+          <td class="py-2 ${typeColor} font-semibold">${_escapeHtml(r.event_type)}</td>
+          <td class="py-2 text-navy-800">${_escapeHtml(r.username || '—')}</td>
+          <td class="py-2 text-slate-400 font-mono text-[11px]">${_escapeHtml(r.ip || '')}</td>
         </tr>`;
       }).join('');
 
@@ -2471,14 +2487,15 @@
       </div>`];
 
       for (const [date, rows] of groups) {
-        parts.push(`<div><span class="browse-date-header">${date}<span class="count">${rows.length}건</span></span></div>`);
+        parts.push(`<div><span class="browse-date-header">${_escapeHtml(date)}<span class="count">${rows.length}건</span></span></div>`);
         parts.push('<div>');
         for (const p of rows) {
-          const title = (p.title || '').replace(/</g, '&lt;');
-          const linkOpen = p.url ? `<a href="${p.url}" target="_blank" rel="noopener">` : '';
-          const linkClose = p.url ? '</a>' : '';
+          const title = _escapeHtml(p.title || '');
+          const url = _safeUrl(p.url);
+          const linkOpen = url ? `<a href="${_escapeHtml(url)}" target="_blank" rel="noopener">` : '';
+          const linkClose = url ? '</a>' : '';
           const journalTag = browseMode === 'topic'
-            ? `<span class="journal-tag">${p.journal || ''}</span>`
+            ? `<span class="journal-tag">${_escapeHtml(p.journal || '')}</span>`
             : '';
           parts.push(`<div class="browse-paper-row">${journalTag}${linkOpen}${title}${linkClose}</div>`);
         }
