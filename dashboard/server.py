@@ -402,7 +402,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json({"items": _list_feedback()})
             except Exception as e:
                 logger.exception("feedback list failed")
-                self._send_json({"error": str(e)}, 500)
+                self._send_json({"error": "internal server error"}, 500)
             return
 
         # API: 접속 통계 (관리자 전용)
@@ -419,7 +419,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json(_query_stats())
             except Exception as e:
                 logger.exception("stats query failed")
-                self._send_json({"error": str(e)}, 500)
+                self._send_json({"error": "internal server error"}, 500)
             return
 
         # API: CSV 서빙
@@ -559,7 +559,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json({"ok": True, "id": fid})
             except Exception as e:
                 logger.exception("feedback insert failed")
-                self._send_json({"error": str(e)}, 500)
+                self._send_json({"error": "internal server error"}, 500)
             return
 
         # 피드백 읽음 토글 (관리자 전용)
