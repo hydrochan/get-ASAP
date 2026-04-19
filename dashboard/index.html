@@ -1787,8 +1787,11 @@
       for (const p of filteredPapers) {
         if (p.journal) journalFreq[p.journal] = (journalFreq[p.journal]||0)+1;
       }
-      const journalLimit = heatmapExpanded ? 999 : 10;
-      const kwLimit = heatmapExpanded ? 20 : 10;
+      // 데스크탑은 collapse해도 데이터 갯수는 유지(max-height만 축소되어 스크롤)
+      const isDesktop = window.matchMedia('(min-width: 640px)').matches;
+      const showAll = heatmapExpanded || isDesktop;
+      const journalLimit = showAll ? 999 : 10;
+      const kwLimit = showAll ? 20 : 10;
       const topJ = Object.entries(journalFreq).sort((a,b)=>b[1]-a[1]).slice(0, journalLimit).map(e=>e[0]);
       const globalKw = _getHeatmapKw(filteredPapers);
       const topKws = Object.entries(globalKw).sort((a,b)=>b[1]-a[1]).slice(0, kwLimit).map(e=>e[0]);
