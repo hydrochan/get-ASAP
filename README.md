@@ -120,7 +120,6 @@ flowchart LR
     CRON["cron 6h"] --> MAIN[main.py]
     MAIN --> NOTION[(Notion)]
     NOTION -.->|재생성| CSV
-    WK["cron Mon 09:00"] --> WS[weekly_summary.py] --> NOTION
 ```
 
 **보안 계층**
