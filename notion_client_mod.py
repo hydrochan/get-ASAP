@@ -22,7 +22,11 @@ from notion_auth import get_notion_client
 def create_paper_db(parent_page_id: str, db_name: str = None) -> str:
     """Notion 논문 DB 신규 생성 후 DB ID 반환 (NOTION-01)
 
-    속성: Title, Journal, Date, URL, Status
+    속성: Title, Journal, Date, URL, Status, GPT Reason, Zotero Key
+    - Status: get-ASAP 은 '대기중' 만 쓰지만, 하류(paper_autodown)가 쓰는
+      관련/불확실/다운완료/무관 까지 명시해 월별 DB UI 가 일관되게 유지.
+    - Zotero Key: paper_autodown/organizer 가 Zotero 등록 후 itemKey 기입
+      (sync_from_notion 이 삭제 시 역조회용).
     """
     if db_name is None:
         db_name = f"get-ASAP {date.today().strftime('%Y-%m')}"
@@ -41,12 +45,15 @@ def create_paper_db(parent_page_id: str, db_name: str = None) -> str:
                     "select": {
                         "options": [
                             {"name": "대기중", "color": "yellow"},
-                            {"name": "읽음", "color": "green"},
-                            {"name": "관심", "color": "blue"},
-                            {"name": "스킵", "color": "gray"},
+                            {"name": "관련", "color": "green"},
+                            {"name": "불확실", "color": "yellow"},
+                            {"name": "다운완료", "color": "purple"},
+                            {"name": "무관", "color": "red"},
                         ]
                     },
                 },
+                "GPT Reason": {"type": "rich_text", "rich_text": {}},
+                "Zotero Key": {"type": "rich_text", "rich_text": {}},
             }
         },
     )

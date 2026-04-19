@@ -27,7 +27,7 @@ class TestCreatePaperDb:
     """create_paper_db — Notion DB 생성 (NOTION-01)"""
 
     def test_create_paper_db(self):
-        """databases.create 호출 시 initial_data_source.properties에 4개 속성 포함, title="get-ASAP Papers" (D-01, D-02)"""
+        """databases.create 호출 시 initial_data_source.properties 7개 속성 + Status 옵션 5개 포함 (D-01, D-02)"""
         from notion_client_mod import create_paper_db
 
         mock_client = MagicMock()
@@ -48,11 +48,17 @@ class TestCreatePaperDb:
         title_text = title[0]["text"]["content"] if title else ""
         assert title_text == "get-ASAP 2026-04", f"DB 제목이 잘못됨: {title_text}"
 
-        # initial_data_source.properties 확인 (Title, Journal, Date, Status만)
+        # initial_data_source.properties 확인 (Title, Journal, Date, URL, Status, GPT Reason, Zotero Key)
         initial_ds = kwargs.get("initial_data_source", {})
         props = initial_ds.get("properties", {})
-        expected_keys = {"Title", "Journal", "Date", "URL", "Status"}
+        expected_keys = {"Title", "Journal", "Date", "URL", "Status", "GPT Reason", "Zotero Key"}
         assert expected_keys == set(props.keys()), f"속성 키 불일치: {set(props.keys())}"
+
+        # Status select 옵션: 대기중 + paper_autodown 이 쓰는 4개 = 5개
+        status_options = props["Status"]["select"]["options"]
+        option_names = {o["name"] for o in status_options}
+        assert option_names == {"대기중", "관련", "불확실", "다운완료", "무관"}, \
+            f"Status 옵션 불일치: {option_names}"
 
 
 class TestGetOrCreateDb:
