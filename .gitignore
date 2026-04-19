@@ -26,8 +26,9 @@ state.json
 # Planning (GSD workflow artifacts)
 .planning/
 
-# Claude Code
+# Claude Code (운영 세부정보 포함 — 공개 금지)
 .claude/
+CLAUDE.md
 
 # OS
 .DS_Store
