@@ -1748,7 +1748,7 @@
     // 히트맵
     let heatmapView = 'broad';        // 'broad' | 'sharp'
     let heatmapBroadFilter = '';      // sharp view일 때 특정 broad로 제한
-    let heatmapExpanded = false;
+    let heatmapExpanded = window.matchMedia('(min-width: 640px)').matches;  // 데스크탑은 기본 확장
 
     function _getHeatmapKw(papers) {
       return getFreq(papers, heatmapView, heatmapView === 'sharp' ? heatmapBroadFilter : '');
@@ -1769,14 +1769,20 @@
       renderHeatmap();
     });
 
+    function _syncHeatmapExpandUI() {
+      const btn = document.getElementById('hm-expand-btn');
+      if (btn) btn.textContent = heatmapExpanded ? 'Collapse' : 'Expand All';
+      const c = document.getElementById('heatmap-container');
+      if (c) c.style.maxHeight = heatmapExpanded ? 'none' : '500px';
+    }
     window.toggleHeatmapExpand = function() {
       heatmapExpanded = !heatmapExpanded;
-      document.getElementById('hm-expand-btn').textContent = heatmapExpanded ? 'Collapse' : 'Expand All';
-      document.getElementById('heatmap-container').style.maxHeight = heatmapExpanded ? 'none' : '500px';
+      _syncHeatmapExpandUI();
       renderHeatmap();
     };
 
     function renderHeatmap() {
+      _syncHeatmapExpandUI();
       const journalFreq = {};
       for (const p of filteredPapers) {
         if (p.journal) journalFreq[p.journal] = (journalFreq[p.journal]||0)+1;
