@@ -38,9 +38,9 @@ ACCESS_DB_PATH = os.path.join(os.path.dirname(DASHBOARD_DIR), "access_log.db")
 # config.DASHBOARD_USER_PROFILES의 "focus_profile" 키가 여기 키를 참조.
 # 데이터 자체는 민감 정보 아님(공개 화합물명). 민감한 건 "누가 보는가" = 프로필 매핑 (.env).
 FOCUS_PROFILES = {
-    "kisthrl": {
-        "title": "KISTHRL Focus",
-        "subtitle": "LOHC · Ammonia · SBH 논문 하이라이트",
+    "hydrogen_carriers": {
+        "title": "Hydrogen Carrier Focus",
+        "subtitle": "LOHC · Ammonia · SBH 관련 논문 하이라이트",
         "groups": [
             {
                 "label": "LOHC",

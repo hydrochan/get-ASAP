@@ -43,7 +43,7 @@ flowchart LR
 
 ### 운영
 - **HTTPS** · DuckDNS + Let's Encrypt (certbot 자동 갱신)
-- **Reverse proxy** · Nginx → 127.0.0.1:8501 격리 · X-Real-IP 전달
+- **Reverse proxy** · Nginx → 로컬 바인드 Python 서버로 격리 · X-Real-IP 전달
 - **다중 사용자 bcrypt 인증** · 계정별 섹션 가시성·맞춤 포커스 서버 제어
 - **systemd + ThreadingHTTPServer** · 크래시 자동 복구, 동시 요청 처리
 - **SQLite WAL 모드** · reader-writer 동시성 보장
@@ -60,7 +60,7 @@ cp .env.example .env          # NOTION_TOKEN 등 입력
 python get_token_curl.py      # Gmail OAuth 1회
 python main.py --dry-run      # 파싱만 테스트
 python main.py                # 실제 실행
-python dashboard/server.py    # 대시보드 로컬 http://127.0.0.1:8501
+python dashboard/server.py    # 대시보드 로컬 실행
 ```
 
 ---
@@ -112,7 +112,7 @@ flowchart TD
 ```mermaid
 flowchart LR
     U["Researcher<br/>Browser"] -->|443 HTTPS| NG["Nginx<br/>TLS 종단"]
-    NG -->|proxy_pass<br/>X-Real-IP| APP["dashboard/server.py<br/>systemd · 127.0.0.1:8501"]
+    NG -->|proxy_pass<br/>X-Real-IP| APP["dashboard/server.py<br/>systemd · localhost bind"]
     APP --> CSV[(CSV Cache)]
     APP --> DB[(access_log.db<br/>SQLite WAL)]
     APP -.->|Secure · HttpOnly<br/>SameSite=Strict| U
@@ -124,7 +124,7 @@ flowchart LR
 ```
 
 **보안 계층**
-- 8501 포트는 `127.0.0.1` 에만 바인드 · iptables + OCI Security List 로 외부 차단
+- Python 서버는 localhost 에만 바인드 · iptables + 클라우드 Security List 로 외부 차단
 - Nginx가 유일한 진입점 · 433만 허용
 - 쿠키: `HttpOnly` + `SameSite=Strict` + HTTPS 감지 시 `Secure` 조건부 부여
 - 브루트포스: IP 기반 20회/2분 잠금 (NAT 공유 환경 대응)
