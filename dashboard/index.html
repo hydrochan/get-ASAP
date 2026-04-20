@@ -718,8 +718,12 @@
       const titleLc = (group.titleMatch || []).map(s => s.toLowerCase());
       if (titleLc.length) {
         const title = (p.title || '').toLowerCase();
+        // 공백·하이픈 제거 정규화: "perhydro-dibenzyl toluene" / "perhydrodibenzyltoluene" 둘 다 매칭되도록
+        const titleNorm = title.replace(/[\s\-]+/g, '');
         for (const phrase of titleLc) {
           if (title.includes(phrase)) return true;
+          const phraseNorm = phrase.replace(/[\s\-]+/g, '');
+          if (phraseNorm && titleNorm.includes(phraseNorm)) return true;
         }
       }
       return false;
