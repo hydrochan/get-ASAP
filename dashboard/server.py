@@ -59,6 +59,13 @@ FOCUS_PROFILES = {
                     "dimethyl benzene",
                     "dimethyl-benzene",
                     "liquid organic hydrogen carrier",
+                    # LOHC 수소화 상태 약어 (H0/H6/H12/H18 등)
+                    "h0-dbt", "h6-dbt", "h12-dbt", "h18-dbt",
+                    "h0dbt", "h6dbt", "h12dbt", "h18dbt",
+                    "h12-nec", "h12nec",
+                    "h6-mch", "h6mch",
+                    "h10-naphthalene", "h10naphthalene",
+                    "h12-bt", "h12bt",  # benzyltoluene 수소화
                 ],
             },
             {
