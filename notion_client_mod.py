@@ -22,11 +22,15 @@ from notion_auth import get_notion_client
 def create_paper_db(parent_page_id: str, db_name: str = None) -> str:
     """Notion 논문 DB 신규 생성 후 DB ID 반환 (NOTION-01)
 
-    속성: Title, Journal, Date, URL, Status, GPT Reason, Zotero Key
+    속성: Title, Journal, Date, URL, Status, GPT Reason
     - Status: get-ASAP 은 '대기중' 만 쓰지만, 하류(paper_autodown)가 쓰는
       관련/불확실/다운완료/무관 까지 명시해 월별 DB UI 가 일관되게 유지.
-    - Zotero Key: paper_autodown/organizer 가 Zotero 등록 후 itemKey 기입
-      (sync_from_notion 이 삭제 시 역조회용).
+
+    주의: 과거(2026-04-19~21) 'Zotero Key' (rich_text) 컬럼을 추가했더니,
+    DB 규모가 수천 건 누적된 시점에 Notion `data_sources.query` API 가
+    pagination 을 300건에서 조기 종료하는 버그가 발생. 컬럼 DROP 즉시 회복됨.
+    재현 조건이 불명확해 해당 컬럼은 도입하지 않는다. Notion↔Zotero 매핑은
+    paper_autodown 의 state.db (notion_page_id ↔ zotero_key) 로만 관리한다.
     """
     if db_name is None:
         db_name = f"get-ASAP {date.today().strftime('%Y-%m')}"
@@ -53,7 +57,6 @@ def create_paper_db(parent_page_id: str, db_name: str = None) -> str:
                     },
                 },
                 "GPT Reason": {"type": "rich_text", "rich_text": {}},
-                "Zotero Key": {"type": "rich_text", "rich_text": {}},
             }
         },
     )

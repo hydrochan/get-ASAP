@@ -27,7 +27,7 @@ class TestCreatePaperDb:
     """create_paper_db — Notion DB 생성 (NOTION-01)"""
 
     def test_create_paper_db(self):
-        """databases.create 호출 시 initial_data_source.properties 7개 속성 + Status 옵션 5개 포함 (D-01, D-02)"""
+        """databases.create 호출 시 initial_data_source.properties 6개 속성 + Status 옵션 5개 포함 (D-01, D-02)"""
         from notion_client_mod import create_paper_db
 
         mock_client = MagicMock()
@@ -48,10 +48,11 @@ class TestCreatePaperDb:
         title_text = title[0]["text"]["content"] if title else ""
         assert title_text == "get-ASAP 2026-04", f"DB 제목이 잘못됨: {title_text}"
 
-        # initial_data_source.properties 확인 (Title, Journal, Date, URL, Status, GPT Reason, Zotero Key)
+        # initial_data_source.properties 확인 (Title, Journal, Date, URL, Status, GPT Reason)
+        # 'Zotero Key' 는 pagination 버그 재발 방지 위해 제거됨 (state.db 에서만 관리)
         initial_ds = kwargs.get("initial_data_source", {})
         props = initial_ds.get("properties", {})
-        expected_keys = {"Title", "Journal", "Date", "URL", "Status", "GPT Reason", "Zotero Key"}
+        expected_keys = {"Title", "Journal", "Date", "URL", "Status", "GPT Reason"}
         assert expected_keys == set(props.keys()), f"속성 키 불일치: {set(props.keys())}"
 
         # Status select 옵션: 대기중 + paper_autodown 이 쓰는 4개 = 5개
