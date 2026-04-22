@@ -610,6 +610,35 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             self._send_json({"ok": ok})
             return
 
+        # API: 전체 월 강제 재조회 (관리자 전용)
+        # 과거 월 논문의 Notion 수동 편집(GPT Reason 등)을 CSV 캐시에 반영하기 위한 수동 트리거.
+        if path == "/api/refresh_all":
+            token = self._get_session_token()
+            sess = sessions.get(token) if token else None
+            if not sess or time.time() > sess["expires"]:
+                self._send_json({"error": "unauthorized"}, 401)
+                return
+            if sess.get("user", "") not in config.DASHBOARD_ADMINS:
+                self._send_json({"error": "forbidden"}, 403)
+                return
+            try:
+                from datetime import date as _date
+                from analytics.notion_fetcher import fetch_papers
+                # 프로젝트 시작 월 ~ 현재 월 전체 재조회 (force_refresh=True)
+                # 시작 월: 환경변수 REFRESH_ALL_START_MONTH, 기본 2026-04
+                start = os.getenv("REFRESH_ALL_START_MONTH", "2026-04")
+                end = _date.today().strftime("%Y-%m")
+                logger.info("[refresh_all] 시작: %s ~ %s (by %s)",
+                            start, end, sess.get("user"))
+                df = fetch_papers(start, end, force_refresh=True)
+                logger.info("[refresh_all] 완료: %d건", len(df))
+                self._send_json({"ok": True, "start": start, "end": end,
+                                 "rows": int(len(df))})
+            except Exception as e:
+                logger.exception("refresh_all failed")
+                self._send_json({"error": f"refresh failed: {str(e)[:200]}"}, 500)
+            return
+
         # 로그아웃
         if path == "/api/logout":
             token = self._get_session_token()

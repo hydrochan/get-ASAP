@@ -124,6 +124,9 @@
         <button id="refresh-btn" class="px-3 sm:px-4 py-2 bg-gradient-to-r from-navy-900 to-navy-800 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">
           Refresh
         </button>
+        <button id="refresh-all-btn" class="hidden px-3 sm:px-4 py-2 border border-purple-600 text-purple-700 text-xs font-bold rounded-lg hover:bg-purple-600 hover:text-white transition-all" title="관리자 전용: 전체 월 Notion 재조회 (과거 월 CSV 갱신)">
+          🔄 Force Refresh All
+        </button>
         <button id="report-btn" class="px-3 sm:px-4 py-2 border border-navy-800 text-navy-800 text-xs font-bold rounded-lg hover:bg-navy-800 hover:text-white transition-all">
           Report
         </button>
@@ -692,6 +695,9 @@
       // 관리자만 Stats 탭 노출
       const statsTab = document.getElementById('tab-stats');
       if (statsTab) statsTab.classList.toggle('hidden', !isAdmin);
+      // 관리자만 Force Refresh All 버튼 노출
+      const refreshAllBtn = document.getElementById('refresh-all-btn');
+      if (refreshAllBtn) refreshAllBtn.classList.toggle('hidden', !isAdmin);
 
       // 사용자별 맞춤 포커스 섹션 토글 + 헤더 텍스트 갱신
       const focusSec = document.getElementById('section-user-focus');
@@ -1037,6 +1043,29 @@
     document.getElementById('month-range').addEventListener('change', loadData);
     document.getElementById('refresh-btn').addEventListener('click', loadData);
     document.getElementById('kw-top-n').addEventListener('change', () => { renderKeywordChart(); renderWordCloud(); });
+
+    // 관리자 전용: 전체 월 Notion 강제 재조회
+    document.getElementById('refresh-all-btn').addEventListener('click', async () => {
+      if (!confirm('전체 월 Notion 에서 강제 재조회합니다.\n\n과거 월 캐시(CSV)까지 모두 덮어씁니다. 월별 DB 수에 따라 수십 초 걸릴 수 있습니다. 진행할까요?')) return;
+      const btn = document.getElementById('refresh-all-btn');
+      const original = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '⏳ 재조회 중...';
+      try {
+        const res = await fetch('/api/refresh_all', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) {
+          alert('실패: ' + (data.error || res.status));
+        } else {
+          alert(`완료: ${data.start} ~ ${data.end}, 총 ${data.rows}건 재조회됨.\n브라우저 Refresh 버튼으로 최신 데이터 로드하세요.`);
+        }
+      } catch (e) {
+        alert('네트워크 오류: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = original;
+      }
+    });
 
     // ---------- 공지·개선사항 ----------
     async function loadAnnouncements() {
