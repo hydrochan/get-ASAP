@@ -430,6 +430,23 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             return
 
         # API: CSV 서빙
+        if path == "/api/announcements":
+            # 공지·개선사항 카드용 JSON. cache/announcements.json 이 없으면 빈 배열 반환.
+            if not self._is_authenticated():
+                self._send_json({"error": "unauthorized"}, 401)
+                return
+            ann_path = os.path.join(CACHE_DIR, "announcements.json")
+            if not os.path.exists(ann_path):
+                self._send_json([])
+                return
+            try:
+                with open(ann_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                self._send_json(data)
+            except Exception as e:
+                self._send_json({"error": f"announcements parse fail: {e}"}, 500)
+            return
+
         if path.startswith("/api/csv/"):
             if not self._is_authenticated():
                 self._send_json({"error": "unauthorized"}, 401)

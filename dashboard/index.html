@@ -215,6 +215,15 @@
         </div>
       </section>
 
+      <!-- 공지·개선사항 (cache/announcements.json 비어있으면 자동 숨김) -->
+      <section id="section-announcements" class="card p-4 sm:p-6 hidden">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">📢 공지 · 개선사항</h2>
+          <button id="ann-toggle" class="text-[10px] font-semibold text-slate-400 hover:text-navy-900" onclick="toggleAnnouncements()">접기</button>
+        </div>
+        <div id="announcements-list" class="space-y-2"></div>
+      </section>
+
       <!-- 맞춤 포커스 섹션 (서버가 사용자별 focus_config를 내려줄 때만 노출) -->
       <section id="section-user-focus" class="card p-6 hidden" style="border-top: 3px solid #40ac9d;">
         <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
@@ -1028,6 +1037,71 @@
     document.getElementById('month-range').addEventListener('change', loadData);
     document.getElementById('refresh-btn').addEventListener('click', loadData);
     document.getElementById('kw-top-n').addEventListener('change', () => { renderKeywordChart(); renderWordCloud(); });
+
+    // ---------- 공지·개선사항 ----------
+    async function loadAnnouncements() {
+      try {
+        const res = await fetch('/api/announcements');
+        if (!res.ok) return;
+        const items = await res.json();
+        if (!Array.isArray(items) || items.length === 0) return;
+
+        // 날짜 내림차순 정렬
+        items.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+
+        const typeStyle = {
+          fix:     { label: 'FIX',     color: '#f97316', bg: '#fff7ed' },
+          update:  { label: 'UPDATE',  color: '#10b981', bg: '#ecfdf5' },
+          info:    { label: 'INFO',    color: '#002F6C', bg: '#eff6ff' },
+          warning: { label: 'WARNING', color: '#dc2626', bg: '#fef2f2' },
+        };
+
+        const esc = (s) => String(s || '').replace(/[&<>"']/g, c => (
+          {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+        ));
+
+        const html = items.map(it => {
+          const t = typeStyle[it.type] || typeStyle.info;
+          return `
+            <div class="flex gap-3 p-3 rounded-lg border border-slate-100" style="background:${t.bg}; border-left:3px solid ${t.color};">
+              <div class="flex-shrink-0 flex flex-col items-start gap-1 min-w-[80px]">
+                <span class="text-[9px] font-black tracking-[0.08em] px-1.5 py-0.5 rounded" style="background:${t.color}; color:white;">${t.label}</span>
+                <span class="text-[10px] font-semibold text-slate-500">${esc(it.date)}</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-bold text-navy-900 leading-snug">${esc(it.title)}</p>
+                <p class="text-xs text-slate-600 mt-1 leading-relaxed">${esc(it.body)}</p>
+              </div>
+            </div>`;
+        }).join('');
+
+        document.getElementById('announcements-list').innerHTML = html;
+        document.getElementById('section-announcements').classList.remove('hidden');
+      } catch (e) {
+        // 실패 시 조용히 무시 (섹션은 숨겨진 채 유지)
+        console.warn('announcements load failed:', e);
+      }
+    }
+
+    // 접기/펼치기: localStorage 로 상태 보존
+    function toggleAnnouncements() {
+      const list = document.getElementById('announcements-list');
+      const btn = document.getElementById('ann-toggle');
+      const hidden = list.classList.toggle('hidden');
+      btn.textContent = hidden ? '펼치기' : '접기';
+      try { localStorage.setItem('annCollapsed', hidden ? '1' : '0'); } catch(_) {}
+    }
+    // 페이지 로드 시 이전 접기 상태 복원
+    try {
+      if (localStorage.getItem('annCollapsed') === '1') {
+        const list = document.getElementById('announcements-list');
+        const btn = document.getElementById('ann-toggle');
+        if (list) list.classList.add('hidden');
+        if (btn) btn.textContent = '펼치기';
+      }
+    } catch(_) {}
+
+    loadAnnouncements();
 
     // ---------- 저널 필터 ----------
     function buildJournalFilter() {
