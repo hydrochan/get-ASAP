@@ -84,8 +84,16 @@ def is_valid_paper_title(title: str) -> bool:
             return False
 
     # 저널명 그 자체(예: "Chemical Engineering Journal")는 제외
-    if low in _load_journal_names():
+    journal_names = _load_journal_names()
+    if low in journal_names:
         return False
+
+    # 저널명 + 서브타이틀(콜론 표기) 패턴 제외
+    # 예: "Applied Catalysis A: General", "Applied Catalysis B: Environment and Energy"
+    # publishers.json에는 약칭("Applied Catalysis A")만 등록되어 있어도 풀네임을 자동 제거
+    for j in journal_names:
+        if low.startswith(j + ":"):
+            return False
 
     # 단어 수가 너무 적으면 논문 제목으로 보기 어려움
     words = t.split()
