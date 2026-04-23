@@ -1024,6 +1024,9 @@
         } catch {}
       }
       allPapers = frames.filter(r => r.title && r.title.trim());
+      // 전역 sharp→parent 맵 구축 (parseReason 의 자동 재라우팅에 사용)
+      // 반드시 buildTopicFilter/applyFilter 이전에 호출 — 이후 parseReason 들이 이 맵 참조
+      buildSharpToParent(allPapers);
       buildJournalFilter();
       buildTopicFilter();
       populateBroadFilters();
@@ -1451,6 +1454,37 @@
 
     // gpt_reason 파싱: "batteries/solid-electrolytes, biology" → [{broad, sharp}, ...]
     // broad만 있는 토큰(sharp 없음)도 허용
+    // sharpToParent: 전역 sharp → parent broad 맵. buildSharpToParent() 가 한 번 채움.
+    // 과거 비정규화 데이터(broad 자리에 sharp slug)가 들어와도 parent 로 재라우팅.
+    let sharpToParent = {};
+
+    function buildSharpToParent(papers) {
+      // 전체 papers 의 broad/sharp 관계를 집계해 sharp -> {parent: count} 빈도 맵 생성
+      const freq = {};
+      for (const p of papers) {
+        const reason = p.gpt_reason || '';
+        if (!reason) continue;
+        for (const tok of reason.split(',')) {
+          const s = tok.trim().toLowerCase();
+          if (!s) continue;
+          const idx = s.indexOf('/');
+          if (idx < 0) continue;
+          const broad = s.slice(0, idx).trim();
+          const sharp = s.slice(idx + 1).trim();
+          if (!broad || !sharp) continue;
+          (freq[sharp] ||= {})[broad] = (freq[sharp]?.[broad] || 0) + 1;
+        }
+      }
+      // sharp 마다 최빈 parent 선택 (tie 는 알파벳순)
+      const result = {};
+      for (const [sharp, parents] of Object.entries(freq)) {
+        const best = Object.entries(parents)
+          .sort((a, b) => (b[1] - a[1]) || a[0].localeCompare(b[0]))[0][0];
+        result[sharp] = best;
+      }
+      sharpToParent = result;
+    }
+
     function parseReason(reason) {
       if (!reason) return [];
       const out = [];
@@ -1459,7 +1493,12 @@
         if (!s) continue;
         const idx = s.indexOf('/');
         if (idx < 0) {
-          out.push({ broad: s, sharp: null });
+          // broad 자리에 sharp slug 가 온 경우 자동 재라우팅
+          if (sharpToParent[s]) {
+            out.push({ broad: sharpToParent[s], sharp: s });
+          } else {
+            out.push({ broad: s, sharp: null });
+          }
         } else {
           const broad = s.slice(0, idx).trim();
           const sharp = s.slice(idx + 1).trim();
