@@ -22,6 +22,14 @@ logs/
 
 # State (증분 동기화 상태 파일)
 state.json
+state.json.bak
+
+# Local/server backup files
+.env.bak*
+*.bak
+*.bak-*
+*.backup*
+crontab.backup_*.txt
 
 # Planning (GSD workflow artifacts)
 .planning/
@@ -63,3 +71,6 @@ _cleanup_journal_titles.py
 
 # Google Drive conflict copies
 * (1).*
+
+# Local email samples captured on server
+tests/fixtures/*_sample.html
