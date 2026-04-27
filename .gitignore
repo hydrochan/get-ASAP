@@ -46,3 +46,20 @@ access_log.db-shm
 
 #기타
 command.txt
+
+# Local Codex / 운영 메모 (서버 정보 포함 가능)
+AGENTS.md
+
+# One-off local recovery/debug scripts
+_backup_*
+_debug_*
+_fetch_v2_test.py
+_notion_recovery_check.py
+_recovery_loop.py
+_sot_from_notion_export.py
+_test_*
+_union_result.txt
+_cleanup_journal_titles.py
+
+# Google Drive conflict copies
+* (1).*

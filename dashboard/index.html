@@ -2004,29 +2004,38 @@
       const kwLimit = showAll ? 20 : 10;
       const topJ = Object.entries(journalFreq).sort((a,b)=>b[1]-a[1]).slice(0, journalLimit).map(e=>e[0]);
 
-      // 저널별 키워드 빈도 (Per-Row 모드 + % 셀 계산용으로 사전 계산)
+      // 저널별 키워드 빈도 (Per-Row 모드 + % 셀 + top-1 마크 계산용으로 사전 계산)
       const perJournalFreq = {};
+      const topKwPerJournal = {};   // 행별 top-1 키워드 (★ 마킹용)
       for (const j of topJ) {
         const jPapers = filteredPapers.filter(p => p.journal === j);
-        perJournalFreq[j] = { freq: _getHeatmapKw(jPapers), total: jPapers.length };
+        const freq = _getHeatmapKw(jPapers);
+        perJournalFreq[j] = { freq, total: jPapers.length };
+        const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]);
+        topKwPerJournal[j] = sorted.length > 0 ? sorted[0][0] : null;
       }
 
       // 컬럼(키워드) 선정
       let topKws;
+      const globalKw = _getHeatmapKw(filteredPapers);
       if (heatmapColMode === 'perrow') {
         // 행별 top-3 union — 발행량 큰 저널의 키워드 독점 방지
+        // 정렬: vote count(top-3에 든 저널 수) desc → 글로벌 빈도 desc (tie-break)
+        // 효과: 여러 저널이 공감하는 키워드가 앞에, 1~2개 저널만 가진 niche 키워드가 뒤에 분리되어 노출
         const perRowTop = 3;
-        const kwSet = new Set();
+        const voteCount = {};
         for (const j of topJ) {
           const sorted = Object.entries(perJournalFreq[j].freq).sort((a,b)=>b[1]-a[1]);
-          for (let i = 0; i < Math.min(perRowTop, sorted.length); i++) kwSet.add(sorted[i][0]);
+          for (let i = 0; i < Math.min(perRowTop, sorted.length); i++) {
+            const kw = sorted[i][0];
+            voteCount[kw] = (voteCount[kw] || 0) + 1;
+          }
         }
-        // union 컬럼이 너무 많으면 글로벌 빈도 기준으로 cap (가독성)
-        const globalKw = _getHeatmapKw(filteredPapers);
-        topKws = [...kwSet].sort((a,b)=>(globalKw[b]||0)-(globalKw[a]||0)).slice(0, Math.max(kwLimit, 25));
+        topKws = Object.keys(voteCount)
+          .sort((a,b) => (voteCount[b]-voteCount[a]) || (globalKw[b]||0)-(globalKw[a]||0))
+          .slice(0, Math.max(kwLimit, 25));
       } else {
         // 기존 Global 모드
-        const globalKw = _getHeatmapKw(filteredPapers);
         topKws = Object.entries(globalKw).sort((a,b)=>b[1]-a[1]).slice(0, kwLimit).map(e=>e[0]);
       }
 
