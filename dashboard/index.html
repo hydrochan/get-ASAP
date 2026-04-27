@@ -379,13 +379,21 @@
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
           <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Journal &times; Keyword Matrix</h2>
           <div class="flex items-center gap-2 flex-wrap">
-            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
+            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden" title="키워드 뷰: Broad 도메인 / Sharp 세부 키워드">
               <button id="hm-kv-broad" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setHeatmapView('broad')">Broad</button>
               <button id="hm-kv-sharp" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapView('sharp')">Sharp</button>
             </div>
             <select id="hm-broad-filter" class="text-xs border border-slate-200 rounded px-2 py-1 min-w-0 flex-1 sm:flex-none" disabled>
               <option value="">All domains</option>
             </select>
+            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden" title="셀 값: Raw 빈도 / 저널 내 % (각 저널 논문 수로 정규화)">
+              <button id="hm-cm-raw" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setHeatmapCellMode('raw')">Raw</button>
+              <button id="hm-cm-pct" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapCellMode('pct')">%</button>
+            </div>
+            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden" title="컬럼(키워드) 선정: 전역 빈도 top-N / 행별 top-3 union (저널 고유 키워드 노출)">
+              <button id="hm-col-global" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setHeatmapColMode('global')">Global</button>
+              <button id="hm-col-perrow" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapColMode('perrow')">Per-Row</button>
+            </div>
             <button id="hm-expand-btn" class="px-3 py-1 text-[10px] font-bold border border-slate-200 rounded text-slate-500 hover:bg-slate-50 transition-colors whitespace-nowrap" onclick="toggleHeatmapExpand()">
               Expand All
             </button>
@@ -394,6 +402,40 @@
         <div id="heatmap-container" class="overflow-x-auto" style="max-height:500px; overflow-y:auto">
           <table id="heatmap-table" class="text-xs w-auto sm:w-full"></table>
         </div>
+      </section>
+
+      <!-- By Journal Keywords (저널별 top-N 키워드 카드 그리드) -->
+      <section class="card p-4 sm:p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+          <div>
+            <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">By Journal Keywords</h2>
+            <p class="text-[10px] text-slate-400 mt-0.5">각 저널별 자체 top 키워드 — 발행량 큰 저널의 키워드 오염 없이 저널 고유 특성 비교</p>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden" title="키워드 뷰">
+              <button id="bjk-kv-broad" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setBjkView('broad')">Broad</button>
+              <button id="bjk-kv-sharp" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setBjkView('sharp')">Sharp</button>
+            </div>
+            <select id="bjk-broad-filter" class="text-xs border border-slate-200 rounded px-2 py-1" disabled>
+              <option value="">All domains</option>
+            </select>
+            <select id="bjk-journals" class="text-xs border border-slate-200 rounded px-2 py-1" title="표시할 저널 수 (발행량 상위)">
+              <option value="6">Top 6</option>
+              <option value="12" selected>Top 12</option>
+              <option value="24">Top 24</option>
+              <option value="999">All</option>
+            </select>
+            <select id="bjk-keywords" class="text-xs border border-slate-200 rounded px-2 py-1" title="저널별 표시할 키워드 수">
+              <option value="5" selected>5 kw</option>
+              <option value="8">8 kw</option>
+              <option value="10">10 kw</option>
+            </select>
+          </div>
+        </div>
+        <div id="bjk-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- 카드는 renderByJournalKeywords()가 채움 -->
+        </div>
+        <div id="bjk-empty" class="text-xs text-slate-400 hidden">데이터 없음</div>
       </section>
 
       <!-- AI 관심 분석 -->
@@ -1413,6 +1455,7 @@
       renderJournalMonthlyChart();
       renderDailyChart();
       renderHeatmap();
+      renderByJournalKeywords();
       renderInterestAnalysis();
       renderPaperTable();
       // Browse 뷰가 활성화된 경우, 데이터 재로드 시에도 동기화 (allPapers 기반)
@@ -1572,6 +1615,7 @@
       };
       fill(document.getElementById('broad-filter'), broadFilter);
       fill(document.getElementById('hm-broad-filter'), heatmapBroadFilter);
+      fill(document.getElementById('bjk-broad-filter'), bjkBroadFilter);
     }
 
     // 키워드 트렌드
@@ -1895,18 +1939,34 @@
     let heatmapView = 'broad';        // 'broad' | 'sharp'
     let heatmapBroadFilter = '';      // sharp view일 때 특정 broad로 제한
     let heatmapExpanded = window.matchMedia('(min-width: 640px)').matches;  // 데스크탑은 기본 확장
+    let heatmapCellMode = 'raw';      // 'raw' | 'pct' — 셀 값: 빈도 / 저널 내 %
+    let heatmapColMode = 'global';    // 'global' | 'perrow' — 컬럼(키워드) 선정 방식
 
     function _getHeatmapKw(papers) {
       return getFreq(papers, heatmapView, heatmapView === 'sharp' ? heatmapBroadFilter : '');
     }
 
+    function _setToggleActive(activeId, inactiveId) {
+      const a = document.getElementById(activeId);
+      const i = document.getElementById(inactiveId);
+      if (a) a.className = 'px-2.5 py-1 bg-navy-800 text-white';
+      if (i) i.className = 'px-2.5 py-1 text-slate-500 hover:bg-slate-50';
+    }
+
     window.setHeatmapView = function(view) {
       heatmapView = view;
-      const b1 = document.getElementById('hm-kv-broad');
-      const b2 = document.getElementById('hm-kv-sharp');
-      b1.className = (view === 'broad') ? 'px-2.5 py-1 bg-navy-800 text-white' : 'px-2.5 py-1 text-slate-500 hover:bg-slate-50';
-      b2.className = (view === 'sharp') ? 'px-2.5 py-1 bg-navy-800 text-white' : 'px-2.5 py-1 text-slate-500 hover:bg-slate-50';
+      _setToggleActive(view==='broad'?'hm-kv-broad':'hm-kv-sharp', view==='broad'?'hm-kv-sharp':'hm-kv-broad');
       document.getElementById('hm-broad-filter').disabled = (view !== 'sharp');
+      renderHeatmap();
+    };
+    window.setHeatmapCellMode = function(mode) {
+      heatmapCellMode = mode;
+      _setToggleActive(mode==='raw'?'hm-cm-raw':'hm-cm-pct', mode==='raw'?'hm-cm-pct':'hm-cm-raw');
+      renderHeatmap();
+    };
+    window.setHeatmapColMode = function(mode) {
+      heatmapColMode = mode;
+      _setToggleActive(mode==='global'?'hm-col-global':'hm-col-perrow', mode==='global'?'hm-col-perrow':'hm-col-global');
       renderHeatmap();
     };
 
@@ -1939,21 +1999,49 @@
       const journalLimit = showAll ? 999 : 10;
       const kwLimit = showAll ? 20 : 10;
       const topJ = Object.entries(journalFreq).sort((a,b)=>b[1]-a[1]).slice(0, journalLimit).map(e=>e[0]);
-      const globalKw = _getHeatmapKw(filteredPapers);
-      const topKws = Object.entries(globalKw).sort((a,b)=>b[1]-a[1]).slice(0, kwLimit).map(e=>e[0]);
 
+      // 저널별 키워드 빈도 (Per-Row 모드 + % 셀 계산용으로 사전 계산)
+      const perJournalFreq = {};
+      for (const j of topJ) {
+        const jPapers = filteredPapers.filter(p => p.journal === j);
+        perJournalFreq[j] = { freq: _getHeatmapKw(jPapers), total: jPapers.length };
+      }
+
+      // 컬럼(키워드) 선정
+      let topKws;
+      if (heatmapColMode === 'perrow') {
+        // 행별 top-3 union — 발행량 큰 저널의 키워드 독점 방지
+        const perRowTop = 3;
+        const kwSet = new Set();
+        for (const j of topJ) {
+          const sorted = Object.entries(perJournalFreq[j].freq).sort((a,b)=>b[1]-a[1]);
+          for (let i = 0; i < Math.min(perRowTop, sorted.length); i++) kwSet.add(sorted[i][0]);
+        }
+        // union 컬럼이 너무 많으면 글로벌 빈도 기준으로 cap (가독성)
+        const globalKw = _getHeatmapKw(filteredPapers);
+        topKws = [...kwSet].sort((a,b)=>(globalKw[b]||0)-(globalKw[a]||0)).slice(0, Math.max(kwLimit, 25));
+      } else {
+        // 기존 Global 모드
+        const globalKw = _getHeatmapKw(filteredPapers);
+        topKws = Object.entries(globalKw).sort((a,b)=>b[1]-a[1]).slice(0, kwLimit).map(e=>e[0]);
+      }
+
+      // matrix 채우기 (raw 빈도 + % 동시 계산)
       const matrix = {};
       let maxVal = 1;
       for (const j of topJ) {
         matrix[j] = {};
-        const jPapers = filteredPapers.filter(p => p.journal === j);
-        const kwF = _getHeatmapKw(jPapers);
+        const { freq, total } = perJournalFreq[j];
         for (const kw of topKws) {
-          const v = kwF[kw]||0;
-          matrix[j][kw] = v;
+          const raw = freq[kw] || 0;
+          const pct = total > 0 ? (raw / total * 100) : 0;
+          matrix[j][kw] = { raw, pct };
+          const v = heatmapCellMode === 'pct' ? pct : raw;
           if (v > maxVal) maxVal = v;
         }
       }
+      // % 모드 색조는 0~100 스케일 고정 (저널 간 비교성 ↑)
+      const colorMax = heatmapCellMode === 'pct' ? 100 : maxVal;
 
       let html = '<thead class="sticky top-0 z-10"><tr><th class="px-2 py-2 text-left text-slate-400 font-bold sticky left-0 bg-white z-20"></th>';
       for (const kw of topKws) {
@@ -1961,18 +2049,117 @@
       }
       html += '</tr></thead><tbody>';
       for (const j of topJ) {
-        html += `<tr><td class="px-2 py-1.5 font-semibold text-navy-900 whitespace-nowrap sticky left-0 bg-white">${j.length>30?j.slice(0,28)+'..':j}</td>`;
+        const total = perJournalFreq[j].total;
+        const jLabel = `${j.length>30?j.slice(0,28)+'..':j} <span class="text-slate-400 font-normal">(${total})</span>`;
+        html += `<tr><td class="px-2 py-1.5 font-semibold text-navy-900 whitespace-nowrap sticky left-0 bg-white">${jLabel}</td>`;
         for (const kw of topKws) {
-          const v = matrix[j][kw];
-          const intensity = v / maxVal;
-          const bg = v===0?'#F8F9FA':`rgba(0,47,108,${0.1+intensity*0.8})`;
+          const cell = matrix[j][kw];
+          const v = heatmapCellMode === 'pct' ? cell.pct : cell.raw;
+          const intensity = v / colorMax;
+          const bg = v===0?'#F8F9FA':`rgba(0,47,108,${0.1+Math.min(intensity,1)*0.8})`;
           const tc = intensity>0.5?'white':'#001B44';
-          html += `<td class="px-2 py-1.5 text-center font-semibold" style="background:${bg};color:${tc}">${v||''}</td>`;
+          // 표시 텍스트 + tooltip(반대 단위 동시 노출)
+          const display = heatmapCellMode === 'pct' ? (v>0 ? v.toFixed(1)+'%' : '') : (v||'');
+          const tip = `${kw} @ ${j}\nRaw: ${cell.raw} / ${total}\n%: ${cell.pct.toFixed(1)}%`;
+          html += `<td class="px-2 py-1.5 text-center font-semibold" style="background:${bg};color:${tc}" title="${tip.replace(/"/g,'&quot;')}">${display}</td>`;
         }
         html += '</tr>';
       }
       html += '</tbody>';
       document.getElementById('heatmap-table').innerHTML = html;
+    }
+
+    // ---------- By Journal Keywords (저널별 카드 그리드) ----------
+    let bjkView = 'broad';            // 'broad' | 'sharp'
+    let bjkBroadFilter = '';
+    let bjkTopJournals = 12;
+    let bjkTopKeywords = 5;
+
+    window.setBjkView = function(view) {
+      bjkView = view;
+      _setToggleActive(view==='broad'?'bjk-kv-broad':'bjk-kv-sharp', view==='broad'?'bjk-kv-sharp':'bjk-kv-broad');
+      document.getElementById('bjk-broad-filter').disabled = (view !== 'sharp');
+      renderByJournalKeywords();
+    };
+
+    document.getElementById('bjk-broad-filter').addEventListener('change', (e) => {
+      bjkBroadFilter = e.target.value;
+      renderByJournalKeywords();
+    });
+    document.getElementById('bjk-journals').addEventListener('change', (e) => {
+      bjkTopJournals = parseInt(e.target.value);
+      renderByJournalKeywords();
+    });
+    document.getElementById('bjk-keywords').addEventListener('change', (e) => {
+      bjkTopKeywords = parseInt(e.target.value);
+      renderByJournalKeywords();
+    });
+
+    function renderByJournalKeywords() {
+      const grid = document.getElementById('bjk-grid');
+      const empty = document.getElementById('bjk-empty');
+      if (!grid) return;
+
+      // 저널별 발행 수 집계
+      const journalCount = {};
+      for (const p of filteredPapers) {
+        if (p.journal) journalCount[p.journal] = (journalCount[p.journal]||0)+1;
+      }
+      const topJournals = Object.entries(journalCount)
+        .sort((a,b)=>b[1]-a[1])
+        .slice(0, bjkTopJournals)
+        .map(e => e[0]);
+
+      if (topJournals.length === 0) {
+        grid.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      // 카드 HTML 생성
+      const cards = topJournals.map(j => {
+        const jPapers = filteredPapers.filter(p => p.journal === j);
+        const total = jPapers.length;
+        const freq = getFreq(jPapers, bjkView, bjkView === 'sharp' ? bjkBroadFilter : '');
+        const top = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0, bjkTopKeywords);
+
+        if (top.length === 0) {
+          return `
+            <div class="border border-slate-200 rounded-lg p-3">
+              <div class="flex items-baseline justify-between gap-2 mb-2">
+                <h3 class="text-xs font-bold text-navy-900 truncate" title="${_escapeHtml(j)}">${_escapeHtml(j)}</h3>
+                <span class="text-[10px] text-slate-400 font-semibold whitespace-nowrap">${total} papers</span>
+              </div>
+              <p class="text-[10px] text-slate-400">키워드 데이터 없음</p>
+            </div>`;
+        }
+
+        const maxFreq = top[0][1];
+        const bars = top.map(([kw, n]) => {
+          const pct = total > 0 ? (n / total * 100) : 0;
+          const barW = (n / maxFreq * 100).toFixed(1);
+          return `
+            <li class="flex items-center gap-2 text-[11px]">
+              <span class="flex-1 truncate font-medium text-navy-900" title="${_escapeHtml(kw)}">${_escapeHtml(kw)}</span>
+              <div class="w-20 h-2 bg-slate-100 rounded-full overflow-hidden flex-shrink-0">
+                <div class="h-full bg-navy-800 rounded-full" style="width:${barW}%"></div>
+              </div>
+              <span class="w-14 text-right text-slate-500 font-mono text-[10px] whitespace-nowrap">${n} · ${pct.toFixed(0)}%</span>
+            </li>`;
+        }).join('');
+
+        return `
+          <div class="border border-slate-200 rounded-lg p-3 hover:border-navy-800 transition-colors">
+            <div class="flex items-baseline justify-between gap-2 mb-2 pb-2 border-b border-slate-100">
+              <h3 class="text-xs font-bold text-navy-900 truncate" title="${_escapeHtml(j)}">${_escapeHtml(j)}</h3>
+              <span class="text-[10px] text-slate-400 font-semibold whitespace-nowrap">${total} papers</span>
+            </div>
+            <ul class="space-y-1.5">${bars}</ul>
+          </div>`;
+      }).join('');
+
+      grid.innerHTML = cards;
     }
 
     // AI 관심 분석
