@@ -430,6 +430,10 @@
               <option value="8">8 kw</option>
               <option value="10">10 kw</option>
             </select>
+            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden" title="카드 정렬: 발행량 내림차순 / 저널명 알파벳순">
+              <button id="bjk-sort-count" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setBjkSortMode('count')">#</button>
+              <button id="bjk-sort-alpha" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setBjkSortMode('alpha')">A-Z</button>
+            </div>
           </div>
         </div>
         <div id="bjk-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -2074,11 +2078,17 @@
     let bjkBroadFilter = '';
     let bjkTopJournals = 12;
     let bjkTopKeywords = 5;
+    let bjkSortMode = 'count';        // 'count' | 'alpha' — 카드 정렬 방식
 
     window.setBjkView = function(view) {
       bjkView = view;
       _setToggleActive(view==='broad'?'bjk-kv-broad':'bjk-kv-sharp', view==='broad'?'bjk-kv-sharp':'bjk-kv-broad');
       document.getElementById('bjk-broad-filter').disabled = (view !== 'sharp');
+      renderByJournalKeywords();
+    };
+    window.setBjkSortMode = function(mode) {
+      bjkSortMode = mode;
+      _setToggleActive(mode==='count'?'bjk-sort-count':'bjk-sort-alpha', mode==='count'?'bjk-sort-alpha':'bjk-sort-count');
       renderByJournalKeywords();
     };
 
@@ -2105,10 +2115,15 @@
       for (const p of filteredPapers) {
         if (p.journal) journalCount[p.journal] = (journalCount[p.journal]||0)+1;
       }
-      const topJournals = Object.entries(journalCount)
+      // 1) 발행량 상위 N개 저널 선정 (#/A-Z 모드 모두 동일)
+      let topJournals = Object.entries(journalCount)
         .sort((a,b)=>b[1]-a[1])
         .slice(0, bjkTopJournals)
         .map(e => e[0]);
+      // 2) 알파벳 모드면 추린 결과를 저널명 오름차순 재정렬
+      if (bjkSortMode === 'alpha') {
+        topJournals = [...topJournals].sort((a,b) => a.localeCompare(b));
+      }
 
       if (topJournals.length === 0) {
         grid.innerHTML = '';
