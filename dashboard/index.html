@@ -374,38 +374,8 @@
         </div>
       </section>
 
-      <!-- 저널 × 키워드 히트맵 -->
-      <section class="card p-4 sm:p-6">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Journal &times; Keyword Matrix</h2>
-          <div class="flex items-center gap-2 flex-wrap">
-            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden" title="키워드 뷰: Broad 도메인 / Sharp 세부 키워드">
-              <button id="hm-kv-broad" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setHeatmapView('broad')">Broad</button>
-              <button id="hm-kv-sharp" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapView('sharp')">Sharp</button>
-            </div>
-            <select id="hm-broad-filter" class="text-xs border border-slate-200 rounded px-2 py-1 min-w-0 flex-1 sm:flex-none" disabled>
-              <option value="">All domains</option>
-            </select>
-            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden" title="셀 값: Raw 빈도 / 저널 내 % (각 저널 논문 수로 정규화)">
-              <button id="hm-cm-raw" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setHeatmapCellMode('raw')">Raw</button>
-              <button id="hm-cm-pct" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapCellMode('pct')">%</button>
-            </div>
-            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden" title="컬럼(키워드) 선정: 전역 빈도 top-N / 행별 top-3 union (저널 고유 키워드 노출)">
-              <button id="hm-col-global" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setHeatmapColMode('global')">Global</button>
-              <button id="hm-col-perrow" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapColMode('perrow')">Per-Row</button>
-            </div>
-            <button id="hm-expand-btn" class="px-3 py-1 text-[10px] font-bold border border-slate-200 rounded text-slate-500 hover:bg-slate-50 transition-colors whitespace-nowrap" onclick="toggleHeatmapExpand()">
-              Expand All
-            </button>
-          </div>
-        </div>
-        <div id="heatmap-container" class="overflow-x-auto" style="max-height:500px; overflow-y:auto">
-          <table id="heatmap-table" class="text-xs w-auto sm:w-full"></table>
-        </div>
-      </section>
-
       <!-- By Journal Keywords (저널별 top-N 키워드 카드 그리드) -->
-      <section class="card p-4 sm:p-6">
+      <section id="section-by-journal-keywords" class="card p-4 sm:p-6">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
           <div>
             <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">By Journal Keywords</h2>
@@ -440,6 +410,36 @@
           <!-- 카드는 renderByJournalKeywords()가 채움 -->
         </div>
         <div id="bjk-empty" class="text-xs text-slate-400 hidden">데이터 없음</div>
+      </section>
+
+      <!-- 저널 × 키워드 히트맵 -->
+      <section id="section-journal-keyword-matrix" class="card p-4 sm:p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Journal &times; Keyword Matrix</h2>
+          <div class="flex items-center gap-2 flex-wrap">
+            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden" title="키워드 뷰: Broad 도메인 / Sharp 세부 키워드">
+              <button id="hm-kv-broad" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setHeatmapView('broad')">Broad</button>
+              <button id="hm-kv-sharp" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapView('sharp')">Sharp</button>
+            </div>
+            <select id="hm-broad-filter" class="text-xs border border-slate-200 rounded px-2 py-1 min-w-0 flex-1 sm:flex-none" disabled>
+              <option value="">All domains</option>
+            </select>
+            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden" title="셀 값: Raw 빈도 / 저널 내 % (각 저널 논문 수로 정규화)">
+              <button id="hm-cm-raw" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setHeatmapCellMode('raw')">Raw</button>
+              <button id="hm-cm-pct" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapCellMode('pct')">%</button>
+            </div>
+            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden" title="컬럼(키워드) 선정: 전역 빈도 top-N / 행별 top-3 union (저널 고유 키워드 노출)">
+              <button id="hm-col-global" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setHeatmapColMode('global')">Global</button>
+              <button id="hm-col-perrow" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapColMode('perrow')">Per-Row</button>
+            </div>
+            <button id="hm-expand-btn" class="px-3 py-1 text-[10px] font-bold border border-slate-200 rounded text-slate-500 hover:bg-slate-50 transition-colors whitespace-nowrap" onclick="toggleHeatmapExpand()">
+              Expand All
+            </button>
+          </div>
+        </div>
+        <div id="heatmap-container" class="overflow-x-auto" style="max-height:500px; overflow-y:auto">
+          <table id="heatmap-table" class="text-xs w-auto sm:w-full"></table>
+        </div>
       </section>
 
       <!-- AI 관심 분석 -->
