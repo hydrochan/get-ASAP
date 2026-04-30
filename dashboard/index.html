@@ -2035,8 +2035,8 @@
           .sort((a,b) => (voteCount[b]-voteCount[a]) || (globalKw[b]||0)-(globalKw[a]||0))
           .slice(0, Math.max(kwLimit, 25));
       } else {
-        // 기존 Global 모드
-        topKws = Object.entries(globalKw).sort((a,b)=>b[1]-a[1]).slice(0, kwLimit).map(e=>e[0]);
+        // Global 모드도 Per-Row와 같은 최소 컬럼 수를 유지
+        topKws = Object.entries(globalKw).sort((a,b)=>b[1]-a[1]).slice(0, Math.max(kwLimit, 25)).map(e=>e[0]);
       }
 
       // matrix 채우기 (raw 빈도 + % 동시 계산)
