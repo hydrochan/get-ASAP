@@ -355,7 +355,13 @@
       <!-- 저널 빈도 + 저널별 월별 -->
       <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="card p-4 sm:p-6">
-          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Journal Frequency</h2>
+          <div class="flex items-center gap-2 mb-4">
+            <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] whitespace-nowrap">Journal Frequency</h2>
+            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
+              <button id="jf-period-week" class="px-2 py-1 bg-navy-800 text-white" onclick="setJfPeriod('week')">Week</button>
+              <button id="jf-period-month" class="px-2 py-1 text-slate-500 hover:bg-slate-50" onclick="setJfPeriod('month')">Month</button>
+            </div>
+          </div>
           <div class="chart-container" style="height:360px">
             <canvas id="chart-journal"></canvas>
           </div>
@@ -943,6 +949,7 @@
     let broadFilter = '';            // '' or specific broad domain (sharp view 필터)
     let expandedBroads = new Set();  // Top Keywords 트리에서 펼쳐진 broad 목록
     // 차트별 독립 period 모드
+    let jfPeriodMode = 'week';        // Journal Frequency
     let kwPeriodMode = 'week';        // Keyword Trends
     let jmPeriodMode = 'week';        // Top Journals Trend
     let dailyPeriodMode = 'day';      // Daily Paper Count: 'day' | 'week' | 'month'
@@ -985,6 +992,11 @@
       kwPeriodMode = mode;
       _updatePeriodButtons('kw-period', mode, ['month','week']);
       renderKeywordChart();
+    };
+    window.setJfPeriod = function(mode) {
+      jfPeriodMode = mode;
+      _updatePeriodButtons('jf-period', mode, ['week','month']);
+      renderJournalChart();
     };
     window.setJmPeriod = function(mode) {
       jmPeriodMode = mode;
@@ -1824,21 +1836,39 @@
     // 저널 빈도
     function renderJournalChart() {
       const freq = {};
+      const periods = new Set();
       for (const p of filteredPapers) {
+        const period = periodKey(p.date || '', jfPeriodMode);
+        if (period) periods.add(period);
         if (p.journal) freq[p.journal] = (freq[p.journal]||0)+1;
       }
-      const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0, 15);
+      const divisor = Math.max(1, periods.size);
+      const sorted = Object.entries(freq)
+        .map(([journal, count]) => [journal, count / divisor, count])
+        .sort((a,b)=>b[1]-a[1])
+        .slice(0, 15);
+      const unit = jfPeriodMode === 'week' ? 'week' : 'month';
 
       if (charts.journal) charts.journal.destroy();
       charts.journal = new Chart(document.getElementById('chart-journal'), {
         type: 'bar',
         data: {
           labels: sorted.map(e => e[0].length > 28 ? e[0].slice(0,25)+'...' : e[0]),
-          datasets: [{ data: sorted.map(e=>e[1]), backgroundColor: '#002F6C', borderRadius: 4 }]
+          datasets: [{ data: sorted.map(e=>Number(e[1].toFixed(2))), backgroundColor: '#002F6C', borderRadius: 4 }]
         },
         options: {
           indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  const row = sorted[ctx.dataIndex];
+                  return `${row[1].toFixed(2)} papers / ${unit} (${row[2]} total)`;
+                }
+              }
+            }
+          },
           scales: {
             x: { beginAtZero: true, ticks: { font: { size: 10 } } },
             y: { ticks: { font: { size: 10, family: 'Manrope' } } }
