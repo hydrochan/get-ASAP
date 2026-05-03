@@ -154,6 +154,7 @@ flowchart LR
 | `DASHBOARD_USERS` | ✓ | `{"user":"bcrypt_hash"}` JSON |
 | `DASHBOARD_ADMINS` | ✓ | 관리자 username (쉼표 구분) |
 | `DASHBOARD_USER_PROFILES` | | 사용자별 숨김 섹션 · 포커스 프로필 매핑 (JSON) |
+| `CACHE_REFRESH_LOOKBACK_MONTHS` | | CSV 강제 갱신 시 현재 월과 함께 다시 읽을 이전 월 수, 기본 1 |
 | `GMAIL_CREDENTIALS_PATH` | | 기본 `credentials.json` |
 | `GMAIL_TOKEN_PATH` | | 기본 `token.json` |
 </details>

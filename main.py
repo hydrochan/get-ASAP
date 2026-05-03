@@ -96,17 +96,36 @@ def _extract_header(headers: list[dict], name: str) -> str:
 # ---------- 캐시 CSV 증분 저장 ----------
 
 def _refresh_cache_from_notion() -> None:
-    """현재 월 Notion DB를 통째로 읽어 cache/papers_YYYY-MM.csv를 재생성.
+    """최근 월 Notion DB를 통째로 읽어 cache/papers_YYYY-MM.csv를 재생성.
 
     진실의 원천(Source of Truth)은 Notion이며, 캐시는 대시보드 서빙용 스냅샷.
     cron 실행 마지막에 호출되어 Notion ↔ 캐시 드리프트를 제거한다.
     """
     try:
         from datetime import date
-        from analytics.notion_fetcher import fetch_papers
-        month = date.today().strftime("%Y-%m")
-        df = fetch_papers(month, month, force_refresh=True)
-        logger.info("캐시 재생성 완료: %s (%d건)", month, len(df))
+        from analytics.notion_fetcher import fetch_papers, recent_month_range
+
+        raw_lookback = os.getenv("CACHE_REFRESH_LOOKBACK_MONTHS", "1")
+        try:
+            lookback_months = max(0, int(raw_lookback))
+        except ValueError:
+            logger.warning(
+                "CACHE_REFRESH_LOOKBACK_MONTHS 값이 잘못되어 기본값 1 사용: %s",
+                raw_lookback,
+            )
+            lookback_months = 1
+
+        start_month, end_month = recent_month_range(
+            date.today(),
+            lookback_months=lookback_months,
+        )
+        df = fetch_papers(start_month, end_month, force_refresh=True)
+        logger.info(
+            "캐시 재생성 완료: %s~%s (%d건)",
+            start_month,
+            end_month,
+            len(df),
+        )
     except Exception as e:
         logger.warning("캐시 재생성 실패: %s", e)
 

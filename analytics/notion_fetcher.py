@@ -82,6 +82,26 @@ def _generate_months(start: str, end: str) -> list[str]:
     return months
 
 
+def recent_month_range(today: date | None = None, lookback_months: int = 1) -> tuple[str, str]:
+    """캐시 강제 갱신용 최근 월 범위를 반환.
+
+    기본값은 전월~현재월이다. 월말 논문은 다음 달에 하류 분류가 끝날 수 있으므로
+    현재 월만 갱신하면 전월 말 CSV가 오래된 `GPT Reason` 값을 계속 들고 있을 수 있다.
+    """
+    today = today or date.today()
+    lookback_months = max(0, int(lookback_months))
+
+    start_year = today.year
+    start_month = today.month - lookback_months
+    while start_month <= 0:
+        start_month += 12
+        start_year -= 1
+
+    start = f"{start_year:04d}-{start_month:02d}"
+    end = today.strftime("%Y-%m")
+    return start, end
+
+
 def find_monthly_dbs(parent_page_id: str, start: str, end: str) -> dict[str, str]:
     """기간 내 존재하는 월별 DB의 {month: db_id} 딕셔너리 반환"""
     months = _generate_months(start, end)

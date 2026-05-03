@@ -87,6 +87,31 @@ class TestFindMonthlyDbs:
         assert mock_find.call_count == 3
 
 
+class TestRecentMonthRange:
+    """캐시 강제 갱신 대상 월 범위 계산 테스트"""
+
+    def test_default_includes_previous_and_current_month(self):
+        from analytics.notion_fetcher import recent_month_range
+
+        assert recent_month_range(date(2026, 5, 3)) == ("2026-04", "2026-05")
+
+    def test_year_boundary(self):
+        from analytics.notion_fetcher import recent_month_range
+
+        assert recent_month_range(date(2026, 1, 2), lookback_months=1) == (
+            "2025-12",
+            "2026-01",
+        )
+
+    def test_zero_lookback_only_current_month(self):
+        from analytics.notion_fetcher import recent_month_range
+
+        assert recent_month_range(date(2026, 5, 3), lookback_months=0) == (
+            "2026-05",
+            "2026-05",
+        )
+
+
 class TestCaching:
     """CSV 캐싱 동작 테스트"""
 
