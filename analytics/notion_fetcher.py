@@ -1,0 +1,296 @@
+"""Notion 월별 DB에서 논문 데이터를 fetch하여 pandas DataFrame으로 변환.
+
+기존 notion_client_mod.py의 _find_monthly_db()를 재활용.
+CSV 캐싱으로 반복 API 호출 방지.
+"""
+import logging
+import os
+from datetime import date, datetime, timedelta
+
+import pandas as pd
+
+import config
+import httpx
+
+from notion_client_mod import _find_monthly_db
+
+logger = logging.getLogger(__name__)
+
+CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cache")
+PAPER_COLUMNS = ["title", "journal", "date", "url", "status", "gpt_reason"]
+
+
+def _parse_pages(pages: list[dict]) -> pd.DataFrame:
+    """Notion API page 목록 → DataFrame 변환"""
+    records = []
+    for page in pages:
+        props = page.get("properties", {})
+
+        # Title
+        title_arr = props.get("Title", {}).get("title", [])
+        title = title_arr[0].get("plain_text", "") if title_arr else ""
+
+        # Journal
+        journal_sel = props.get("Journal", {}).get("select")
+        journal = journal_sel.get("name", "") if journal_sel else ""
+
+        # Date
+        date_obj = props.get("Date", {}).get("date")
+        date_str = date_obj.get("start", "") if date_obj else ""
+
+        # URL
+        url = props.get("URL", {}).get("url", "") or ""
+
+        # Status
+        status_sel = props.get("Status", {}).get("select")
+        status = status_sel.get("name", "") if status_sel else ""
+
+        # GPT Reason (rich_text) — 조각들을 이어붙여 단일 문자열로
+        reason_arr = props.get("GPT Reason", {}).get("rich_text", [])
+        gpt_reason = "".join(
+            seg.get("plain_text", "") for seg in reason_arr
+        ) if reason_arr else ""
+
+        records.append({
+            "title": title,
+            "journal": journal,
+            "date": date_str,
+            "url": url,
+            "status": status,
+            "gpt_reason": gpt_reason,
+        })
+
+    df = pd.DataFrame(records, columns=PAPER_COLUMNS)
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    return df
+
+
+def _generate_months(start: str, end: str) -> list[str]:
+    """'YYYY-MM' 범위의 월 목록 생성 (inclusive)"""
+    from datetime import datetime
+
+    s = datetime.strptime(start, "%Y-%m")
+    e = datetime.strptime(end, "%Y-%m")
+    months = []
+    current = s
+    while current <= e:
+        months.append(current.strftime("%Y-%m"))
+        if current.month == 12:
+            current = current.replace(year=current.year + 1, month=1)
+        else:
+            current = current.replace(month=current.month + 1)
+    return months
+
+
+def recent_month_range(today: date | None = None, lookback_months: int = 1) -> tuple[str, str]:
+    """캐시 강제 갱신용 최근 월 범위를 반환.
+
+    기본값은 전월~현재월이다. 월말 논문은 다음 달에 하류 분류가 끝날 수 있으므로
+    현재 월만 갱신하면 전월 말 CSV가 오래된 `GPT Reason` 값을 계속 들고 있을 수 있다.
+    """
+    today = today or date.today()
+    lookback_months = max(0, int(lookback_months))
+
+    start_year = today.year
+    start_month = today.month - lookback_months
+    while start_month <= 0:
+        start_month += 12
+        start_year -= 1
+
+    start = f"{start_year:04d}-{start_month:02d}"
+    end = today.strftime("%Y-%m")
+    return start, end
+
+
+def find_monthly_dbs(parent_page_id: str, start: str, end: str) -> dict[str, str]:
+    """기간 내 존재하는 월별 DB의 {month: db_id} 딕셔너리 반환"""
+    months = _generate_months(start, end)
+    result = {}
+    for month in months:
+        db_id = _find_monthly_db(parent_page_id, month)
+        if db_id:
+            result[month] = db_id
+    return result
+
+
+def _fetch_pages(database_id: str, filter_payload: dict | None = None) -> list[dict]:
+    """DB 페이지를 pagination하며 fetch
+
+    Notion REST API POST /databases/{id}/query 직접 호출.
+    data_sources.query의 필터 버그를 우회하기 위해 httpx 사용.
+    """
+    headers = {
+        "Authorization": f"Bearer {config.NOTION_TOKEN}",
+        "Notion-Version": "2022-06-28",
+        "Content-Type": "application/json",
+    }
+    url = f"https://api.notion.com/v1/databases/{database_id}/query"
+
+    all_pages = []
+    cursor = None
+    while True:
+        payload = {"page_size": 100}
+        if filter_payload:
+            payload["filter"] = filter_payload
+        if cursor:
+            payload["start_cursor"] = cursor
+        resp = httpx.post(url, headers=headers, json=payload, timeout=30)
+        resp.raise_for_status()
+        result = resp.json()
+        all_pages.extend(result.get("results", []))
+        if not result.get("has_more"):
+            break
+        cursor = result.get("next_cursor")
+    return all_pages
+
+
+def _fetch_all_pages(database_id: str) -> list[dict]:
+    """DB의 모든 페이지를 무필터로 fetch.
+
+    10,000건 이상 조회가 필요한 캐시 갱신 경로에서는 _fetch_month_pages()를 쓴다.
+    """
+    return _fetch_pages(database_id)
+
+
+def _weekly_ranges(month: str) -> list[tuple[str, str]]:
+    """'YYYY-MM' 월을 Notion Date 필터용 [start, next_week) 주 단위 구간으로 분해."""
+    start = datetime.strptime(f"{month}-01", "%Y-%m-%d").date()
+    if start.month == 12:
+        end = start.replace(year=start.year + 1, month=1)
+    else:
+        end = start.replace(month=start.month + 1)
+
+    ranges = []
+    current = start
+    while current < end:
+        next_week = min(current + timedelta(days=7), end)
+        ranges.append((current.isoformat(), next_week.isoformat()))
+        current = next_week
+    return ranges
+
+
+def _date_range_filter(start: str, end: str) -> dict:
+    """Date가 start 이상, end 미만인 페이지를 찾는 Notion 필터."""
+    return {
+        "and": [
+            {"property": "Date", "date": {"on_or_after": start}},
+            {"property": "Date", "date": {"before": end}},
+        ]
+    }
+
+
+def _date_before_filter(end: str) -> dict:
+    """Date가 end보다 이른 페이지를 찾는 Notion 필터."""
+    return {"property": "Date", "date": {"before": end}}
+
+
+def _date_on_or_after_filter(start: str) -> dict:
+    """Date가 start 이상인 페이지를 찾는 Notion 필터."""
+    return {"property": "Date", "date": {"on_or_after": start}}
+
+
+def _empty_date_filter() -> dict:
+    """Date가 비어 있는 페이지를 찾는 Notion 필터."""
+    return {"property": "Date", "date": {"is_empty": True}}
+
+
+def _fetch_month_pages(database_id: str, month: str) -> list[dict]:
+    """월별 DB를 주 단위 Date 필터로 나눠 fetch.
+
+    Notion query 한 번당 결과 상한에 걸리지 않도록 현재/과거 월 캐시 갱신은
+    주 단위로 쪼갠다. Date가 월 밖이거나 비어 있는 예외 페이지도 별도 조회한다.
+    """
+    all_pages = []
+    seen_page_ids = set()
+
+    def add_pages(pages: list[dict]) -> None:
+        for page in pages:
+            page_id = page.get("id")
+            if page_id and page_id in seen_page_ids:
+                continue
+            if page_id:
+                seen_page_ids.add(page_id)
+            all_pages.append(page)
+
+    ranges = _weekly_ranges(month)
+    month_start = ranges[0][0]
+    month_end = ranges[-1][1]
+
+    add_pages(_fetch_pages(database_id, _date_before_filter(month_start)))
+
+    for start, end in ranges:
+        pages = _fetch_pages(database_id, _date_range_filter(start, end))
+        add_pages(pages)
+
+    add_pages(_fetch_pages(database_id, _date_on_or_after_filter(month_end)))
+    add_pages(_fetch_pages(database_id, _empty_date_filter()))
+    return all_pages
+
+
+def _save_cache(df: pd.DataFrame, month: str, cache_dir: str = None) -> None:
+    """DataFrame을 CSV 캐시로 저장"""
+    cache_dir = cache_dir or CACHE_DIR
+    os.makedirs(cache_dir, exist_ok=True)
+    path = os.path.join(cache_dir, f"papers_{month}.csv")
+    # 제목에 쉼표 포함 가능 → 모든 필드를 따옴표로 감싸서 저장
+    import csv
+    df.to_csv(path, index=False, quoting=csv.QUOTE_ALL, encoding="utf-8-sig")
+    logger.info("캐시 저장: %s (%d건)", path, len(df))
+
+
+def _load_cache(month: str, cache_dir: str = None) -> pd.DataFrame | None:
+    """CSV 캐시에서 DataFrame 로드. 없으면 None."""
+    cache_dir = cache_dir or CACHE_DIR
+    path = os.path.join(cache_dir, f"papers_{month}.csv")
+    if not os.path.exists(path):
+        return None
+    df = pd.read_csv(path)
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    logger.info("캐시 로드: %s (%d건)", path, len(df))
+    return df
+
+
+def fetch_papers(
+    start: str, end: str, force_refresh: bool = False
+) -> pd.DataFrame:
+    """기간 내 논문 데이터를 fetch (캐시 우선, 현재 월은 항상 re-fetch).
+
+    Args:
+        start: 시작 월 (YYYY-MM)
+        end: 종료 월 (YYYY-MM)
+        force_refresh: True이면 캐시 무시하고 전부 re-fetch
+
+    Returns:
+        전체 기간 논문 DataFrame
+    """
+    parent_page_id = config.NOTION_PARENT_PAGE_ID
+    if not parent_page_id:
+        raise ValueError("NOTION_PARENT_PAGE_ID 환경변수가 필요합니다.")
+
+    current_month = date.today().strftime("%Y-%m")
+    db_map = find_monthly_dbs(parent_page_id, start, end)
+
+    if not db_map:
+        logger.warning("기간 %s ~ %s에 해당하는 DB가 없습니다.", start, end)
+        df = pd.DataFrame(columns=PAPER_COLUMNS)
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        return df
+
+    frames = []
+    for month, db_id in db_map.items():
+        # 현재 월이거나 강제 갱신이면 API에서 fetch
+        if month == current_month or force_refresh:
+            logger.info("API fetch: get-ASAP %s", month)
+            pages = _fetch_month_pages(db_id, month)
+            df = _parse_pages(pages)
+            _save_cache(df, month)
+        else:
+            df = _load_cache(month)
+            if df is None:
+                logger.info("캐시 없음, API fetch: get-ASAP %s", month)
+                pages = _fetch_month_pages(db_id, month)
+                df = _parse_pages(pages)
+                _save_cache(df, month)
+        frames.append(df)
+
+    return pd.concat(frames, ignore_index=True)

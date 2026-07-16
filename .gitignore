@@ -1,0 +1,86 @@
+# 인증 파일 (절대 커밋 금지)
+.env
+token.json
+credentials.json
+*.pem
+*.key
+ssh-key*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+logs/
+
+# State (증분 동기화 상태 파일)
+state.json
+state.json.bak
+
+# Local/server backup files
+.env.bak*
+*.bak
+*.bak-*
+*.backup*
+crontab.backup_*.txt
+
+# Planning (GSD workflow artifacts)
+.planning/
+
+# Claude Code (운영 세부정보 포함 — 공개 금지)
+.claude/
+CLAUDE.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Analytics
+cache/
+reports/
+
+# Dashboard access log DB (로컬/서버 각각 유지)
+access_log.db
+access_log.db-journal
+access_log.db-wal
+access_log.db-shm
+
+#기타
+command.txt
+
+# Local Codex / 운영 메모 (서버 정보 포함 가능)
+AGENTS.md
+
+# One-off local recovery/debug scripts
+_backup_*
+_debug_*
+_fetch_v2_test.py
+_notion_recovery_check.py
+_recovery_loop.py
+_sot_from_notion_export.py
+_test_*
+_union_result.txt
+_cleanup_journal_titles.py
+
+# Google Drive conflict copies
+* (1).*
+
+# Local email samples captured on server
+tests/fixtures/*_sample.html
+
+# Public-launch runbook (ops 문서 — 필요 시 커밋 해제)
+PUBLIC_LAUNCH.md
+
+# Tests (공개 레포 제외 — 서버 미사용, fixtures에 실제 수신 메일 포함)
+tests/
+
+# 로컬 작업 파일 (공개 금지)
+outreach-email-director-lee.md
+.filenignore

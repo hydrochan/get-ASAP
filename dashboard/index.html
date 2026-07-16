@@ -1,0 +1,3696 @@
+<!DOCTYPE html>
+<!--
+  get-ASAP Analytics Dashboard
+  Copyright (c) 2026 Chan Kim (@hydro_chan). All rights reserved.
+  Proprietary and confidential. Unauthorized copying, reproduction, modification,
+  or distribution of this file or any part of this project, via any medium, is
+  strictly prohibited. See the LICENSE file for terms.
+-->
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>get-ASAP Analytics</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Manrope', 'sans-serif'] },
+          colors: {
+            navy: { 900: '#001B44', 800: '#002F6C', 700: '#003D8F', 600: '#1A56A8' },
+            slate: { 50: '#F8F9FA', 100: '#F3F4F5', 200: '#E5E7EB', 300: '#D1D5DB', 400: '#9CA3AF', 500: '#6B7280' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #F3F4F5; }
+    .card { background: #FDFEFF; border-radius: 8px; box-shadow: 0 1px 3px rgba(15,23,42,0.06); }
+    .kpi-card { border-top: 3px solid #002F6C; }
+    .chart-container { position: relative; width: 100%; }
+    .login-bg { background: linear-gradient(135deg, #001B44 0%, #002F6C 50%, #003D8F 100%); }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+    /* 저널 필터 드롭다운 */
+    .journal-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 600; background: #E5E7EB; color: #001B44; cursor: pointer; transition: all 0.15s; }
+    .journal-chip.active { background: #002F6C; color: #F8FAFC; }
+    .journal-chip:hover { opacity: 0.8; }
+    /* 섹션 구분선 */
+    .sec-divider { border-top: 1px solid #E5E7EB; margin: 0.5rem 0; }
+    /* 뷰 탭 (Analytics / Browse) */
+    .view-tab { padding: 10px 16px; font-size: 11px; font-weight: 700; color: #6B7280; border-bottom: 2px solid transparent; cursor: pointer; background: transparent; text-transform: uppercase; letter-spacing: 0.08em; }
+    .view-tab.active { color: #002F6C; border-bottom-color: #002F6C; }
+    .view-tab:hover:not(.active) { color: #002F6C; }
+    /* Browse 리스트 항목 */
+    .browse-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; gap: 8px; }
+    .browse-item:hover { background: #F3F4F5; }
+    .browse-item.active { background: #002F6C; color: #F8FAFC; }
+    .browse-item.active .count { color: #F8FAFC; opacity: 0.85; }
+    .browse-item .count { font-size: 12px; color: #9CA3AF; font-weight: 600; }
+    .browse-item.sharp { padding-left: 28px; font-size: 13px; color: #43474f; }
+    .browse-item.sharp.active { color: #F8FAFC; }
+    .browse-item .expand-icon { width: 14px; color: #9CA3AF; font-size: 12px; }
+    .browse-date-header { display: inline-flex; align-items: baseline; gap: 8px; font-size: 13px; font-weight: 800; color: #F8FAFC; background: #002F6C; padding: 5px 14px; border-radius: 9999px; letter-spacing: 0.03em; margin: 22px 0 10px; box-shadow: 0 2px 6px rgba(29, 29, 31, 0.12); }
+    .browse-date-header:first-child { margin-top: 4px; }
+    .browse-date-header .count { font-size: 11px; font-weight: 600; color: #8df5e4; opacity: 0.95; }
+    .browse-paper-row { display: flex; align-items: baseline; gap: 10px; padding: 6px 0; font-size: 14px; line-height: 1.55; }
+    .browse-paper-row a { color: #001B44; flex: 1 1 auto; }
+    .browse-paper-row a:hover { color: #002F6C; text-decoration: underline; }
+    .browse-paper-row .journal-tag { font-size: 12px; font-weight: 600; color: #003D8F; white-space: nowrap; }
+    /* 키워드 태그(pill) 클라우드 */
+    .wc-tag { display: inline-flex; align-items: center; border-radius: 9999px; line-height: 1; padding: 0.35em 0.7em; font-weight: 700; letter-spacing: -0.01em; cursor: pointer; border: 0; transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease; }
+    .wc-tag:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(15,23,42,0.14); }
+    .wc-tag-active { box-shadow: 0 0 0 2px #1A56A8 inset; }
+    /* 토스트 알림 */
+    @keyframes toastIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+    .toast-enter { animation: toastIn 0.18s ease-out; }
+    /* 모바일 전용 반응형 */
+    @media (max-width: 640px) {
+      .view-tab { padding: 10px 12px; font-size: 12px; letter-spacing: 0.04em; }
+      .journal-chip { font-size: 11px; padding: 3px 9px; }
+      .kpi-card p.text-2xl { font-size: 1.25rem; }
+      .browse-paper-row { flex-direction: column; gap: 2px; padding: 8px 0; line-height: 1.45; }
+      .browse-paper-row .journal-tag { font-size: 11px; }
+      .browse-date-header { font-size: 12px; padding: 4px 11px; margin: 16px 0 8px; }
+      /* iOS Safari 자동 확대 방지 — 입력 focus 시 최소 16px 필요 */
+      input, select, textarea { font-size: 16px !important; }
+      /* 히트맵 모바일 컴팩트 */
+      #heatmap-table th, #heatmap-table td { padding: 4px 6px !important; font-size: 11px !important; }
+      #heatmap-table th.rotate { font-size: 10px !important; }
+
+      /* Recent Papers: 모바일에서 테이블 → 제목 우선 카드 스택
+         (데스크톱은 기존 3열 테이블 그대로) */
+      .recent-papers-scroll { overflow-x: hidden; }
+      .recent-papers-table { display: block; }
+      .recent-papers-table thead { display: none; }
+      .recent-papers-table tbody { display: block; }
+      .recent-papers-table tr {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 10px 2px;
+      }
+      .recent-papers-table td {
+        display: block;
+        padding: 0 !important;
+        white-space: normal !important;   /* 저널명 잘림/가로 스크롤 방지 → 줄바꿈 허용 */
+        word-break: break-word;
+      }
+      /* 시각 계층: 제목을 맨 위로, 가장 크고 진하게 */
+      .recent-papers-table td.rp-title { order: 1; font-size: 13px; line-height: 1.4; font-weight: 600; }
+      .recent-papers-table td.rp-title a { color: #001B44; }
+      .recent-papers-table td.rp-journal { order: 2; font-size: 11px; color: #003D8F !important; }
+      .recent-papers-table td.rp-date { order: 3; font-size: 10px; color: #9CA3AF !important; }
+    }
+
+    /* Dashboard theme refinements: preserve original density while removing critique issues. */
+    :root {
+      --dash-canvas: oklch(96.4% 0.008 255);
+      --dash-surface: oklch(99.3% 0.004 255);
+      --dash-surface-soft: oklch(94.8% 0.010 255);
+      --dash-ink: oklch(22% 0.018 255);
+      --dash-muted: oklch(51% 0.022 255);
+      --dash-hairline: oklch(88.5% 0.014 255);
+      --dash-action: oklch(31% 0.118 255);
+      --dash-action-hover: oklch(37% 0.130 255);
+    }
+    body {
+      background: var(--dash-canvas) !important;
+      color: var(--dash-ink);
+      font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif !important;
+      letter-spacing: 0;
+    }
+    #dashboard > header {
+      background: var(--dash-surface) !important;
+      color: var(--dash-ink);
+      border-bottom: 1px solid var(--dash-hairline) !important;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+      padding-top: 12px !important;
+      padding-bottom: 12px !important;
+    }
+    #dashboard > header h1 { color: var(--dash-action) !important; }
+    #dashboard > header p { color: var(--dash-muted) !important; }
+    #dashboard > header a,
+    #dashboard > header span { color: var(--dash-muted) !important; }
+    #dashboard > header a:hover { color: var(--dash-action-hover) !important; }
+    #view-tabs {
+      background: var(--dash-surface) !important;
+      border-color: var(--dash-hairline) !important;
+    }
+    #analytics-filters > div,
+    #filters-body > div {
+      background: color-mix(in oklch, var(--dash-surface) 92%, var(--dash-canvas)) !important;
+      border-color: var(--dash-hairline) !important;
+    }
+    .card {
+      background: var(--dash-surface) !important;
+      border: 1px solid var(--dash-hairline) !important;
+      border-radius: 8px !important;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 28px rgba(15, 23, 42, 0.035) !important;
+    }
+    .kpi-card {
+      border-left: 1px solid var(--dash-hairline) !important;
+      border-top: 3px solid var(--dash-action) !important;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+    }
+    .kpi-card p[id],
+    .text-navy-900,
+    .text-navy-800 { color: var(--dash-ink) !important; }
+    .text-slate-400,
+    .text-slate-500 { color: var(--dash-muted) !important; }
+    .view-tab {
+      color: var(--dash-muted) !important;
+      letter-spacing: 0.02em !important;
+      font-weight: 600 !important;
+    }
+    .view-tab.active {
+      color: var(--dash-action) !important;
+      border-bottom-color: var(--dash-action) !important;
+    }
+    .journal-chip {
+      background: var(--dash-surface-soft) !important;
+      color: var(--dash-muted) !important;
+      border: 1px solid var(--dash-hairline);
+    }
+    .journal-chip.active,
+    .browse-item.active,
+    .browse-date-header {
+      background: var(--dash-action) !important;
+      color: oklch(98% 0.006 254) !important;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08) !important;
+    }
+    button,
+    select,
+    input {
+      border-color: var(--dash-hairline) !important;
+      box-shadow: none !important;
+    }
+    #refresh-btn,
+    .bg-navy-800,
+    .bg-navy-900 {
+      background-color: var(--dash-action) !important;
+      background-image: linear-gradient(180deg, var(--dash-action-hover), var(--dash-action)) !important;
+      color: oklch(98% 0.006 254) !important;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08) !important;
+    }
+    #report-btn,
+    #feedback-btn,
+    #main-search-clear,
+    #advanced-search-clear,
+    #advanced-search-load-more,
+    #hm-expand-btn,
+    #expandAllBroads,
+    .border-navy-800 {
+      border-color: var(--dash-hairline) !important;
+      color: var(--dash-action) !important;
+      background: var(--dash-surface) !important;
+    }
+    input:focus,
+    select:focus {
+      border-color: var(--dash-action) !important;
+      box-shadow: 0 0 0 3px oklch(90% 0.045 254) !important;
+    }
+    footer {
+      background: var(--dash-canvas) !important;
+      color: var(--dash-muted) !important;
+    }
+  </style>
+</head>
+<body class="font-sans text-gray-800 min-h-screen">
+
+  <!-- ========== 토스트 알림 (전역 고정) ========== -->
+  <div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 w-[calc(100%-2rem)] max-w-sm pointer-events-none" aria-live="polite" role="status"></div>
+
+  <!-- ========== 로그인 화면 ========== -->
+  <div id="login-screen" class="login-bg min-h-screen flex items-center justify-center hidden">
+    <div class="card p-10 w-full max-w-sm text-center">
+      <div class="mb-6">
+        <h1 class="text-2xl font-black text-navy-900 tracking-tight">get-ASAP</h1>
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mt-1">Paper Analytics Dashboard</p>
+      </div>
+      <form id="login-form" class="space-y-4">
+        <input id="login-user" type="text" placeholder="Username"
+          autocapitalize="none" autocorrect="off" spellcheck="false"
+          class="w-full px-4 py-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 focus:border-transparent" autocomplete="username">
+        <input id="login-pass" type="password" placeholder="Password"
+          autocapitalize="none" spellcheck="false"
+          class="w-full px-4 py-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 focus:border-transparent" autocomplete="current-password">
+        <button type="submit"
+          class="w-full py-3 bg-gradient-to-r from-navy-900 to-navy-800 text-white font-bold rounded-lg text-sm tracking-wide hover:shadow-lg transition-shadow">
+          Sign In
+        </button>
+        <p id="login-error" class="text-red-500 text-xs font-semibold hidden">아이디 또는 비밀번호가 올바르지 않습니다</p>
+      </form>
+      <button type="button" id="login-back-btn" class="hidden mt-4 text-xs font-semibold text-slate-400 hover:text-navy-800 transition-colors">
+        ← 게스트로 돌아가기
+      </button>
+    </div>
+  </div>
+
+  <!-- ========== 대시보드 ========== -->
+  <!-- 기본 상태: 로그인 화면 숨김 / 대시보드 노출 (게스트가 기본 케이스 — 세션 확인(~1s) 대기 중 로그인 폼이
+       깜빡이는 것을 방지). #admin-login 해시일 때만 아래 동기 스크립트가 첫 페인트 전에 즉시 뒤집는다. -->
+  <div id="dashboard">
+    <script>
+      (function() {
+        if (location.hash === '#admin-login') {
+          const ls = document.getElementById('login-screen');
+          if (ls) ls.classList.remove('hidden');
+          document.getElementById('dashboard').classList.add('hidden');
+        }
+      })();
+    </script>
+    <!-- 상단 헤더 -->
+    <header class="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between flex-wrap gap-2 sm:gap-3">
+      <div class="min-w-0">
+        <h1 class="text-lg sm:text-xl font-black text-navy-900 tracking-tight">get-ASAP Analytics</h1>
+        <p class="hidden sm:block text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">Paper Trend Dashboard</p>
+        <p id="visitor-badge" class="flex items-center gap-1 text-[10px] font-semibold text-slate-400 mt-1">
+          <span id="visitor-badge-dot" class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          <span id="visitor-badge-text">Loading visitor info…</span>
+        </p>
+      </div>
+      <div class="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
+        <div class="w-full flex justify-end -mb-1">
+          <span class="text-[9px] text-slate-300 tracking-wide">
+            Developed by
+            <a href="https://github.com/hydrochan" target="_blank" rel="noopener"
+               class="font-semibold text-slate-400 hover:text-navy-700 transition-colors">Chan Kim</a>
+            ·
+            <a href="https://hydrochan.com" target="_blank" rel="noopener"
+               class="text-slate-400 hover:text-navy-700 transition-colors">hydrochan.com</a>
+          </span>
+        </div>
+        <select id="month-range" class="text-xs font-semibold border border-slate-200 rounded-lg px-2 sm:px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-800">
+          <option value="1">1 Month</option>
+          <option value="3" selected>3 Months</option>
+          <option value="6">6 Months</option>
+          <option value="12">12 Months</option>
+        </select>
+        <button id="refresh-btn" class="px-3 sm:px-4 py-2 bg-gradient-to-r from-navy-900 to-navy-800 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">
+          Refresh
+        </button>
+        <button id="refresh-all-btn" class="hidden px-3 sm:px-4 py-2 border border-purple-600 text-purple-700 text-xs font-bold rounded-lg hover:bg-purple-600 hover:text-white transition-all" title="관리자 전용: 전체 월 Notion 재조회 (과거 월 CSV 갱신)">
+          🔄 Force Refresh All
+        </button>
+        <button id="report-btn" class="px-3 sm:px-4 py-2 border border-navy-800 text-navy-800 text-xs font-bold rounded-lg hover:bg-navy-800 hover:text-white transition-all">
+          Report
+        </button>
+        <button id="feedback-btn" class="px-3 sm:px-4 py-2 border border-emerald-600 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-600 hover:text-white transition-all" title="버그 제보 · 기능 제안 · 기타 의견">
+          💬 피드백
+        </button>
+        <button id="logout-btn" class="hidden text-xs font-semibold text-slate-400 hover:text-red-500 transition-colors">
+          Logout
+        </button>
+      </div>
+    </header>
+
+    <!-- 뷰 탭 (Home / Analytics / Browse / Advanced Search / Stats) -->
+    <nav id="view-tabs" class="bg-white border-b border-slate-200 px-4 sm:px-6 flex gap-0 overflow-x-auto whitespace-nowrap">
+      <button id="tab-home" class="view-tab active" onclick="setView('home')">Home</button>
+      <button id="tab-analytics" class="view-tab" onclick="setView('analytics')">Analytics</button>
+      <button id="tab-browse" class="view-tab" onclick="setView('browse')">Browse</button>
+      <button id="tab-advanced-search" class="view-tab" onclick="setView('advanced-search')">Advanced Search</button>
+      <button id="tab-stats" class="view-tab hidden" onclick="setView('stats')">Stats</button>
+    </nav>
+
+    <!-- 필터 바 묶음 (Analytics 탭에서만 노출 · 기본 숨김) -->
+    <div id="analytics-filters" class="hidden">
+      <!-- 필터 토글 헤더 (PC/모바일 공통 · 기본 접힘) -->
+      <div id="filters-mobile-toggle" class="bg-white border-b border-slate-100 px-4 sm:px-6 py-2 flex items-center justify-between">
+        <button id="filters-toggle-btn" type="button" class="flex items-center gap-2 text-[11px] font-bold text-navy-800 hover:text-navy-900 transition-colors">
+          <span id="filters-toggle-icon" class="text-slate-400">▸</span>
+          <span>Filters</span>
+          <span id="filters-mobile-summary" class="text-[10px] font-semibold text-slate-400 ml-1">All journals · All topics</span>
+        </button>
+        <span id="filter-count-mobile" class="text-[10px] font-semibold text-slate-400"></span>
+      </div>
+      <!-- 필터 본문 (클릭 시 펼침, 기본 접힘) -->
+      <div id="filters-body" class="hidden">
+      <!-- 저널 필터 바 -->
+      <div class="bg-white border-b border-slate-100 px-4 sm:px-6 py-3">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Journals:</span>
+          <span id="journal-all-chip" class="journal-chip active" onclick="toggleAllJournals()">All</span>
+          <div id="journal-chips" class="flex items-center gap-1.5 flex-wrap"></div>
+          <span id="filter-count" class="text-[10px] font-semibold text-slate-400 ml-2"></span>
+        </div>
+      </div>
+
+      <!-- Topics (broad) 필터 바 -->
+      <div class="bg-white border-b border-slate-100 px-4 sm:px-6 py-3">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Topics:</span>
+          <span id="broad-all-chip" class="journal-chip active" onclick="toggleAllBroads()">All</span>
+          <div id="broad-chips" class="flex items-center gap-1.5 flex-wrap"></div>
+          <span class="hidden sm:inline text-[10px] text-slate-400 ml-2 italic">When All → click to show only that · When filtering → click to add/remove</span>
+        </div>
+      </div>
+
+      <!-- Sharp (sub-topic) 필터 바 — broad 단일 선택 시 노출 -->
+      <div id="sharp-filter-bar" class="bg-slate-50 border-b border-slate-100 px-4 sm:px-6 py-2 hidden">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1" id="sharp-filter-label">Sub:</span>
+          <span id="sharp-all-chip" class="journal-chip active" onclick="toggleAllSharps()">All</span>
+          <div id="sharp-chips" class="flex items-center gap-1.5 flex-wrap"></div>
+        </div>
+      </div>
+      </div>
+      <!-- /filters-body -->
+    </div>
+    <!-- /analytics-filters -->
+
+    <main id="view-home" class="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6">
+      <!-- KPI 카드 -->
+      <section class="grid grid-cols-2 md:grid-cols-6 gap-4">
+        <div class="card kpi-card p-3 sm:p-5">
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Total Papers</p>
+          <p id="kpi-total" class="text-2xl font-black text-navy-900 mt-1">—</p>
+        </div>
+        <div class="card kpi-card p-3 sm:p-5">
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Journals</p>
+          <p id="kpi-journals" class="text-2xl font-black text-navy-900 mt-1">—</p>
+        </div>
+        <div class="card kpi-card p-3 sm:p-5">
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">This Month</p>
+          <p id="kpi-month" class="text-2xl font-black text-navy-900 mt-1">—</p>
+        </div>
+        <div class="card kpi-card p-3 sm:p-5">
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">This Week</p>
+          <p id="kpi-week" class="text-2xl font-black text-navy-900 mt-1">—</p>
+        </div>
+        <div class="card kpi-card p-3 sm:p-5">
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Daily Average</p>
+          <p id="kpi-daily" class="text-2xl font-black text-navy-900 mt-1">—</p>
+        </div>
+        <div class="card kpi-card p-3 sm:p-5">
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Top Keyword</p>
+          <p id="kpi-topkw" class="text-2xl font-black text-navy-900 mt-1">—</p>
+        </div>
+      </section>
+
+      <!-- 공지·개선사항 (cache/announcements.json 비어있으면 자동 숨김) -->
+      <section id="section-announcements" class="card p-4 sm:p-6 hidden">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">📢 Announcements</h2>
+          <button id="ann-toggle" class="text-[10px] font-semibold text-slate-400 hover:text-navy-900" onclick="toggleAnnouncements()">Collapse</button>
+        </div>
+        <div id="announcements-list" class="space-y-2"></div>
+      </section>
+
+      <!-- 전역 검색 (논문 · 저널 · 키워드 · DOI) -->
+      <section class="card p-4 sm:p-6">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">🔍 Search</h2>
+          <span class="text-[10px] font-semibold text-slate-400">Searches title · journal · keyword · DOI · space-separated tokens are AND-matched</span>
+        </div>
+        <div class="flex items-center gap-3 mb-4">
+          <input id="main-search-input" type="text" placeholder="e.g. catalysis hydrogen, perovskite solar, 10.1021/..."
+            class="flex-1 text-sm border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-navy-800" autocomplete="off">
+          <button id="main-search-clear" class="px-3 py-2 text-xs font-bold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50">Clear</button>
+          <span id="main-search-count" class="text-[11px] font-semibold text-slate-400 whitespace-nowrap"></span>
+        </div>
+        <div id="main-search-results" class="space-y-1 max-h-[560px] overflow-y-auto">
+          <p class="text-xs text-slate-400 text-center py-8">Enter a search term.</p>
+        </div>
+      </section>
+
+      <!-- Paper Count (Home 하단) -->
+      <section class="card p-4 sm:p-6">
+        <div class="flex items-center gap-2 mb-4">
+          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Paper Count</h2>
+          <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
+            <button id="daily-period-day" class="px-2 py-1 bg-navy-800 text-white" onclick="setDailyPeriod('day')">Day</button>
+            <button id="daily-period-week" class="px-2 py-1 text-slate-500 hover:bg-slate-50" onclick="setDailyPeriod('week')">Week</button>
+            <button id="daily-period-month" class="px-2 py-1 text-slate-500 hover:bg-slate-50" onclick="setDailyPeriod('month')">Month</button>
+          </div>
+        </div>
+        <div class="chart-container" style="height:250px">
+          <canvas id="chart-daily"></canvas>
+        </div>
+      </section>
+
+      <!-- Recent Papers (Home 하단) -->
+      <section class="card p-4 sm:p-6">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Recent Papers</h2>
+          <input id="paper-search" type="text" placeholder="Search (title · journal · keyword · DOI)..."
+            class="text-xs border border-slate-200 rounded-lg px-3 py-2 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-navy-800">
+        </div>
+        <div class="recent-papers-scroll overflow-x-auto max-h-[500px] overflow-y-auto">
+          <table class="recent-papers-table w-full text-xs">
+            <thead class="sticky top-0 bg-slate-50">
+              <tr class="text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <th class="px-3 py-2">Date</th>
+                <th class="px-3 py-2">Journal</th>
+                <th class="px-3 py-2">Title</th>
+              </tr>
+            </thead>
+            <tbody id="paper-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <!-- /view-home -->
+
+    <!-- Analytics: 차트 · 히트맵 · 관심분석 -->
+    <main id="view-analytics" class="hidden max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6">
+      <!-- 키워드 트렌드 + 워드클라우드 -->
+      <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="card p-4 sm:p-6 lg:col-span-2 flex flex-col">
+          <div class="flex items-center justify-between mb-4 flex-wrap gap-y-2">
+            <div class="flex items-center gap-2 shrink-0">
+              <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] whitespace-nowrap">Keyword Trends</h2>
+              <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
+                <button id="kw-period-week" class="px-2 py-1 bg-navy-800 text-white" onclick="setKwPeriod('week')">Week</button>
+                <button id="kw-period-month" class="px-2 py-1 text-slate-500 hover:bg-slate-50" onclick="setKwPeriod('month')">Month</button>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+              <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
+                <button id="kv-broad" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setKeywordView('broad')">Broad</button>
+                <button id="kv-sharp" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setKeywordView('sharp')">Sharp</button>
+              </div>
+              <select id="broad-filter" class="text-xs border border-slate-200 rounded px-2 py-1 w-full order-last min-w-0 sm:w-auto sm:order-none" disabled>
+                <option value="">All domains</option>
+              </select>
+              <select id="kw-top-n" class="text-xs border border-slate-200 rounded px-2 py-1">
+                <option value="5">Top 5</option>
+                <option value="10" selected>Top 10</option>
+              </select>
+            </div>
+          </div>
+          <div class="chart-container flex-1" style="min-height:320px">
+            <canvas id="chart-keyword"></canvas>
+          </div>
+        </div>
+        <!-- 키워드 태그 클라우드 -->
+        <div class="card p-4 sm:p-6 flex flex-col">
+          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Keyword Cloud</h2>
+          <div id="wordcloud-tags" class="flex flex-wrap items-center justify-center gap-2 flex-1" style="min-height:320px; align-content:center"></div>
+        </div>
+      </section>
+
+      <!-- Top 키워드 트리 (Broad ▸ Sharp 계층) -->
+      <section class="card p-4 sm:p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Top Keywords</h2>
+            <p class="text-[10px] text-slate-400 mt-1">Broad domain ▸ Sharp keyword. Click a domain to expand, ⚲ to filter charts.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="expandAllBroads(true)" class="text-[10px] font-bold text-slate-500 hover:text-navy-700 px-2 py-1 border border-slate-200 rounded">Expand all</button>
+            <button onclick="expandAllBroads(false)" class="text-[10px] font-bold text-slate-500 hover:text-navy-700 px-2 py-1 border border-slate-200 rounded">Collapse all</button>
+          </div>
+        </div>
+        <div id="kw-tree" class="text-xs grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0.5"></div>
+      </section>
+
+      <!-- 저널 빈도 + 저널별 월별 -->
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card p-4 sm:p-6">
+          <div class="flex items-center gap-2 mb-4">
+            <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] whitespace-nowrap">Journal Frequency</h2>
+            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
+              <button id="jf-period-week" class="px-2 py-1 bg-navy-800 text-white" onclick="setJfPeriod('week')">Week</button>
+              <button id="jf-period-month" class="px-2 py-1 text-slate-500 hover:bg-slate-50" onclick="setJfPeriod('month')">Month</button>
+            </div>
+          </div>
+          <div class="chart-container" style="height:360px">
+            <canvas id="chart-journal"></canvas>
+          </div>
+        </div>
+        <div class="card p-4 sm:p-6">
+          <div class="flex items-center gap-2 mb-4">
+            <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] whitespace-nowrap">Frequent Journals Trend</h2>
+            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
+              <button id="jm-period-week" class="px-2 py-1 bg-navy-800 text-white" onclick="setJmPeriod('week')">Week</button>
+              <button id="jm-period-month" class="px-2 py-1 text-slate-500 hover:bg-slate-50" onclick="setJmPeriod('month')">Month</button>
+            </div>
+          </div>
+          <div class="chart-container" style="height:360px">
+            <canvas id="chart-journal-monthly"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- By Journal Keywords (저널별 top-N 키워드 카드 그리드) -->
+      <section id="section-by-journal-keywords" class="card p-4 sm:p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+          <div>
+            <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">By Journal Keywords</h2>
+            <p class="text-[10px] text-slate-400 mt-0.5">Each journal's own top keywords — compare a journal's character without high-volume journals skewing the mix</p>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden" title="Keyword view">
+              <button id="bjk-kv-broad" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setBjkView('broad')">Broad</button>
+              <button id="bjk-kv-sharp" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setBjkView('sharp')">Sharp</button>
+            </div>
+            <select id="bjk-broad-filter" class="text-xs border border-slate-200 rounded px-2 py-1 w-full order-last min-w-0 sm:w-auto sm:order-none" disabled>
+              <option value="">All domains</option>
+            </select>
+            <select id="bjk-journals" class="text-xs border border-slate-200 rounded px-2 py-1" title="Number of journals to show (by volume)">
+              <option value="6">Top 6</option>
+              <option value="12" selected>Top 12</option>
+              <option value="24">Top 24</option>
+              <option value="999">All</option>
+            </select>
+            <select id="bjk-keywords" class="text-xs border border-slate-200 rounded px-2 py-1" title="Keywords to show per journal">
+              <option value="5" selected>5 kw</option>
+              <option value="8">8 kw</option>
+              <option value="10">10 kw</option>
+            </select>
+            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden" title="Card order: by volume (desc) / journal name (A-Z)">
+              <button id="bjk-sort-count" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setBjkSortMode('count')">#</button>
+              <button id="bjk-sort-alpha" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setBjkSortMode('alpha')">A-Z</button>
+            </div>
+          </div>
+        </div>
+        <div id="bjk-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- 카드는 renderByJournalKeywords()가 채움 -->
+        </div>
+        <div id="bjk-empty" class="text-xs text-slate-400 hidden">No data</div>
+      </section>
+
+      <!-- 저널 × 키워드 히트맵 -->
+      <section id="section-journal-keyword-matrix" class="card p-4 sm:p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Journal &times; Keyword Matrix</h2>
+          <div class="flex items-center gap-2 flex-wrap">
+            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden" title="Keyword view: Broad domain / Sharp sub-keyword">
+              <button id="hm-kv-broad" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setHeatmapView('broad')">Broad</button>
+              <button id="hm-kv-sharp" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapView('sharp')">Sharp</button>
+            </div>
+            <select id="hm-broad-filter" class="text-xs border border-slate-200 rounded px-2 py-1 min-w-0 flex-1 sm:flex-none" disabled>
+              <option value="">All domains</option>
+            </select>
+            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden" title="Cell value: Raw count / % within journal (normalized by each journal's paper count)">
+              <button id="hm-cm-raw" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setHeatmapCellMode('raw')">Raw</button>
+              <button id="hm-cm-pct" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapCellMode('pct')">%</button>
+            </div>
+            <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden" title="Columns (keywords): global top-N / union of each row's top-3 (surfaces journal-specific keywords)">
+              <button id="hm-col-global" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setHeatmapColMode('global')">Global</button>
+              <button id="hm-col-perrow" class="px-2.5 py-1 text-slate-500 hover:bg-slate-50" onclick="setHeatmapColMode('perrow')">Per-Row</button>
+            </div>
+            <button id="hm-expand-btn" class="px-3 py-1 text-[10px] font-bold border border-slate-200 rounded text-slate-500 hover:bg-slate-50 transition-colors whitespace-nowrap" onclick="toggleHeatmapExpand()">
+              Expand All
+            </button>
+          </div>
+        </div>
+        <div id="heatmap-container" class="overflow-x-auto" style="max-height:500px; overflow-y:auto">
+          <table id="heatmap-table" class="text-xs w-auto sm:w-full"></table>
+        </div>
+      </section>
+
+    </main>
+    <!-- /view-analytics -->
+
+    <!-- Browse 뷰: 저널별 / 주제별 × 날짜 그룹 -->
+    <main id="view-browse" class="hidden max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+      <div class="flex gap-1 mb-4 border-b border-slate-200">
+        <button id="browse-mode-journal" class="view-tab active" onclick="setBrowseMode('journal')">By Journal</button>
+        <button id="browse-mode-topic" class="view-tab" onclick="setBrowseMode('topic')">By Topic</button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4">
+        <aside class="card p-3 max-h-[40vh] md:max-h-[75vh] overflow-y-auto">
+          <div class="flex items-center justify-between mb-2 px-1" id="browse-list-header">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Journals</span>
+            <div class="flex items-center gap-2">
+              <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
+                <button id="browse-sort-count" class="px-2 py-0.5 bg-navy-800 text-white" onclick="setBrowseSort('count')" title="Count (descending)">#</button>
+                <button id="browse-sort-alpha" class="px-2 py-0.5 text-slate-500 hover:bg-slate-50" onclick="setBrowseSort('alpha')" title="Alphabetical (A-Z)">A-Z</button>
+              </div>
+              <span id="browse-list-count" class="text-[10px] text-slate-400"></span>
+            </div>
+          </div>
+          <div id="browse-list"></div>
+        </aside>
+        <section class="card p-4 max-h-[75vh] overflow-y-auto">
+          <div id="browse-detail">
+            <p class="text-xs text-slate-400 italic px-1 py-4">Select an item from the list on the left.</p>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- Advanced Search 뷰: 제목/키워드 중심 전체 검색 -->
+    <main id="view-advanced-search" class="hidden max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4">
+      <section class="card p-4 sm:p-6">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <div>
+            <h2 class="text-sm font-black text-navy-900 tracking-tight">Advanced Search</h2>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.08em] mt-0.5">Title · Keywords · Operators</p>
+          </div>
+          <span id="advanced-search-count" class="text-[11px] font-semibold text-slate-400 whitespace-nowrap"></span>
+        </div>
+
+        <div class="flex flex-col lg:flex-row gap-3">
+          <input id="advanced-search-input" type="text"
+            placeholder='e.g. +ammonia cataly* "hydrogen carrier" -battery'
+            class="flex-1 text-sm border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-navy-800" autocomplete="off">
+          <button id="advanced-search-clear" class="px-3 py-2 text-xs font-bold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50">Clear</button>
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap mt-3">
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Fields:</span>
+          <label class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+            <input type="checkbox" class="advanced-search-field" value="title" checked>
+            <span>Title</span>
+          </label>
+          <label class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+            <input type="checkbox" class="advanced-search-field" value="keywords" checked>
+            <span>Keywords</span>
+          </label>
+          <label class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
+            <input type="checkbox" class="advanced-search-field" value="journal">
+            <span>Journal</span>
+          </label>
+          <label class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
+            <input type="checkbox" class="advanced-search-field" value="doi">
+            <span>DOI</span>
+          </label>
+          <span class="text-[10px] text-slate-400 ml-1">+required · -exclude · "phrase" · *wildcard</span>
+        </div>
+      </section>
+
+      <section class="card p-4 sm:p-6">
+        <div id="advanced-search-results" class="space-y-1 min-h-[260px]">
+          <p class="text-xs text-slate-400 text-center py-12">Enter a search term.</p>
+        </div>
+        <div class="mt-4 flex justify-center">
+          <button id="advanced-search-load-more" class="hidden px-4 py-2 text-xs font-bold text-navy-800 border border-navy-800 rounded-lg hover:bg-navy-800 hover:text-white transition-all">
+            Show more
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Stats 뷰: 접속 통계 (관리자 전용) -->
+    <main id="view-stats" class="hidden max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6">
+      <header class="flex items-center justify-between">
+        <div>
+          <h2 class="text-xl font-black text-navy-900 tracking-tight">Access Stats</h2>
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">Admin only · 사용자 접속 기록 집계</p>
+        </div>
+        <button id="stats-refresh" class="px-4 py-2 bg-gradient-to-r from-navy-900 to-navy-800 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">Refresh</button>
+      </header>
+
+      <!-- 통계 로드 에러 배너 -->
+      <div id="stats-error" class="hidden text-xs text-red-600 font-semibold bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+        <span id="stats-error-text">통계를 불러오지 못했습니다.</span>
+        <button id="stats-retry-btn" class="text-[10px] font-bold text-red-700 border border-red-300 rounded px-3 py-1 hover:bg-red-100">다시 시도</button>
+      </div>
+
+      <!-- KPI 카드 -->
+      <section class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="card kpi-card p-3 sm:p-5">
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Total Page Views</p>
+          <p id="stats-total-views" class="text-2xl font-black text-navy-900 mt-1">—</p>
+        </div>
+        <div class="card kpi-card p-3 sm:p-5">
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">순 방문자 (30일)</p>
+          <p id="stats-unique-30d" class="text-2xl font-black text-navy-900 mt-1">—</p>
+        </div>
+        <div class="card kpi-card p-3 sm:p-5">
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">순 방문자 (전체)</p>
+          <p id="stats-unique-all" class="text-2xl font-black text-navy-900 mt-1">—</p>
+        </div>
+      </section>
+
+      <!-- 일별 페이지뷰 -->
+      <section class="card p-4 sm:p-6">
+        <h3 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">일별 페이지뷰 (30일)</h3>
+        <div class="chart-container" style="height:280px">
+          <canvas id="stats-daily-chart"></canvas>
+        </div>
+      </section>
+
+      <!-- 사용자 피드백 -->
+      <section class="card p-4 sm:p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">📮 User Feedback <span id="stats-feedback-unread" class="ml-2 text-[10px] font-bold text-red-500"></span></h3>
+          <div class="flex items-center gap-2">
+            <label class="text-[10px] font-semibold text-slate-500"><input type="checkbox" id="stats-feedback-unread-only" class="mr-1">미확인만</label>
+          </div>
+        </div>
+        <div id="stats-feedback-list" class="space-y-2 max-h-[500px] overflow-y-auto">
+          <p class="text-xs text-slate-400 text-center py-6">로딩…</p>
+        </div>
+      </section>
+
+      <!-- 최근 이벤트 -->
+      <section class="card p-4 sm:p-6">
+        <h3 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-3">Recent Events</h3>
+
+        <!-- 필터: 기간 · 타입 · 검색 -->
+        <div class="flex items-center gap-2 flex-wrap mb-3">
+          <input id="events-filter-from" type="date" title="From date"
+            class="text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-navy-800">
+          <span class="text-[10px] text-slate-400">~</span>
+          <input id="events-filter-to" type="date" title="To date"
+            class="text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-navy-800">
+          <select id="events-filter-type" class="text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-navy-800">
+            <option value="all">All types</option>
+            <option value="login">Login</option>
+            <option value="page_view">Page View</option>
+            <option value="feedback">Feedback</option>
+          </select>
+          <input id="events-filter-q" type="text" placeholder="Search user…"
+            class="text-xs border border-slate-200 rounded px-2 py-1.5 flex-1 min-w-[120px] focus:outline-none focus:ring-2 focus:ring-navy-800">
+          <button id="events-filter-clear" class="text-[10px] font-bold text-slate-500 border border-slate-200 rounded px-2 py-1.5 hover:bg-slate-50">Clear</button>
+        </div>
+
+        <!-- 이벤트 로드 에러 -->
+        <div id="events-error" class="hidden text-xs text-red-600 font-semibold bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3 flex items-center justify-between gap-2 flex-wrap">
+          <span id="events-error-text">이벤트를 불러오지 못했습니다.</span>
+          <button id="events-retry-btn" class="text-[10px] font-bold text-red-700 border border-red-300 rounded px-2 py-1 hover:bg-red-100">다시 시도</button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead class="text-slate-400 uppercase text-[10px] tracking-wider">
+              <tr class="border-b border-slate-200">
+                <th class="text-left py-2">Time</th>
+                <th class="text-left py-2">Event</th>
+                <th class="text-left py-2">User</th>
+                <th class="text-left py-2">IP(hash)</th>
+              </tr>
+            </thead>
+            <tbody id="stats-recent-tbody"></tbody>
+          </table>
+        </div>
+
+        <!-- 페이지네이션 -->
+        <div class="flex items-center justify-between mt-3 gap-2 flex-wrap">
+          <button id="events-prev-btn" class="text-[10px] font-bold text-slate-500 border border-slate-200 rounded px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">&larr; Prev</button>
+          <span id="events-page-label" class="text-[10px] font-semibold text-slate-400">—</span>
+          <button id="events-next-btn" class="text-[10px] font-bold text-slate-500 border border-slate-200 rounded px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">Next &rarr;</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="text-center text-[10px] text-slate-400 py-4 leading-relaxed">
+      get-ASAP &copy; 2026 Chan Kim (@hydro_chan). All rights reserved.<br>
+      Unauthorized copying, reproduction, or distribution of this site or its source is prohibited.
+    </footer>
+  </div>
+
+  <!-- ========== Report 설정 모달 ========== -->
+  <div id="report-modal" class="hidden fixed inset-0 z-50 bg-slate-950/45 flex items-center justify-center p-4">
+    <div class="card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-black text-navy-900">📄 리포트 다운로드 설정</h3>
+        <button id="report-close" class="text-slate-400 hover:text-slate-700 text-xl font-bold">&times;</button>
+      </div>
+      <div class="space-y-5">
+        <!-- 기간 -->
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">기간</label>
+          <select id="report-months" class="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-800">
+            <option value="1">최근 1개월</option>
+            <option value="3" selected>최근 3개월</option>
+            <option value="6">최근 6개월</option>
+            <option value="12">최근 12개월</option>
+          </select>
+        </div>
+
+        <!-- 포함 섹션 -->
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">포함 섹션</label>
+          <div class="mt-2 space-y-2 text-sm">
+            <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-summary" checked> <span>요약 (총 논문수 · 저널수)</span></label>
+            <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-topkw" checked> <span>Top 20 Keywords 표</span></label>
+            <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-journals" checked> <span>Journal Frequency (Top 15)</span></label>
+            <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-papers-by-kw"> <span>키워드별 논문 목록 (아래에서 선택)</span></label>
+          </div>
+        </div>
+
+        <!-- 키워드 선택 (키워드별 논문 목록 체크 시만 활성) -->
+        <div id="report-kw-section" class="opacity-50 pointer-events-none transition-opacity">
+          <div class="flex items-baseline justify-between">
+            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">분석할 키워드 (Broad)</label>
+            <div class="flex items-center gap-2 text-[10px]">
+              <button type="button" id="report-kw-all" class="text-navy-700 font-bold hover:underline">전체</button>
+              <button type="button" id="report-kw-none" class="text-slate-400 font-bold hover:underline">전체해제</button>
+            </div>
+          </div>
+          <div id="report-kw-chips" class="mt-2 flex flex-wrap gap-1.5 max-h-40 overflow-y-auto border border-slate-100 rounded-lg p-2 bg-slate-50"></div>
+          <div class="mt-2 flex items-center gap-2">
+            <label class="text-[10px] font-semibold text-slate-500">키워드당 최대 논문 수:</label>
+            <select id="report-papers-per-kw" class="text-xs border border-slate-200 rounded px-2 py-1">
+              <option value="10">10</option>
+              <option value="20" selected>20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-2 border-t border-slate-100">
+          <button type="button" id="report-cancel" class="flex-1 py-2 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50">취소</button>
+          <button type="button" id="report-generate" class="flex-1 py-2 bg-gradient-to-r from-navy-900 to-navy-800 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">다운로드</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 피드백 모달 ========== -->
+  <div id="feedback-modal" class="hidden fixed inset-0 z-50 bg-slate-950/45 flex items-center justify-center p-4">
+    <div class="card p-6 w-full max-w-md">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-black text-navy-900">💬 피드백 보내기</h3>
+        <button id="feedback-close" class="text-slate-400 hover:text-slate-700 text-xl font-bold">&times;</button>
+      </div>
+      <p class="text-xs text-slate-500 mb-4">버그, 기능 제안, 칭찬/불만 등 자유롭게 남겨주세요. 로그인 없이 익명으로도 남길 수 있으며, 관리자만 조회합니다.</p>
+      <form id="feedback-form" class="space-y-3">
+        <input type="text" name="hp" id="feedback-hp" autocomplete="off" tabindex="-1" aria-hidden="true" class="hidden">
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">카테고리</label>
+          <select id="feedback-category" class="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-800">
+            <option value="bug">🐞 버그 제보</option>
+            <option value="feature" selected>💡 기능 제안</option>
+            <option value="other">✏️ 기타 의견</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">내용</label>
+          <textarea id="feedback-message" rows="5" maxlength="2000" required
+            class="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 resize-none"
+            placeholder="예) 저널 ABC가 누락된 것 같습니다 / 날짜 범위를 커스텀으로 설정하고 싶어요"></textarea>
+          <p class="text-[10px] text-slate-400 text-right mt-1"><span id="feedback-charcount">0</span> / 2000</p>
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="button" id="feedback-cancel" class="flex-1 py-2 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50">취소</button>
+          <button type="submit" id="feedback-submit" class="flex-1 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">보내기</button>
+        </div>
+        <p id="feedback-status" class="text-xs text-center font-semibold hidden"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========== 범용 확인 모달 (Force Refresh All 등에서 재사용) ========== -->
+  <div id="confirm-modal" class="hidden fixed inset-0 z-50 bg-slate-950/45 flex items-center justify-center p-4">
+    <div class="card p-6 w-full max-w-md">
+      <h3 id="confirm-modal-title" class="text-lg font-black text-navy-900 mb-2">확인</h3>
+      <p id="confirm-modal-message" class="text-sm text-slate-600 leading-relaxed whitespace-pre-line mb-1"></p>
+      <div id="confirm-modal-progress" class="hidden items-center gap-2 text-xs font-semibold text-navy-700 mt-3">
+        <span class="inline-block w-3.5 h-3.5 border-2 border-navy-700 border-t-transparent rounded-full animate-spin"></span>
+        <span id="confirm-modal-progress-text">처리 중…</span>
+      </div>
+      <div id="confirm-modal-actions" class="flex gap-2 pt-4 mt-3 border-t border-slate-100">
+        <button type="button" id="confirm-modal-cancel" class="flex-1 py-2 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50">취소</button>
+        <button type="button" id="confirm-modal-confirm" class="flex-1 py-2 bg-gradient-to-r from-navy-900 to-navy-800 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== JS ========== -->
+  <script>
+  (function() {
+    'use strict';
+
+    // ---------- 상수 ----------
+
+    const CHART_COLORS = [
+      '#002F6C','#1A56A8','#2E7DD1','#5BA3E6','#8BC4F0',
+      '#D4A03C','#E8B960','#F0D08A','#059669','#10B981',
+      '#EF4444','#8B5CF6','#EC4899','#F59E0B','#6366F1'
+    ];
+
+    // ---------- 토스트 알림 (전역) ----------
+    // showToast(message, type, opts) : type = 'success' | 'error' | 'info', opts = { duration }
+    let _toastSeq = 0;
+    function _escapeHtmlToast(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    function showToast(message, type, opts) {
+      type = type || 'info';
+      opts = opts || {};
+      const container = document.getElementById('toast-container');
+      if (!container) return null;
+      const duration = opts.duration != null ? opts.duration : 4000;
+      const id = 'toast-' + (++_toastSeq);
+      const STYLES = {
+        success: { cls: 'bg-emerald-50 border-emerald-300 text-emerald-800', icon: '✓' },
+        error:   { cls: 'bg-red-50 border-red-300 text-red-700',             icon: '✕' },
+        info:    { cls: 'bg-slate-50 border-slate-300 text-slate-700',       icon: 'ℹ' },
+      };
+      const st = STYLES[type] || STYLES.info;
+      const el = document.createElement('div');
+      el.id = id;
+      el.setAttribute('role', 'status');
+      el.className = `toast-enter pointer-events-auto border rounded-lg shadow-lg px-3.5 py-3 text-xs font-semibold flex items-start gap-2 ${st.cls}`;
+      el.innerHTML = `
+        <span class="mt-0.5">${st.icon}</span>
+        <span class="flex-1 leading-relaxed whitespace-pre-line">${_escapeHtmlToast(message)}</span>
+        <button type="button" aria-label="닫기" class="text-current opacity-50 hover:opacity-100 font-bold leading-none">&times;</button>
+      `;
+      el.querySelector('button').addEventListener('click', () => dismissToast(id));
+      container.appendChild(el);
+      if (duration > 0) setTimeout(() => dismissToast(id), duration);
+      return id;
+    }
+    function dismissToast(id) {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    }
+
+    // ---------- 범용 확인 모달 (Force Refresh All 등에서 재사용) ----------
+    // showConfirmModal({title, message, confirmText, cancelText}) → Promise<boolean>
+    // resolve(true) 시 모달은 열린 채로 남는다 (호출부가 진행상태로 전환 후 hideConfirmModal 호출).
+    // resolve(false) 시 모달은 자동으로 닫힌다.
+    function showConfirmModal(opts) {
+      opts = opts || {};
+      return new Promise((resolve) => {
+        const modal = document.getElementById('confirm-modal');
+        document.getElementById('confirm-modal-title').textContent = opts.title || '확인';
+        document.getElementById('confirm-modal-message').textContent = opts.message || '';
+        const confirmBtn = document.getElementById('confirm-modal-confirm');
+        const cancelBtn = document.getElementById('confirm-modal-cancel');
+        confirmBtn.textContent = opts.confirmText || '확인';
+        cancelBtn.textContent = opts.cancelText || '취소';
+        confirmBtn.disabled = false;
+        cancelBtn.disabled = false;
+        document.getElementById('confirm-modal-progress').classList.add('hidden');
+        document.getElementById('confirm-modal-progress').classList.remove('flex');
+        document.getElementById('confirm-modal-actions').classList.remove('hidden');
+        modal.classList.remove('hidden');
+
+        function cleanup() {
+          confirmBtn.removeEventListener('click', onConfirm);
+          cancelBtn.removeEventListener('click', onCancel);
+          modal.removeEventListener('click', onOverlay);
+        }
+        function onConfirm() { cleanup(); resolve(true); }
+        function onCancel() { cleanup(); modal.classList.add('hidden'); resolve(false); }
+        function onOverlay(e) { if (e.target === modal) onCancel(); }
+        confirmBtn.addEventListener('click', onConfirm);
+        cancelBtn.addEventListener('click', onCancel);
+        modal.addEventListener('click', onOverlay);
+      });
+    }
+    // 확인 후 진행 중 상태로 전환 (버튼 숨기고 스피너 표시) — 모달은 열어둔 채 유지
+    function setConfirmModalBusy(text) {
+      document.getElementById('confirm-modal-actions').classList.add('hidden');
+      const progress = document.getElementById('confirm-modal-progress');
+      progress.classList.remove('hidden');
+      progress.classList.add('flex');
+      document.getElementById('confirm-modal-progress-text').textContent = text || '처리 중…';
+    }
+    function hideConfirmModal() {
+      document.getElementById('confirm-modal').classList.add('hidden');
+      document.getElementById('confirm-modal-actions').classList.remove('hidden');
+      const progress = document.getElementById('confirm-modal-progress');
+      progress.classList.add('hidden');
+      progress.classList.remove('flex');
+    }
+
+    let allPapers = [];       // 전체 로드된 데이터
+    let filteredPapers = [];  // 저널 + 키워드 필터 적용된 데이터
+    let selectedJournals = new Set(); // 선택된 저널
+    let allJournalsMode = true;       // 저널 "All" 모드
+    let selectedBroads = new Set();   // 선택된 broad 키워드
+    let allBroadsMode = true;         // broad "All" 모드
+    let selectedSharps = new Set();   // 선택된 sharp (현재 단일 broad 선택 시에만)
+    let allSharpsMode = true;         // sharp "All" 모드
+    let sharpsByBroad = {};           // broad -> [sharp, ...]
+
+    // 로그인 사용자 (서버가 /api/session, /api/login 응답에 user 포함)
+    let currentUser = '';
+    let isAdmin = false;
+    let statsDailyChart = null;
+    // 서버에서 내려주는 사용자별 설정 (프론트엔드는 username ↔ 프로필 매핑을 모름)
+    // 형식: { hidden_sections: string[], focus_config: {title, subtitle, groups[]} | null }
+    let currentUserConfig = { hidden_sections: [], focus_config: null };
+    // 섹션 숨김/복원을 위해 한 번이라도 숨긴 적 있는 id 전체 추적
+    const _everHiddenSectionIds = new Set();
+
+    function applyUserVisibility() {
+      // 이전에 숨겨졌던 섹션을 전부 복원 (사용자가 바뀔 수 있으므로)
+      for (const id of _everHiddenSectionIds) {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('hidden');
+      }
+      // 현재 사용자의 hidden_sections 적용
+      for (const id of (currentUserConfig.hidden_sections || [])) {
+        _everHiddenSectionIds.add(id);
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+      }
+      // 관리자만 Stats 탭 노출
+      const statsTab = document.getElementById('tab-stats');
+      if (statsTab) statsTab.classList.toggle('hidden', !isAdmin);
+      // 관리자만 Force Refresh All 버튼 노출
+      const refreshAllBtn = document.getElementById('refresh-all-btn');
+      if (refreshAllBtn) refreshAllBtn.classList.toggle('hidden', !isAdmin);
+      // 비관리자가 Stats 화면에 남아있으면 Home으로 방어적 이동 (권한 하향 시)
+      if (!isAdmin && currentView === 'stats') setView('home');
+
+      // 게스트(비로그인) 모드: 로그아웃 UI만 숨김 (로그인 진입점은 공개 노출 없음 — #admin-login 해시 전용)
+      // 피드백 제출은 익명 게스트도 가능 → 버튼은 항상 노출
+      const isGuest = !currentUser;
+      const logoutBtn = document.getElementById('logout-btn');
+      if (logoutBtn) logoutBtn.classList.toggle('hidden', isGuest);
+    }
+
+    // admin 보호 엔드포인트 공통 401/403 처리. true를 반환하면 호출부는 별도 에러 토스트를 띄우지 않아도 됨
+    // (여기서 이미 안내했으므로). 401이면 세션 만료로 간주하고 프론트를 게스트 상태로 정리한다.
+    function handleAdminAuthError(res) {
+      if (res.status === 401) {
+        showToast('세션이 만료되었습니다. /manage 에서 다시 로그인해주세요.', 'error', { duration: 6000 });
+        currentUser = '';
+        isAdmin = false;
+        currentUserConfig = { hidden_sections: [], focus_config: null };
+        applyUserVisibility();
+        return true;
+      }
+      if (res.status === 403) {
+        showToast('권한이 없습니다. 관리자 계정으로 로그인해주세요.', 'error', { duration: 6000 });
+        return true;
+      }
+      return false;
+    }
+
+    // Browse 뷰 상태
+    let currentView = 'home';             // 'home' | 'analytics' | 'browse' | 'advanced-search' | 'stats'
+    let browseMode = 'journal';           // 'journal' | 'topic'
+    let selectedBrowseJournal = null;
+    let selectedBrowseTopic = null;       // 'broad' 또는 'broad/sharp' key
+    let browseExpandedBroads = new Set();
+    let browseSort = 'count';             // 'count' | 'alpha'
+    const BROWSE_ROW_CAP = 500;
+
+    let keywordView = 'broad';       // 'broad' | 'sharp'
+    let broadFilter = '';            // '' or specific broad domain (sharp view 필터)
+    let expandedBroads = new Set();  // Top Keywords 트리에서 펼쳐진 broad 목록
+    // 차트별 독립 period 모드
+    let jfPeriodMode = 'week';        // Journal Frequency
+    let kwPeriodMode = 'week';        // Keyword Trends
+    let jmPeriodMode = 'week';        // Top Journals Trend
+    let dailyPeriodMode = 'day';      // Daily Paper Count: 'day' | 'week' | 'month'
+
+    // ISO 주 키 (월요일 시작) "YYYY-Www"
+    function isoWeekKey(dateStr) {
+      if (!dateStr) return '';
+      const d = new Date(dateStr + 'T00:00:00Z');
+      if (isNaN(d)) return '';
+      // ISO 8601: 목요일 기준 연도, 월요일 기준 주
+      const target = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+      const dayNum = (target.getUTCDay() + 6) % 7; // 월=0..일=6
+      target.setUTCDate(target.getUTCDate() - dayNum + 3); // 해당 주 목요일
+      const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
+      const firstDayNum = (firstThursday.getUTCDay() + 6) % 7;
+      firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNum + 3);
+      const week = 1 + Math.round((target - firstThursday) / (7 * 86400000));
+      return `${target.getUTCFullYear()}-W${String(week).padStart(2,'0')}`;
+    }
+
+    function periodKey(dateStr, mode) {
+      if (!dateStr) return '';
+      if (mode === 'week') return isoWeekKey(dateStr);
+      if (mode === 'day')  return dateStr.slice(0, 10);
+      return dateStr.slice(0, 7); // month
+    }
+
+    // 차트별 period 토글 버튼 스타일 갱신 헬퍼
+    function _updatePeriodButtons(prefix, current, modes) {
+      for (const m of modes) {
+        const btn = document.getElementById(`${prefix}-${m}`);
+        if (!btn) continue;
+        btn.className = (m === current)
+          ? 'px-2 py-1 bg-navy-800 text-white'
+          : 'px-2 py-1 text-slate-500 hover:bg-slate-50';
+      }
+    }
+
+    window.setKwPeriod = function(mode) {
+      kwPeriodMode = mode;
+      _updatePeriodButtons('kw-period', mode, ['month','week']);
+      renderKeywordChart();
+    };
+    window.setJfPeriod = function(mode) {
+      jfPeriodMode = mode;
+      _updatePeriodButtons('jf-period', mode, ['week','month']);
+      renderJournalChart();
+    };
+    window.setJmPeriod = function(mode) {
+      jmPeriodMode = mode;
+      _updatePeriodButtons('jm-period', mode, ['month','week']);
+      renderJournalMonthlyChart();
+    };
+    window.setDailyPeriod = function(mode) {
+      dailyPeriodMode = mode;
+      _updatePeriodButtons('daily-period', mode, ['day','week','month']);
+      renderDailyChart();
+    };
+    let charts = {};
+
+    // ---------- 인증 ----------
+    const loginForm = document.getElementById('login-form');
+    const loginScreen = document.getElementById('login-screen');
+    const dashboard = document.getElementById('dashboard');
+    const ADMIN_LOGIN_HASH = '#admin-login';
+
+    // 로그인 화면은 공개 진입점이 없음 — URL 해시가 #admin-login일 때만 노출.
+    // (관리자는 Nginx Basic Auth로 보호된 /manage 를 북마크 → 인증 통과 시 /#admin-login 으로 302 리다이렉트됨)
+    function showLoginScreenForAdminHash() {
+      document.getElementById('login-error').classList.add('hidden');
+      document.getElementById('login-back-btn').classList.remove('hidden');
+      dashboard.classList.add('hidden');
+      loginScreen.classList.remove('hidden');
+    }
+    function clearAdminLoginHash() {
+      if (location.hash === ADMIN_LOGIN_HASH) {
+        // 일부 모바일/인앱 브라우저는 History API 호출 시 예외를 던질 수 있음 →
+        // 실패해도 로그인 흐름이 중단되지 않도록 방어. (성공 후 화면 전환은 호출부에서 직접 처리)
+        try {
+          history.replaceState(null, '', location.pathname + location.search);
+        } catch (_) {
+          try { location.hash = ''; } catch (_) {}
+        }
+      }
+    }
+    // 현재 해시 상태에 맞춰 로그인/대시보드 화면을 동기화 (세션 체크 완료 후 · 해시 변경 시 호출)
+    function syncLoginScreenFromHash() {
+      if (location.hash === ADMIN_LOGIN_HASH) {
+        showLoginScreenForAdminHash();
+      } else {
+        loginScreen.classList.add('hidden');
+        dashboard.classList.remove('hidden');
+      }
+    }
+    // 초기 로드 후속 처리: 화면 자체는 #dashboard 바로 안쪽의 동기 인라인 스크립트가 첫 페인트 전에 이미 뒤집어 놓았음.
+    // 여기서는 그 나머지(에러 메시지 초기화 · 뒤로가기 버튼 노출)를 마저 채운다 (해시가 #admin-login일 때만).
+    if (location.hash === ADMIN_LOGIN_HASH) showLoginScreenForAdminHash();
+    window.addEventListener('hashchange', syncLoginScreenFromHash);
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const user = document.getElementById('login-user').value;
+      const pass = document.getElementById('login-pass').value;
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: user, password: pass })
+        });
+        if (res.ok) {
+          try {
+            const data = await res.json();
+            currentUser = data.user || '';
+            isAdmin = !!data.is_admin;
+            currentUserConfig = {
+              hidden_sections: Array.isArray(data.hidden_sections) ? data.hidden_sections : [],
+              focus_config: data.focus_config || null,
+            };
+          } catch { currentUser = ''; isAdmin = false; currentUserConfig = { hidden_sections: [], focus_config: null }; }
+          // 성공 즉시 화면을 직접 전환한다. 해시 정리(replaceState)가 모바일에서 실패해도
+          // 로그인 화면이 다시 뜨지 않도록, syncLoginScreenFromHash 의 해시 판정에 의존하지 않는다.
+          clearAdminLoginHash();
+          loginScreen.classList.add('hidden');
+          dashboard.classList.remove('hidden');
+          applyUserVisibility();
+          loadData();
+        } else {
+          // 서버 응답에 따라 에러 문구 분기
+          const errEl = document.getElementById('login-error');
+          if (res.status === 429) {
+            errEl.textContent = '로그인 실패 횟수를 초과했습니다. 잠시 후 다시 시도해주세요. (약 2분)';
+          } else if (res.status === 401) {
+            errEl.textContent = '아이디 또는 비밀번호가 올바르지 않습니다';
+          } else {
+            errEl.textContent = `로그인 오류 (${res.status})`;
+          }
+          errEl.classList.remove('hidden');
+        }
+      } catch {
+        const errEl = document.getElementById('login-error');
+        errEl.textContent = '네트워크 오류 — 연결을 확인하세요';
+        errEl.classList.remove('hidden');
+      }
+    });
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      await fetch('/api/logout', { method: 'POST' });
+      currentUser = '';
+      isAdmin = false;
+      currentUserConfig = { hidden_sections: [], focus_config: null };
+      document.getElementById('login-pass').value = '';
+      // 게스트로 돌아가기 — 로그인 화면으로 막지 않고 대시보드를 그대로 유지
+      clearAdminLoginHash();
+      syncLoginScreenFromHash();
+      applyUserVisibility();
+    });
+
+    // 로그인 화면 이탈 (뒤로가기 링크) — 해시를 지워 새로고침 시 재노출되지 않도록 함
+    document.getElementById('login-back-btn').addEventListener('click', () => {
+      clearAdminLoginHash();
+      syncLoginScreenFromHash();
+    });
+
+    // ---------- 데이터 로드 ----------
+    async function loadData() {
+      const months = parseInt(document.getElementById('month-range').value);
+      const monthList = getMonthRange(months);
+      const frames = [];
+      for (const m of monthList) {
+        try {
+          const res = await fetch(`/api/csv/${m}`);
+          if (!res.ok) continue;
+          const text = await res.text();
+          const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+          frames.push(...parsed.data);
+        } catch {}
+      }
+      allPapers = frames.filter(r => r.title && r.title.trim());
+      // 전역 sharp→parent 맵 구축 (parseReason 의 자동 재라우팅에 사용)
+      // 반드시 buildTopicFilter/applyFilter 이전에 호출 — 이후 parseReason 들이 이 맵 참조
+      buildSharpToParent(allPapers);
+      buildJournalFilter();
+      buildTopicFilter();
+      populateBroadFilters();
+      applyFilter();
+    }
+
+    function getMonthRange(n) {
+      const months = [];
+      const now = new Date();
+      for (let i = 0; i < n; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+      }
+      return months;
+    }
+
+    document.getElementById('month-range').addEventListener('change', loadData);
+    document.getElementById('refresh-btn').addEventListener('click', loadData);
+    document.getElementById('kw-top-n').addEventListener('change', () => { renderKeywordChart(); renderWordCloud(); });
+
+    // 관리자 전용: 전체 월 Notion 강제 재조회
+    document.getElementById('refresh-all-btn').addEventListener('click', async () => {
+      const btn = document.getElementById('refresh-all-btn');
+      if (btn.disabled) return; // 중복 클릭 방지
+      const original = btn.innerHTML;
+      btn.disabled = true;
+      try {
+        const proceed = await showConfirmModal({
+          title: '전체 재조회',
+          message: '전체 월을 Notion에서 강제 재조회합니다.\n\n과거 월 캐시(CSV)까지 모두 덮어씁니다. 월별 DB 수에 따라 수십 초 걸릴 수 있습니다. 진행할까요?',
+          confirmText: '재조회 시작',
+          cancelText: '취소',
+        });
+        if (!proceed) return;
+
+        btn.innerHTML = '⏳ 재조회 중...';
+        setConfirmModalBusy('재조회 중… (수십 초 걸릴 수 있습니다)');
+
+        let res, data = null;
+        try {
+          res = await fetch('/api/refresh_all', { method: 'POST' });
+          try { data = await res.json(); } catch (_) { data = null; }
+        } catch (netErr) {
+          showToast('네트워크 오류로 재조회에 실패했습니다.', 'error');
+          return;
+        }
+
+        if (!res.ok) {
+          if (!handleAdminAuthError(res)) {
+            showToast(`재조회 실패: ${(data && data.error) || ('HTTP ' + res.status)}`, 'error');
+          }
+          return;
+        }
+        if (data && data.ok === false) {
+          showToast(`재조회 실패: ${data.error || '알 수 없는 오류'}`, 'error');
+          return;
+        }
+
+        const months = (data && Array.isArray(data.refreshed_months)) ? data.refreshed_months : [];
+        const summary = months.length ? ('\n대상 월: ' + months.join(', ')) : '';
+        showToast(((data && data.message) || '전체 재조회가 완료되었습니다.') + summary, 'success', { duration: 6000 });
+
+        // 수동 새로고침 없이 데이터 자동 반영
+        await loadData();
+        await loadStats();
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = original;
+        hideConfirmModal();
+      }
+    });
+
+    // ---------- 공지·개선사항 ----------
+    async function loadAnnouncements() {
+      try {
+        const res = await fetch('/api/announcements');
+        if (!res.ok) return;
+        const items = await res.json();
+        if (!Array.isArray(items) || items.length === 0) return;
+
+        // 날짜 내림차순 정렬
+        items.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+
+        const typeStyle = {
+          fix:     { label: 'FIX',     color: '#f97316', bg: '#fff7ed' },
+          update:  { label: 'UPDATE',  color: '#10b981', bg: '#ecfdf5' },
+          info:    { label: 'INFO',    color: '#002F6C', bg: '#eff6ff' },
+          warning: { label: 'WARNING', color: '#dc2626', bg: '#fef2f2' },
+        };
+
+        const esc = (s) => String(s || '').replace(/[&<>"']/g, c => (
+          {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+        ));
+
+        const html = items.map(it => {
+          const t = typeStyle[it.type] || typeStyle.info;
+          return `
+            <div class="flex gap-3 p-3 rounded-lg border border-slate-100" style="background:${t.bg}; border-top:3px solid ${t.color};">
+              <div class="flex-shrink-0 flex flex-col items-start gap-1 min-w-[80px]">
+                <span class="text-[9px] font-black tracking-[0.08em] px-1.5 py-0.5 rounded" style="background:${t.color}; color:#F8FAFC;">${t.label}</span>
+                <span class="text-[10px] font-semibold text-slate-500">${esc(it.date)}</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-bold text-navy-900 leading-snug">${esc(it.title)}</p>
+                <p class="text-xs text-slate-600 mt-1 leading-relaxed">${esc(it.body)}</p>
+              </div>
+            </div>`;
+        }).join('');
+
+        document.getElementById('announcements-list').innerHTML = html;
+        document.getElementById('section-announcements').classList.remove('hidden');
+      } catch (e) {
+        // 실패 시 조용히 무시 (섹션은 숨겨진 채 유지)
+        console.warn('announcements load failed:', e);
+      }
+    }
+
+    // 접기/펼치기: localStorage 로 상태 보존
+    function toggleAnnouncements() {
+      const list = document.getElementById('announcements-list');
+      const btn = document.getElementById('ann-toggle');
+      const hidden = list.classList.toggle('hidden');
+      btn.textContent = hidden ? 'Expand' : 'Collapse';
+      try { localStorage.setItem('annCollapsed', hidden ? '1' : '0'); } catch(_) {}
+    }
+    // 페이지 로드 시 이전 접기 상태 복원
+    try {
+      if (localStorage.getItem('annCollapsed') === '1') {
+        const list = document.getElementById('announcements-list');
+        const btn = document.getElementById('ann-toggle');
+        if (list) list.classList.add('hidden');
+        if (btn) btn.textContent = 'Expand';
+      }
+    } catch(_) {}
+
+    loadAnnouncements();
+
+    // ---------- 방문자 카운트 배지 (공개 API, 게스트 포함 항상 동작) ----------
+    async function loadMetrics() {
+      const textEl = document.getElementById('visitor-badge-text');
+      const dotEl = document.getElementById('visitor-badge-dot');
+      if (!textEl) return;
+      try {
+        const res = await fetch('/api/metrics');
+        if (!res.ok) throw new Error('metrics unavailable');
+        const data = await res.json();
+        const online = Number.isFinite(data.online) ? data.online : 0;
+        const today = Number.isFinite(data.today) ? data.today : 0;
+        const total = Number.isFinite(data.total) ? data.total : 0;
+        textEl.textContent = `${online} online · ${today} today · ${total} total`;
+        if (dotEl) dotEl.classList.remove('hidden');
+      } catch {
+        textEl.textContent = 'Visitor info —';
+        if (dotEl) dotEl.classList.add('hidden');
+      }
+    }
+    loadMetrics();
+    setInterval(loadMetrics, 30000);
+
+    // ---------- 저널 필터 ----------
+    function buildJournalFilter() {
+      const freq = {};
+      for (const p of allPapers) {
+        if (p.journal) freq[p.journal] = (freq[p.journal]||0)+1;
+      }
+      const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]);
+      const container = document.getElementById('journal-chips');
+      container.innerHTML = '';
+      selectedJournals = new Set(sorted.map(e=>e[0]));
+      allJournalsMode = true;
+
+      for (const [j, count] of sorted) {
+        const chip = document.createElement('span');
+        chip.className = 'journal-chip active';
+        chip.textContent = `${j.length > 20 ? j.slice(0,18)+'..' : j} (${count})`;
+        chip.dataset.journal = j;
+        chip.addEventListener('click', () => toggleJournal(j, chip));
+        container.appendChild(chip);
+      }
+    }
+
+    window.toggleAllJournals = function() {
+      allJournalsMode = true;
+      selectedJournals = new Set(allPapers.map(p=>p.journal).filter(Boolean));
+      document.getElementById('journal-all-chip').classList.add('active');
+      document.querySelectorAll('#journal-chips .journal-chip').forEach(c => c.classList.add('active'));
+      applyFilter();
+    };
+
+    function toggleJournal(journal, chip) {
+      const allChips = document.querySelectorAll('#journal-chips .journal-chip');
+
+      if (allJournalsMode) {
+        // All 상태에서 클릭 → 그것만 배타 선택 (Topics 필터와 동일 UX)
+        allJournalsMode = false;
+        selectedJournals = new Set([journal]);
+        document.getElementById('journal-all-chip').classList.remove('active');
+        allChips.forEach(c => c.classList.toggle('active', c.dataset.journal === journal));
+      } else {
+        // 이미 필터 중 → 토글 (다중 선택 추가/제거)
+        if (selectedJournals.has(journal)) {
+          selectedJournals.delete(journal);
+          chip.classList.remove('active');
+        } else {
+          selectedJournals.add(journal);
+          chip.classList.add('active');
+        }
+        // 모두 해제 or 전부 활성이면 All 복귀
+        if (selectedJournals.size === 0 || selectedJournals.size === allChips.length) {
+          allJournalsMode = true;
+          selectedJournals = new Set(Array.from(allChips).map(c => c.dataset.journal));
+          document.getElementById('journal-all-chip').classList.add('active');
+          allChips.forEach(c => c.classList.add('active'));
+        }
+      }
+      applyFilter();
+    }
+
+    function applyFilter() {
+      let out = allJournalsMode ? allPapers : allPapers.filter(p => selectedJournals.has(p.journal));
+
+      if (!allBroadsMode) {
+        out = out.filter(p => {
+          const tags = parseReason(p.gpt_reason || '');
+          for (const { broad, sharp } of tags) {
+            if (!selectedBroads.has(broad)) continue;
+            // sharp 필터가 활성일 때만 검사 (단일 broad 선택 + sharp 세부 선택)
+            if (allSharpsMode) return true;
+            // sharp가 없는 태그는 'All sharp'에서만 통과
+            if (sharp && selectedSharps.has(sharp)) return true;
+          }
+          return false;
+        });
+      }
+
+      filteredPapers = out;
+      const countLabel = filteredPapers.length === allPapers.length ? '' : `${filteredPapers.length} / ${allPapers.length} papers`;
+      document.getElementById('filter-count').textContent = countLabel;
+      const mobileCount = document.getElementById('filter-count-mobile');
+      if (mobileCount) mobileCount.textContent = countLabel;
+      updateFiltersMobileSummary();
+      renderAll();
+    }
+
+    // 모바일 필터 토글 (sm 이상에서는 무시됨 — 본문이 항상 sm:block)
+    function _setFiltersExpanded(expanded) {
+      const body = document.getElementById('filters-body');
+      const icon = document.getElementById('filters-toggle-icon');
+      if (!body || !icon) return;
+      // sm 미만에서만 hidden 토글 (sm 이상은 sm:block으로 항상 보임)
+      body.classList.toggle('hidden', !expanded);
+      icon.textContent = expanded ? '▾' : '▸';
+    }
+    function updateFiltersMobileSummary() {
+      const sum = document.getElementById('filters-mobile-summary');
+      if (!sum) return;
+      const parts = [];
+      parts.push(allJournalsMode ? 'All journals' : `${selectedJournals.size} journals`);
+      parts.push(allBroadsMode ? 'All topics' : `${selectedBroads.size} topics`);
+      sum.textContent = parts.join(' · ');
+      const hasFilter = !allJournalsMode || !allBroadsMode;
+      sum.classList.toggle('text-navy-800', hasFilter);
+      sum.classList.toggle('text-slate-400', !hasFilter);
+    }
+    (function() {
+      const btn = document.getElementById('filters-toggle-btn');
+      if (btn) btn.addEventListener('click', () => {
+        const body = document.getElementById('filters-body');
+        _setFiltersExpanded(body && body.classList.contains('hidden'));
+      });
+    })();
+
+    // ---------- 키워드(broad/sharp) 필터 ----------
+    function buildTopicFilter() {
+      // broad, sharp 빈도 집계 + 계층 맵
+      const broadFreq = {};
+      sharpsByBroad = {};
+      for (const p of allPapers) {
+        const seen = new Set(); // paper 단위 broad 중복 제거
+        for (const { broad, sharp } of parseReason(p.gpt_reason || '')) {
+          if (!seen.has(broad)) { broadFreq[broad] = (broadFreq[broad]||0)+1; seen.add(broad); }
+          if (sharp) {
+            (sharpsByBroad[broad] ||= new Set()).add(sharp);
+          }
+        }
+      }
+      // Set -> sorted Array
+      for (const b of Object.keys(sharpsByBroad)) {
+        sharpsByBroad[b] = Array.from(sharpsByBroad[b]).sort();
+      }
+
+      const sorted = Object.entries(broadFreq).sort((a,b)=>b[1]-a[1]);
+      const container = document.getElementById('broad-chips');
+      container.innerHTML = '';
+      selectedBroads = new Set(sorted.map(e=>e[0]));
+      allBroadsMode = true;
+
+      for (const [b, count] of sorted) {
+        const chip = document.createElement('span');
+        chip.className = 'journal-chip active';
+        chip.textContent = `${b} (${count})`;
+        chip.dataset.broad = b;
+        chip.addEventListener('click', (e) => toggleBroad(b, chip, e));
+        container.appendChild(chip);
+      }
+      // sharp 바 초기화
+      document.getElementById('sharp-filter-bar').classList.add('hidden');
+    }
+
+    window.toggleAllBroads = function() {
+      allBroadsMode = true;
+      selectedBroads = new Set(Object.keys(sharpsByBroad).concat(
+        Array.from(document.querySelectorAll('#broad-chips .journal-chip')).map(c => c.dataset.broad)
+      ));
+      document.getElementById('broad-all-chip').classList.add('active');
+      document.querySelectorAll('#broad-chips .journal-chip').forEach(c => c.classList.add('active'));
+      // sharp 리셋
+      allSharpsMode = true;
+      selectedSharps = new Set();
+      document.getElementById('sharp-filter-bar').classList.add('hidden');
+      applyFilter();
+    };
+
+    function toggleBroad(broad, chip, ev) {
+      const allChips = document.querySelectorAll('#broad-chips .journal-chip');
+
+      if (allBroadsMode) {
+        // All 상태에서 클릭 → 그것만 배타 선택
+        allBroadsMode = false;
+        selectedBroads = new Set([broad]);
+        document.getElementById('broad-all-chip').classList.remove('active');
+        allChips.forEach(c => c.classList.toggle('active', c.dataset.broad === broad));
+      } else {
+        // 이미 필터 중 → 토글 (다중 선택)
+        if (selectedBroads.has(broad)) {
+          selectedBroads.delete(broad);
+          chip.classList.remove('active');
+        } else {
+          selectedBroads.add(broad);
+          chip.classList.add('active');
+        }
+        // 모두 해제 or 전부 활성이면 All 복귀
+        if (selectedBroads.size === 0 || selectedBroads.size === allChips.length) {
+          allBroadsMode = true;
+          selectedBroads = new Set(Array.from(allChips).map(c => c.dataset.broad));
+          document.getElementById('broad-all-chip').classList.add('active');
+          allChips.forEach(c => c.classList.add('active'));
+        }
+      }
+
+      renderSharpBar();
+      applyFilter();
+    }
+
+    function renderSharpBar() {
+      const bar = document.getElementById('sharp-filter-bar');
+      const container = document.getElementById('sharp-chips');
+      const label = document.getElementById('sharp-filter-label');
+      container.innerHTML = '';
+      // 단일 broad 선택 + 해당 broad에 sharp 존재
+      if (allBroadsMode || selectedBroads.size !== 1) {
+        bar.classList.add('hidden');
+        allSharpsMode = true;
+        selectedSharps = new Set();
+        return;
+      }
+      const broad = [...selectedBroads][0];
+      const sharps = sharpsByBroad[broad] || [];
+      if (sharps.length === 0) {
+        bar.classList.add('hidden');
+        allSharpsMode = true;
+        selectedSharps = new Set();
+        return;
+      }
+      label.textContent = `${broad} ›`;
+      bar.classList.remove('hidden');
+      allSharpsMode = true;
+      selectedSharps = new Set(sharps);
+      document.getElementById('sharp-all-chip').classList.add('active');
+      for (const s of sharps) {
+        const chip = document.createElement('span');
+        chip.className = 'journal-chip active';
+        chip.textContent = s;
+        chip.dataset.sharp = s;
+        chip.addEventListener('click', (e) => toggleSharp(s, chip, e));
+        container.appendChild(chip);
+      }
+    }
+
+    window.toggleAllSharps = function() {
+      allSharpsMode = true;
+      selectedSharps = new Set(
+        Array.from(document.querySelectorAll('#sharp-chips .journal-chip')).map(c => c.dataset.sharp)
+      );
+      document.getElementById('sharp-all-chip').classList.add('active');
+      document.querySelectorAll('#sharp-chips .journal-chip').forEach(c => c.classList.add('active'));
+      applyFilter();
+    };
+
+    function toggleSharp(sharp, chip, ev) {
+      const allChips = document.querySelectorAll('#sharp-chips .journal-chip');
+
+      if (allSharpsMode) {
+        allSharpsMode = false;
+        selectedSharps = new Set([sharp]);
+        document.getElementById('sharp-all-chip').classList.remove('active');
+        allChips.forEach(c => c.classList.toggle('active', c.dataset.sharp === sharp));
+      } else {
+        if (selectedSharps.has(sharp)) {
+          selectedSharps.delete(sharp);
+          chip.classList.remove('active');
+        } else {
+          selectedSharps.add(sharp);
+          chip.classList.add('active');
+        }
+        if (selectedSharps.size === 0 || selectedSharps.size === allChips.length) {
+          allSharpsMode = true;
+          selectedSharps = new Set(Array.from(allChips).map(c => c.dataset.sharp));
+          document.getElementById('sharp-all-chip').classList.add('active');
+          allChips.forEach(c => c.classList.add('active'));
+        }
+      }
+
+      applyFilter();
+    }
+
+    // ---------- 렌더링 ----------
+    function renderAll() {
+      renderKPIs();
+      renderKeywordChart();
+      renderWordCloud();
+      renderKeywordTable();
+      renderJournalChart();
+      renderJournalMonthlyChart();
+      renderDailyChart();
+      renderHeatmap();
+      renderByJournalKeywords();
+      renderPaperTable();
+      // Browse 뷰가 활성화된 경우, 데이터 재로드 시에도 동기화 (allPapers 기반)
+      if (currentView === 'browse') {
+        renderBrowseList();
+        renderBrowseDetail();
+      } else if (currentView === 'advanced-search') {
+        renderAdvancedSearch(false);
+      }
+    }
+
+    // KPI
+    function renderKPIs() {
+      // Home 전용 — 필터 무시하고 전체 데이터로 KPI 집계
+      const papers = allPapers;
+      const total = papers.length;
+      const journals = new Set(papers.map(p => p.journal).filter(Boolean));
+      const now = new Date();
+      const curMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+      const thisMonth = papers.filter(p => (p.date||'').startsWith(curMonth)).length;
+
+      // 최근 7일(오늘 포함) — YYYY-MM-DD 문자열 사전식 비교
+      const weekAgo = new Date(now.getTime() - 6*86400000);
+      const weekAgoStr = `${weekAgo.getFullYear()}-${String(weekAgo.getMonth()+1).padStart(2,'0')}-${String(weekAgo.getDate()).padStart(2,'0')}`;
+      const thisWeek = papers.filter(p => (p.date||'').slice(0,10) >= weekAgoStr).length;
+
+      const dates = papers.map(p => p.date).filter(Boolean).sort();
+      let daily = 0;
+      if (dates.length > 1) {
+        const first = new Date(dates[0]);
+        const last = new Date(dates[dates.length-1]);
+        const days = Math.max(1, (last - first) / 86400000 + 1);
+        daily = (total / days).toFixed(1);
+      }
+
+      const globalFreq = getFreq(papers, 'broad', '');
+      const topKw = Object.entries(globalFreq).sort((a,b)=>b[1]-a[1]);
+      const topKwName = topKw.length ? topKw[0][0] : '—';
+
+      document.getElementById('kpi-total').textContent = total.toLocaleString();
+      document.getElementById('kpi-journals').textContent = journals.size;
+      document.getElementById('kpi-month').textContent = thisMonth.toLocaleString();
+      document.getElementById('kpi-week').textContent = thisWeek.toLocaleString();
+      document.getElementById('kpi-daily').textContent = daily || '—';
+      document.getElementById('kpi-topkw').textContent = topKwName;
+    }
+
+    // gpt_reason 파싱: "batteries/solid-electrolytes, biology" → [{broad, sharp}, ...]
+    // broad만 있는 토큰(sharp 없음)도 허용
+    // sharpToParent: 전역 sharp → parent broad 맵. buildSharpToParent() 가 한 번 채움.
+    // 과거 비정규화 데이터(broad 자리에 sharp slug)가 들어와도 parent 로 재라우팅.
+    let sharpToParent = {};
+
+    function buildSharpToParent(papers) {
+      // 전체 papers 의 broad/sharp 관계를 집계해 sharp -> {parent: count} 빈도 맵 생성
+      const freq = {};
+      for (const p of papers) {
+        const reason = p.gpt_reason || '';
+        if (!reason) continue;
+        for (const tok of reason.split(',')) {
+          const s = tok.trim().toLowerCase();
+          if (!s) continue;
+          const idx = s.indexOf('/');
+          if (idx < 0) continue;
+          const broad = s.slice(0, idx).trim();
+          const sharp = s.slice(idx + 1).trim();
+          if (!isValidKeywordSlug(broad) || !isValidKeywordSlug(sharp)) continue;
+          (freq[sharp] ||= {})[broad] = (freq[sharp]?.[broad] || 0) + 1;
+        }
+      }
+      // sharp 마다 최빈 parent 선택 (tie 는 알파벳순)
+      const result = {};
+      for (const [sharp, parents] of Object.entries(freq)) {
+        const best = Object.entries(parents)
+          .sort((a, b) => (b[1] - a[1]) || a[0].localeCompare(b[0]))[0][0];
+        result[sharp] = best;
+      }
+      sharpToParent = result;
+    }
+
+    // 유효한 키워드 슬러그만 허용: 영문 소문자/숫자 + 하이픈 구분 (예: functional-materials).
+    // → Notion GPT Reason 에 섞여 들어온 한글 메모·자유서술(공백·괄호·콜론·중괄호 등)을 걸러
+    //   워드클라우드·트렌드·Top Keywords·도메인 필터·히트맵에서 노출되지 않게 한다.
+    function isValidKeywordSlug(s) {
+      return typeof s === 'string' && s.length <= 40 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(s);
+    }
+
+    function parseReason(reason) {
+      if (!reason) return [];
+      const out = [];
+      for (const tok of reason.split(',')) {
+        const s = tok.trim().toLowerCase();
+        if (!s) continue;
+        const idx = s.indexOf('/');
+        if (idx < 0) {
+          if (!isValidKeywordSlug(s)) continue;   // 비정상 토큰(한글 메모 등) 스킵
+          // broad 자리에 sharp slug 가 온 경우 자동 재라우팅
+          if (sharpToParent[s]) {
+            out.push({ broad: sharpToParent[s], sharp: s });
+          } else {
+            out.push({ broad: s, sharp: null });
+          }
+        } else {
+          const broad = s.slice(0, idx).trim();
+          const sharp = s.slice(idx + 1).trim();
+          if (!isValidKeywordSlug(broad)) continue;              // broad 무효 → 토큰 전체 스킵
+          out.push({ broad, sharp: isValidKeywordSlug(sharp) ? sharp : null });
+        }
+      }
+      return out;
+    }
+
+    // 빈도 계산 (paper 단위 중복 제거)
+    //  view='broad' → broad 도메인 기준
+    //  view='sharp' → sharp 키워드 기준, broadOnly가 있으면 해당 broad 안의 sharp만
+    function getFreq(papers, view, broadOnly) {
+      const freq = {};
+      for (const p of papers) {
+        const seen = new Set();
+        for (const { broad, sharp } of parseReason(p.gpt_reason || '')) {
+          if (view === 'broad') {
+            if (seen.has(broad)) continue;
+            seen.add(broad);
+            freq[broad] = (freq[broad] || 0) + 1;
+          } else {
+            if (!sharp) continue;
+            if (broadOnly && broad !== broadOnly) continue;
+            if (seen.has(sharp)) continue;
+            seen.add(sharp);
+            freq[sharp] = (freq[sharp] || 0) + 1;
+          }
+        }
+      }
+      return freq;
+    }
+
+    // 현재 UI 상태(keywordView + broadFilter)에 맞는 빈도
+    function currentFreq(papers) {
+      return getFreq(papers, keywordView, keywordView === 'sharp' ? broadFilter : '');
+    }
+
+    // Broad/Sharp 뷰 전환 (키워드 트렌드·워드클라우드·Top 테이블용)
+    window.setKeywordView = function(view) {
+      keywordView = view;
+      const b1 = document.getElementById('kv-broad');
+      const b2 = document.getElementById('kv-sharp');
+      b1.className = (view === 'broad') ? 'px-2.5 py-1 bg-navy-800 text-white' : 'px-2.5 py-1 text-slate-500 hover:bg-slate-50';
+      b2.className = (view === 'sharp') ? 'px-2.5 py-1 bg-navy-800 text-white' : 'px-2.5 py-1 text-slate-500 hover:bg-slate-50';
+      // broad 드롭다운은 sharp view에서만 활성
+      document.getElementById('broad-filter').disabled = (view !== 'sharp');
+      renderKeywordChart();
+      renderWordCloud();
+      renderKeywordTable();
+    };
+
+    // broad 도메인 드롭다운 변경
+    document.getElementById('broad-filter').addEventListener('change', (e) => {
+      broadFilter = e.target.value;
+      renderKeywordChart();
+      renderWordCloud();
+      renderKeywordTable();
+    });
+
+    // broad 도메인 목록으로 드롭다운 채우기
+    function populateBroadFilters() {
+      const broads = Object.entries(getFreq(allPapers, 'broad', ''))
+        .sort((a,b) => b[1] - a[1]).map(e => e[0]);
+      const fill = (sel, keepValue) => {
+        const prev = keepValue && broads.includes(keepValue) ? keepValue : '';
+        sel.innerHTML = '<option value="">All domains</option>' +
+          broads.map(b => `<option value="${b}">${b} (${getFreq(allPapers,'broad','')[b]})</option>`).join('');
+        sel.value = prev;
+      };
+      fill(document.getElementById('broad-filter'), broadFilter);
+      fill(document.getElementById('hm-broad-filter'), heatmapBroadFilter);
+      fill(document.getElementById('bjk-broad-filter'), bjkBroadFilter);
+    }
+
+    // 키워드 트렌드
+    function renderKeywordChart() {
+      const topN = parseInt(document.getElementById('kw-top-n').value);
+      const globalFreq = currentFreq(filteredPapers);
+      const topKws = Object.entries(globalFreq).sort((a,b)=>b[1]-a[1]).slice(0,topN).map(e=>e[0]);
+
+      const monthMap = {};
+      for (const p of filteredPapers) {
+        const m = periodKey(p.date||'', kwPeriodMode);
+        if (!m) continue;
+        if (!monthMap[m]) monthMap[m] = [];
+        monthMap[m].push(p);
+      }
+      const months = Object.keys(monthMap).sort();
+
+      if (charts.keyword) charts.keyword.destroy();
+
+      // 기간 포인트가 1개 이하면 line이 의미 없으므로 horizontal bar로 전환
+      if (months.length <= 1) {
+        const label = months[0] || '—';
+        const data = topKws.map(kw => globalFreq[kw] || 0);
+        charts.keyword = new Chart(document.getElementById('chart-keyword'), {
+          type: 'bar',
+          data: {
+            labels: topKws,
+            datasets: [{
+              label, data,
+              backgroundColor: topKws.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]),
+              borderRadius: 4,
+            }]
+          },
+          options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { title: () => label } } },
+            scales: {
+              x: { beginAtZero: true, ticks: { font: { size: 10 }, precision: 0 } },
+              y: { ticks: { font: { size: 10, family: 'Manrope' } } }
+            }
+          }
+        });
+        return;
+      }
+
+      const datasets = topKws.map((kw, i) => ({
+        label: kw,
+        data: months.map(m => { const f = currentFreq(monthMap[m]); return f[kw]||0; }),
+        borderColor: CHART_COLORS[i % CHART_COLORS.length],
+        backgroundColor: CHART_COLORS[i % CHART_COLORS.length] + '20',
+        tension: 0.3, borderWidth: 2, pointRadius: 3,
+      }));
+
+      charts.keyword = new Chart(document.getElementById('chart-keyword'), {
+        type: 'line',
+        data: { labels: months, datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { font: { size: 10, family: 'Manrope' }, boxWidth: 12 } } },
+          scales: {
+            x: { ticks: { font: { size: 10 } } },
+            y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    // 워드클라우드
+    // 정돈된 태그(pill) 클라우드 — 빈도=크기, 시퀀셜 navy 톤으로 강약, 클릭 시 차트 필터.
+    function renderWordCloud() {
+      const container = document.getElementById('wordcloud-tags');
+      if (!container) return;
+      const freq = currentFreq(filteredPapers);   // 키워드 슬러그 필터 반영됨
+      const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0, 24);
+      if (!sorted.length) {
+        container.innerHTML = '<span class="text-xs text-slate-400">No keywords to display</span>';
+        return;
+      }
+
+      const maxFreq = sorted[0][1];
+      const html = sorted.map(([word, count]) => {
+        const t = maxFreq ? count / maxFreq : 0;              // 0..1 정규화
+        const size = (11 + Math.sqrt(t) * 7).toFixed(1);      // 약 11~18px (좁은 컬럼에서 촘촘하게)
+        const active = broadFilter && broadFilter === word;
+        // 상위(t≥0.6)는 채움 navy + 흰 글자, 그 외는 연한 navy 틴트 + navy 글자
+        let style;
+        if (t >= 0.6) {
+          style = `font-size:${size}px;background:#002F6C;color:#F8FAFC`;
+        } else {
+          const light = 96 - Math.round(t * 26);              // 96%→~70% (틴트 농도)
+          style = `font-size:${size}px;background:hsl(214 45% ${light}%);color:#001B44`;
+        }
+        return `<button type="button" class="wc-tag${active ? ' wc-tag-active' : ''}" data-kw="${_escapeHtml(word)}" style="${style}" title="${count} papers">${_escapeHtml(word)}</button>`;
+      }).join('');
+      container.innerHTML = html;
+    }
+
+    // 태그 클릭 → 차트 필터 (기존 pickBroad 재사용). broad 뷰는 그대로,
+    // sharp 뷰는 해당 sharp 의 상위 broad 로 라우팅.
+    document.getElementById('wordcloud-tags').addEventListener('click', (e) => {
+      const tag = e.target.closest('.wc-tag');
+      if (!tag) return;
+      const kw = tag.dataset.kw || '';
+      if (!kw || typeof window.pickBroad !== 'function') return;
+      if (keywordView === 'sharp') {
+        const parent = sharpToParent[kw];
+        if (parent) window.pickBroad(parent);
+      } else {
+        window.pickBroad(kw);
+      }
+    });
+
+    // Top 키워드 트리 (Broad ▸ Sharp 계층)
+    function renderKeywordTable() {
+      const broadFreq = getFreq(filteredPapers, 'broad', '');
+      const top15Broad = Object.entries(broadFreq).sort((a,b)=>b[1]-a[1]).slice(0, 15);
+
+      if (top15Broad.length === 0) {
+        document.getElementById('kw-tree').innerHTML = '<div class="text-slate-400">No data</div>';
+        return;
+      }
+
+      // 각 broad 아래 sharp top 8 계산
+      const maxBroad = top15Broad[0][1];
+      const html = top15Broad.map(([broad, count], i) => {
+        const isOpen = expandedBroads.has(broad);
+        const isFilter = (broad === broadFilter);
+        const pct = Math.round((count / maxBroad) * 100);
+        const barColor = isFilter ? '#002F6C' : '#8BC4F0';
+        const rowCls = i < 3 ? 'font-bold text-navy-900' : 'text-slate-700';
+
+        // 해당 broad 내 sharp 빈도
+        const sharpsInBroad = getFreq(filteredPapers, 'sharp', broad);
+        const topSharps = Object.entries(sharpsInBroad).sort((a,b)=>b[1]-a[1]).slice(0, 10);
+        const sharpSum = Object.values(sharpsInBroad).reduce((a,b)=>a+b, 0);
+        const bareCount = count - (topSharps.length ? Math.max(...Object.values(sharpsInBroad).length ? [sharpSum] : [0]) : 0);
+
+        const chevron = topSharps.length
+          ? `<span class="inline-block w-3 text-slate-400">${isOpen ? '▾' : '▸'}</span>`
+          : `<span class="inline-block w-3"></span>`;
+
+        // broad row (XSS: onclick 인라인 대신 data-broad + 위임 리스너 사용, 표시 텍스트는 _escapeHtml)
+        const broadAttr = _escapeHtml(broad);
+        let row = `<div class="${rowCls} ${isFilter ? 'bg-navy-50' : ''}">
+          <div class="kw-broad-row flex items-center justify-between py-1 px-1 hover:bg-slate-50 rounded cursor-pointer group" data-broad="${broadAttr}">
+            <span class="truncate pr-2 flex items-center gap-1">
+              ${chevron}
+              <span class="text-slate-400 mr-0.5">${i+1}.</span>
+              <span>${_escapeHtml(broad)}</span>
+              ${topSharps.length ? `<span class="text-slate-300 text-[10px]">(${topSharps.length}${Object.keys(sharpsInBroad).length > topSharps.length ? '+' : ''} sharps)</span>` : ''}
+            </span>
+            <span class="flex items-center gap-2 shrink-0">
+              <span class="text-slate-400">${count}</span>
+              <button type="button" class="kw-pick-broad opacity-0 group-hover:opacity-100 ${isFilter ? 'opacity-100 text-navy-700' : 'text-slate-400 hover:text-navy-700'} transition-opacity text-[11px]" data-broad="${broadAttr}" title="Filter charts by this domain">⚲</button>
+            </span>
+          </div>
+          <div class="h-0.5 bg-slate-100 rounded-full overflow-hidden ml-4 mr-1">
+            <div class="h-full rounded-full" style="width:${pct}%;background:${barColor}"></div>
+          </div>`;
+
+        // sharps (펼친 경우)
+        if (isOpen && topSharps.length) {
+          row += `<div class="ml-6 mt-1 mb-2 border-l border-slate-200 pl-3 space-y-0.5">`;
+          const maxSharp = topSharps[0][1];
+          for (const [sharp, sc] of topSharps) {
+            const sPct = Math.round((sc / maxSharp) * 100);
+            row += `<div class="flex items-center justify-between py-0.5 text-slate-600">
+              <span class="truncate pr-2 text-[11px]"><span class="text-slate-300 mr-1">└</span>${_escapeHtml(sharp)}</span>
+              <span class="flex items-center gap-2 shrink-0">
+                <span class="w-12 h-0.5 bg-slate-100 rounded-full overflow-hidden"><span class="block h-full bg-slate-300" style="width:${sPct}%"></span></span>
+                <span class="text-slate-400 text-[10px] w-6 text-right">${sc}</span>
+              </span>
+            </div>`;
+          }
+          row += `</div>`;
+        }
+
+        row += `</div>`;
+        return row;
+      }).join('');
+
+      document.getElementById('kw-tree').innerHTML = html;
+    }
+
+    // 키워드 트리 클릭 위임 (XSS 방지: onclick 인라인 대신 data-broad 속성 + addEventListener)
+    document.getElementById('kw-tree').addEventListener('click', (e) => {
+      const pickBtn = e.target.closest('.kw-pick-broad');
+      if (pickBtn) {
+        e.stopPropagation();
+        window.pickBroad(pickBtn.dataset.broad);
+        return;
+      }
+      const row = e.target.closest('.kw-broad-row');
+      if (row) window.toggleBroad(row.dataset.broad);
+    });
+
+    // broad 행 클릭 → 펼치기/접기
+    window.toggleBroad = function(broad) {
+      if (expandedBroads.has(broad)) expandedBroads.delete(broad);
+      else expandedBroads.add(broad);
+      renderKeywordTable();
+    };
+
+    // ⚲ 아이콘 → 차트/워드클라우드를 해당 broad로 필터
+    window.pickBroad = function(broad) {
+      broadFilter = (broadFilter === broad) ? '' : broad;
+      document.getElementById('broad-filter').value = broadFilter;
+      if (broadFilter && keywordView !== 'sharp') {
+        setKeywordView('sharp');
+      } else {
+        renderKeywordChart();
+        renderWordCloud();
+        renderKeywordTable();
+      }
+    };
+
+    // 전체 펼치기/접기
+    window.expandAllBroads = function(expand) {
+      if (expand) {
+        const broadFreq = getFreq(filteredPapers, 'broad', '');
+        expandedBroads = new Set(Object.entries(broadFreq).sort((a,b)=>b[1]-a[1]).slice(0, 15).map(e=>e[0]));
+      } else {
+        expandedBroads.clear();
+      }
+      renderKeywordTable();
+    };
+
+    // 저널 빈도
+    function renderJournalChart() {
+      const freq = {};
+      const periods = new Set();
+      for (const p of filteredPapers) {
+        const period = periodKey(p.date || '', jfPeriodMode);
+        if (period) periods.add(period);
+        if (p.journal) freq[p.journal] = (freq[p.journal]||0)+1;
+      }
+      const divisor = Math.max(1, periods.size);
+      const sorted = Object.entries(freq)
+        .map(([journal, count]) => [journal, count / divisor, count])
+        .sort((a,b)=>b[1]-a[1])
+        .slice(0, 15);
+      const unit = jfPeriodMode === 'week' ? 'week' : 'month';
+
+      if (charts.journal) charts.journal.destroy();
+      charts.journal = new Chart(document.getElementById('chart-journal'), {
+        type: 'bar',
+        data: {
+          labels: sorted.map(e => e[0].length > 28 ? e[0].slice(0,25)+'...' : e[0]),
+          datasets: [{ data: sorted.map(e=>Number(e[1].toFixed(2))), backgroundColor: '#002F6C', borderRadius: 4 }]
+        },
+        options: {
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  const row = sorted[ctx.dataIndex];
+                  return `${row[1].toFixed(2)} papers / ${unit} (${row[2]} total)`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { beginAtZero: true, ticks: { font: { size: 10 } } },
+            y: { ticks: { font: { size: 10, family: 'Manrope' } } }
+          }
+        }
+      });
+    }
+
+    // 일별/주별/월별 (Home 전용 — 필터 무시)
+    function renderDailyChart() {
+      const freq = {};
+      for (const p of allPapers) {
+        const d = periodKey(p.date||'', dailyPeriodMode);
+        if (d) freq[d] = (freq[d]||0)+1;
+      }
+      const dates = Object.keys(freq).sort();
+
+      if (charts.daily) charts.daily.destroy();
+      charts.daily = new Chart(document.getElementById('chart-daily'), {
+        type: 'bar',
+        data: {
+          labels: dates.map(d => d.slice(5)),
+          datasets: [{ data: dates.map(d=>freq[d]), backgroundColor: '#1A56A8', borderRadius: 2 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { font: { size: 9 }, maxRotation: 45 } },
+            y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    // Top 저널 월별
+    function renderJournalMonthlyChart() {
+      const freq = {};
+      for (const p of filteredPapers) {
+        if (p.journal) freq[p.journal] = (freq[p.journal]||0)+1;
+      }
+      const topJ = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,10).map(e=>e[0]);
+
+      const monthMap = {};
+      for (const p of filteredPapers) {
+        const m = periodKey(p.date||'', jmPeriodMode);
+        if (!m || !p.journal) continue;
+        if (!monthMap[m]) monthMap[m] = {};
+        monthMap[m][p.journal] = (monthMap[m][p.journal]||0)+1;
+      }
+      const months = Object.keys(monthMap).sort();
+
+      if (charts.journalMonthly) charts.journalMonthly.destroy();
+
+      // 기간 포인트가 1개 이하면 horizontal bar로 전환
+      if (months.length <= 1) {
+        const label = months[0] || '—';
+        const data = topJ.map(j => (monthMap[months[0]]?.[j]) || freq[j] || 0);
+        charts.journalMonthly = new Chart(document.getElementById('chart-journal-monthly'), {
+          type: 'bar',
+          data: {
+            labels: topJ.map(j => j.length > 22 ? j.slice(0,20)+'..' : j),
+            datasets: [{
+              label, data,
+              backgroundColor: topJ.map((_, i) => CHART_COLORS[i]),
+              borderRadius: 4,
+            }]
+          },
+          options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { title: () => label } } },
+            scales: {
+              x: { beginAtZero: true, ticks: { font: { size: 10 }, precision: 0 } },
+              y: { ticks: { font: { size: 10, family: 'Manrope' } } }
+            }
+          }
+        });
+        return;
+      }
+
+      const datasets = topJ.map((j, i) => ({
+        label: j.length > 20 ? j.slice(0,18)+'..' : j,
+        data: months.map(m => monthMap[m]?.[j]||0),
+        borderColor: CHART_COLORS[i], tension: 0.3, borderWidth: 2, pointRadius: 3,
+      }));
+
+      charts.journalMonthly = new Chart(document.getElementById('chart-journal-monthly'), {
+        type: 'line',
+        data: { labels: months, datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { font: { size: 9, family: 'Manrope' }, boxWidth: 10 } } },
+          scales: {
+            x: { ticks: { font: { size: 10 } } },
+            y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    // 히트맵
+    let heatmapView = 'broad';        // 'broad' | 'sharp'
+    let heatmapBroadFilter = '';      // sharp view일 때 특정 broad로 제한
+    let heatmapExpanded = window.matchMedia('(min-width: 640px)').matches;  // 데스크탑은 기본 확장
+    let heatmapCellMode = 'raw';      // 'raw' | 'pct' — 셀 값: 빈도 / 저널 내 %
+    let heatmapColMode = 'global';    // 'global' | 'perrow' — 컬럼(키워드) 선정 방식
+
+    function _getHeatmapKw(papers) {
+      return getFreq(papers, heatmapView, heatmapView === 'sharp' ? heatmapBroadFilter : '');
+    }
+
+    function _setToggleActive(activeId, inactiveId) {
+      const a = document.getElementById(activeId);
+      const i = document.getElementById(inactiveId);
+      if (a) a.className = 'px-2.5 py-1 bg-navy-800 text-white';
+      if (i) i.className = 'px-2.5 py-1 text-slate-500 hover:bg-slate-50';
+    }
+
+    window.setHeatmapView = function(view) {
+      heatmapView = view;
+      _setToggleActive(view==='broad'?'hm-kv-broad':'hm-kv-sharp', view==='broad'?'hm-kv-sharp':'hm-kv-broad');
+      document.getElementById('hm-broad-filter').disabled = (view !== 'sharp');
+      renderHeatmap();
+    };
+    window.setHeatmapCellMode = function(mode) {
+      heatmapCellMode = mode;
+      _setToggleActive(mode==='raw'?'hm-cm-raw':'hm-cm-pct', mode==='raw'?'hm-cm-pct':'hm-cm-raw');
+      renderHeatmap();
+    };
+    window.setHeatmapColMode = function(mode) {
+      heatmapColMode = mode;
+      _setToggleActive(mode==='global'?'hm-col-global':'hm-col-perrow', mode==='global'?'hm-col-perrow':'hm-col-global');
+      renderHeatmap();
+    };
+
+    document.getElementById('hm-broad-filter').addEventListener('change', (e) => {
+      heatmapBroadFilter = e.target.value;
+      renderHeatmap();
+    });
+
+    function _syncHeatmapExpandUI() {
+      const btn = document.getElementById('hm-expand-btn');
+      if (btn) btn.textContent = heatmapExpanded ? 'Collapse' : 'Expand All';
+      const c = document.getElementById('heatmap-container');
+      if (c) c.style.maxHeight = heatmapExpanded ? 'none' : '500px';
+    }
+    window.toggleHeatmapExpand = function() {
+      heatmapExpanded = !heatmapExpanded;
+      _syncHeatmapExpandUI();
+      renderHeatmap();
+    };
+
+    function renderHeatmap() {
+      _syncHeatmapExpandUI();
+      const journalFreq = {};
+      for (const p of filteredPapers) {
+        if (p.journal) journalFreq[p.journal] = (journalFreq[p.journal]||0)+1;
+      }
+      // 데스크탑은 collapse해도 데이터 갯수는 유지(max-height만 축소되어 스크롤)
+      const isDesktop = window.matchMedia('(min-width: 640px)').matches;
+      const showAll = heatmapExpanded || isDesktop;
+      const journalLimit = showAll ? 999 : 10;
+      const kwLimit = showAll ? 20 : 10;
+      const topJ = Object.entries(journalFreq).sort((a,b)=>b[1]-a[1]).slice(0, journalLimit).map(e=>e[0]);
+
+      // 저널별 키워드 빈도 (Per-Row 모드 + % 셀 + top-1 마크 계산용으로 사전 계산)
+      const perJournalFreq = {};
+      const topKwPerJournal = {};   // 행별 top-1 키워드 (★ 마킹용)
+      for (const j of topJ) {
+        const jPapers = filteredPapers.filter(p => p.journal === j);
+        const freq = _getHeatmapKw(jPapers);
+        perJournalFreq[j] = { freq, total: jPapers.length };
+        const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]);
+        topKwPerJournal[j] = sorted.length > 0 ? sorted[0][0] : null;
+      }
+
+      // 컬럼(키워드) 선정
+      let topKws;
+      const globalKw = _getHeatmapKw(filteredPapers);
+      if (heatmapColMode === 'perrow') {
+        // 행별 top-3 union — 발행량 큰 저널의 키워드 독점 방지
+        // 정렬: vote count(top-3에 든 저널 수) desc → 글로벌 빈도 desc (tie-break)
+        // 효과: 여러 저널이 공감하는 키워드가 앞에, 1~2개 저널만 가진 niche 키워드가 뒤에 분리되어 노출
+        const perRowTop = 3;
+        const voteCount = {};
+        for (const j of topJ) {
+          const sorted = Object.entries(perJournalFreq[j].freq).sort((a,b)=>b[1]-a[1]);
+          for (let i = 0; i < Math.min(perRowTop, sorted.length); i++) {
+            const kw = sorted[i][0];
+            voteCount[kw] = (voteCount[kw] || 0) + 1;
+          }
+        }
+        topKws = Object.keys(voteCount)
+          .sort((a,b) => (voteCount[b]-voteCount[a]) || (globalKw[b]||0)-(globalKw[a]||0))
+          .slice(0, Math.max(kwLimit, 25));
+      } else {
+        // Global 모드도 Per-Row와 같은 최소 컬럼 수를 유지
+        topKws = Object.entries(globalKw).sort((a,b)=>b[1]-a[1]).slice(0, Math.max(kwLimit, 25)).map(e=>e[0]);
+      }
+
+      // matrix 채우기 (raw 빈도 + % 동시 계산)
+      const matrix = {};
+      let maxVal = 1;
+      for (const j of topJ) {
+        matrix[j] = {};
+        const { freq, total } = perJournalFreq[j];
+        for (const kw of topKws) {
+          const raw = freq[kw] || 0;
+          const pct = total > 0 ? (raw / total * 100) : 0;
+          matrix[j][kw] = { raw, pct };
+          const v = heatmapCellMode === 'pct' ? pct : raw;
+          if (v > maxVal) maxVal = v;
+        }
+      }
+      // % 모드 색조는 0~100 스케일 고정 (저널 간 비교성 ↑)
+      const colorMax = heatmapCellMode === 'pct' ? 100 : maxVal;
+
+      let html = '<thead class="sticky top-0 z-10"><tr><th class="px-2 py-2 text-left text-slate-400 font-bold sticky left-0 bg-white z-20"></th>';
+      for (const kw of topKws) {
+        html += `<th class="px-2 py-2 text-center font-bold text-slate-500 bg-white" style="writing-mode:vertical-lr;transform:rotate(180deg);min-width:36px">${_escapeHtml(kw)}</th>`;
+      }
+      html += '</tr></thead><tbody>';
+      for (const j of topJ) {
+        const total = perJournalFreq[j].total;
+        const jDisplay = j.length>30?j.slice(0,28)+'..':j;
+        const jLabel = `${_escapeHtml(jDisplay)} <span class="text-slate-400 font-normal">(${total})</span>`;
+        html += `<tr><td class="px-2 py-1.5 font-semibold text-navy-900 whitespace-nowrap sticky left-0 bg-white">${jLabel}</td>`;
+        for (const kw of topKws) {
+          const cell = matrix[j][kw];
+          const v = heatmapCellMode === 'pct' ? cell.pct : cell.raw;
+          const intensity = v / colorMax;
+          const bg = v===0?'#F8F9FA':`rgba(0,47,108,${0.1+Math.min(intensity,1)*0.8})`;
+          const tc = intensity>0.5?'white':'#001B44';
+          // 표시 텍스트 + tooltip(반대 단위 동시 노출)
+          const display = heatmapCellMode === 'pct' ? (v>0 ? v.toFixed(1)+'%' : '') : (v||'');
+          const tip = `${kw} @ ${j}\nRaw: ${cell.raw} / ${total}\n%: ${cell.pct.toFixed(1)}%`;
+          html += `<td class="px-2 py-1.5 text-center font-semibold" style="background:${bg};color:${tc}" title="${tip.replace(/"/g,'&quot;')}">${display}</td>`;
+        }
+        html += '</tr>';
+      }
+      html += '</tbody>';
+      document.getElementById('heatmap-table').innerHTML = html;
+    }
+
+    // ---------- By Journal Keywords (저널별 카드 그리드) ----------
+    let bjkView = 'broad';            // 'broad' | 'sharp'
+    let bjkBroadFilter = '';
+    let bjkTopJournals = 12;
+    let bjkTopKeywords = 5;
+    let bjkSortMode = 'count';        // 'count' | 'alpha' — 카드 정렬 방식
+
+    window.setBjkView = function(view) {
+      bjkView = view;
+      _setToggleActive(view==='broad'?'bjk-kv-broad':'bjk-kv-sharp', view==='broad'?'bjk-kv-sharp':'bjk-kv-broad');
+      document.getElementById('bjk-broad-filter').disabled = (view !== 'sharp');
+      renderByJournalKeywords();
+    };
+    window.setBjkSortMode = function(mode) {
+      bjkSortMode = mode;
+      _setToggleActive(mode==='count'?'bjk-sort-count':'bjk-sort-alpha', mode==='count'?'bjk-sort-alpha':'bjk-sort-count');
+      renderByJournalKeywords();
+    };
+
+    document.getElementById('bjk-broad-filter').addEventListener('change', (e) => {
+      bjkBroadFilter = e.target.value;
+      renderByJournalKeywords();
+    });
+    document.getElementById('bjk-journals').addEventListener('change', (e) => {
+      bjkTopJournals = parseInt(e.target.value);
+      renderByJournalKeywords();
+    });
+    document.getElementById('bjk-keywords').addEventListener('change', (e) => {
+      bjkTopKeywords = parseInt(e.target.value);
+      renderByJournalKeywords();
+    });
+
+    function renderByJournalKeywords() {
+      const grid = document.getElementById('bjk-grid');
+      const empty = document.getElementById('bjk-empty');
+      if (!grid) return;
+
+      // 저널별 발행 수 집계
+      const journalCount = {};
+      for (const p of filteredPapers) {
+        if (p.journal) journalCount[p.journal] = (journalCount[p.journal]||0)+1;
+      }
+      // 1) 발행량 상위 N개 저널 선정 (#/A-Z 모드 모두 동일)
+      let topJournals = Object.entries(journalCount)
+        .sort((a,b)=>b[1]-a[1])
+        .slice(0, bjkTopJournals)
+        .map(e => e[0]);
+      // 2) 알파벳 모드면 추린 결과를 저널명 오름차순 재정렬
+      if (bjkSortMode === 'alpha') {
+        topJournals = [...topJournals].sort((a,b) => a.localeCompare(b));
+      }
+
+      if (topJournals.length === 0) {
+        grid.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      // 카드 HTML 생성
+      const cards = topJournals.map(j => {
+        const jPapers = filteredPapers.filter(p => p.journal === j);
+        const total = jPapers.length;
+        const freq = getFreq(jPapers, bjkView, bjkView === 'sharp' ? bjkBroadFilter : '');
+        const top = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0, bjkTopKeywords);
+
+        if (top.length === 0) {
+          return `
+            <div class="border border-slate-200 rounded-lg p-3">
+              <div class="flex items-baseline justify-between gap-2 mb-2">
+                <h3 class="text-xs font-bold text-navy-900 truncate" title="${_escapeHtml(j)}">${_escapeHtml(j)}</h3>
+                <span class="text-[10px] text-slate-400 font-semibold whitespace-nowrap">${total} papers</span>
+              </div>
+              <p class="text-[10px] text-slate-400">No keyword data</p>
+            </div>`;
+        }
+
+        const maxFreq = top[0][1];
+        const bars = top.map(([kw, n]) => {
+          const pct = total > 0 ? (n / total * 100) : 0;
+          const barW = (n / maxFreq * 100).toFixed(1);
+          return `
+            <li class="flex items-center gap-2 text-[11px]">
+              <span class="flex-1 truncate font-medium text-navy-900" title="${_escapeHtml(kw)}">${_escapeHtml(kw)}</span>
+              <div class="w-20 h-2 bg-slate-100 rounded-full overflow-hidden flex-shrink-0">
+                <div class="h-full bg-navy-800 rounded-full" style="width:${barW}%"></div>
+              </div>
+              <span class="w-14 text-right text-slate-500 font-mono text-[10px] whitespace-nowrap">${n} · ${pct.toFixed(0)}%</span>
+            </li>`;
+        }).join('');
+
+        return `
+          <div class="border border-slate-200 rounded-lg p-3 hover:border-navy-800 transition-colors">
+            <div class="flex items-baseline justify-between gap-2 mb-2 pb-2 border-b border-slate-100">
+              <h3 class="text-xs font-bold text-navy-900 truncate" title="${_escapeHtml(j)}">${_escapeHtml(j)}</h3>
+              <span class="text-[10px] text-slate-400 font-semibold whitespace-nowrap">${total} papers</span>
+            </div>
+            <ul class="space-y-1.5">${bars}</ul>
+          </div>`;
+      }).join('');
+
+      grid.innerHTML = cards;
+    }
+
+    // 전역 검색 (Analytics 본문 카드) — 헤더 검색과 동일 로직, 결과를 인라인 리스트로 렌더
+    const MAIN_SEARCH_LIMIT = 100;
+    const mainSearchInput = document.getElementById('main-search-input');
+    const mainSearchResults = document.getElementById('main-search-results');
+    const mainSearchCount = document.getElementById('main-search-count');
+    let _mainSearchDebounce = null;
+
+    function runMainSearch(q) {
+      q = (q || '').trim();
+      if (!q) {
+        mainSearchResults.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">Enter a search term.</p>';
+        mainSearchCount.textContent = '';
+        return;
+      }
+      const tokens = q.toLowerCase().split(/\s+/).filter(Boolean);
+      const matches = [];
+      for (const p of allPapers) {
+        if (_paperMatchesQuery(p, q)) matches.push(p);
+      }
+      const total = matches.length;
+      mainSearchCount.textContent = total ? `${total} match${total !== 1 ? 'es' : ''}${total > MAIN_SEARCH_LIMIT ? ` (showing top ${MAIN_SEARCH_LIMIT})` : ''}` : 'No results';
+
+      if (!total) {
+        mainSearchResults.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">No matching papers.</p>';
+        return;
+      }
+      matches.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      const show = matches.slice(0, MAIN_SEARCH_LIMIT);
+
+      // 날짜별 그룹
+      const groups = {};
+      for (const p of show) {
+        const d = (p.date || '').slice(0, 10) || 'No date';
+        (groups[d] ||= []).push(p);
+      }
+      const dateKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+
+      mainSearchResults.innerHTML = dateKeys.map(d => {
+        const items = groups[d].map(p => {
+          const title = _highlightTokens(p.title || '(untitled)', tokens);
+          const journal = _highlightTokens(p.journal || '', tokens);
+          const doi = _highlightTokens(p.doi || '', tokens);
+          const tags = parseReason(p.gpt_reason || '');
+          const tagHtml = tags.slice(0, 5).map(t => {
+            const label = t.sharp ? `${t.broad} / ${t.sharp}` : t.broad;
+            return `<span class="inline-block text-[10px] bg-slate-100 text-slate-600 rounded px-1.5 py-0.5">${_highlightTokens(label, tokens)}</span>`;
+          }).join(' ');
+          const href = _safeUrl(p.url || (p.doi ? `https://doi.org/${p.doi}` : ''));
+          const linkOpen = href ? `<a href="${_escapeHtml(href)}" target="_blank" rel="noopener" class="block hover:bg-slate-50 px-3 py-2 rounded-md border border-transparent hover:border-slate-200 transition-all">` : `<div class="block px-3 py-2">`;
+          const linkClose = href ? '</a>' : '</div>';
+          return `${linkOpen}
+            <div class="flex items-baseline justify-between gap-3 mb-1">
+              <span class="text-xs font-bold text-navy-800 truncate">${journal || '&nbsp;'}</span>
+              ${doi ? `<span class="text-[10px] font-mono text-slate-400 truncate">${doi}</span>` : ''}
+            </div>
+            <div class="text-sm text-slate-800 leading-snug">${title}</div>
+            ${tagHtml ? `<div class="mt-1 flex flex-wrap gap-1">${tagHtml}</div>` : ''}
+          ${linkClose}`;
+        }).join('');
+        return `<div class="browse-date-header">${d} <span class="count">${groups[d].length}</span></div>${items}`;
+      }).join('');
+    }
+
+    mainSearchInput.addEventListener('input', (e) => {
+      clearTimeout(_mainSearchDebounce);
+      _mainSearchDebounce = setTimeout(() => runMainSearch(e.target.value), 120);
+    });
+    mainSearchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { mainSearchInput.value = ''; runMainSearch(''); }
+    });
+    document.getElementById('main-search-clear').addEventListener('click', () => {
+      mainSearchInput.value = '';
+      runMainSearch('');
+      mainSearchInput.focus();
+    });
+
+    // ---------- Advanced Search (별도 탭 전용) ----------
+    const ADVANCED_SEARCH_PAGE_SIZE = 200;
+    const advancedSearchInput = document.getElementById('advanced-search-input');
+    const advancedSearchResults = document.getElementById('advanced-search-results');
+    const advancedSearchCount = document.getElementById('advanced-search-count');
+    const advancedSearchLoadMore = document.getElementById('advanced-search-load-more');
+    let advancedSearchVisible = ADVANCED_SEARCH_PAGE_SIZE;
+    let _advancedSearchDebounce = null;
+
+    function _escapeRegex(s) {
+      return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function _parseAdvancedSearchQuery(q) {
+      const terms = [];
+      const re = /([+-])?("([^"]*)"|[^\s]+)/g;
+      let m;
+      while ((m = re.exec(q || '')) !== null) {
+        const sign = m[1] || '';
+        const raw = (m[3] != null ? m[3] : m[2] || '').trim();
+        if (!raw || /^[+\-]+$/.test(raw)) continue;
+        const value = raw.toLowerCase();
+        if (!value.replace(/\*/g, '').trim()) continue;
+        const wildcard = value.includes('*');
+        terms.push({
+          raw,
+          value,
+          exclude: sign === '-',
+          required: sign === '+',
+          wildcard,
+          regex: wildcard ? new RegExp(value.split('*').map(_escapeRegex).join('.*'), 'i') : null,
+        });
+      }
+      return terms;
+    }
+
+    function _advancedSearchFields() {
+      const checked = Array.from(document.querySelectorAll('.advanced-search-field:checked')).map(el => el.value);
+      const fields = new Set(checked);
+      if (fields.size === 0) {
+        fields.add('title');
+        fields.add('keywords');
+      }
+      return fields;
+    }
+
+    function _paperKeywordText(p) {
+      const tags = parseReason(p.gpt_reason || '');
+      const labels = tags.map(t => t.sharp ? `${t.broad} ${t.sharp} ${t.broad}/${t.sharp}` : t.broad);
+      return [p.gpt_reason || '', ...labels].join(' ');
+    }
+
+    function _advancedPaperText(p, fields) {
+      const parts = [];
+      if (fields.has('title')) parts.push(p.title || '');
+      if (fields.has('keywords')) parts.push(_paperKeywordText(p));
+      if (fields.has('journal')) parts.push(p.journal || '');
+      if (fields.has('doi')) parts.push(p.doi || '');
+      return parts.join(' | ').toLowerCase();
+    }
+
+    function _advancedTermMatches(text, term) {
+      if (term.regex) return term.regex.test(text);
+      return text.includes(term.value);
+    }
+
+    function _paperMatchesAdvancedSearch(p, terms, fields) {
+      if (!terms.length) return false;
+      const text = _advancedPaperText(p, fields);
+      return terms.every(term => {
+        const matched = _advancedTermMatches(text, term);
+        return term.exclude ? !matched : matched;
+      });
+    }
+
+    function _advancedHighlightTokens(terms) {
+      const out = [];
+      for (const term of terms) {
+        if (term.exclude) continue;
+        for (const part of term.value.split('*')) {
+          const s = part.trim();
+          if (s.length >= 2) out.push(s);
+        }
+      }
+      return [...new Set(out)].sort((a, b) => b.length - a.length);
+    }
+
+    function renderAdvancedSearch(resetVisible = false) {
+      if (!advancedSearchInput || !advancedSearchResults) return;
+      if (resetVisible) advancedSearchVisible = ADVANCED_SEARCH_PAGE_SIZE;
+
+      const q = (advancedSearchInput.value || '').trim();
+      const terms = _parseAdvancedSearchQuery(q);
+      if (!q || !terms.length) {
+        advancedSearchResults.innerHTML = '<p class="text-xs text-slate-400 text-center py-12">Enter a search term.</p>';
+        advancedSearchCount.textContent = '';
+        advancedSearchLoadMore.classList.add('hidden');
+        return;
+      }
+      if (!allPapers.length) {
+        advancedSearchResults.innerHTML = '<p class="text-xs text-slate-400 text-center py-12">Loading data…</p>';
+        advancedSearchCount.textContent = '';
+        advancedSearchLoadMore.classList.add('hidden');
+        return;
+      }
+
+      const fields = _advancedSearchFields();
+      const matches = allPapers
+        .filter(p => _paperMatchesAdvancedSearch(p, terms, fields))
+        .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      const total = matches.length;
+      const visibleCount = Math.min(total, advancedSearchVisible);
+      const show = matches.slice(0, visibleCount);
+      advancedSearchCount.textContent = total
+        ? `${total} match${total !== 1 ? 'es' : ''} · ${visibleCount} shown`
+        : 'No results';
+
+      if (!total) {
+        advancedSearchResults.innerHTML = '<p class="text-xs text-slate-400 text-center py-12">No matching papers.</p>';
+        advancedSearchLoadMore.classList.add('hidden');
+        return;
+      }
+
+      const highlight = _advancedHighlightTokens(terms);
+      const groups = {};
+      for (const p of show) {
+        const d = (p.date || '').slice(0, 10) || 'No date';
+        (groups[d] ||= []).push(p);
+      }
+      const dateKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+
+      advancedSearchResults.innerHTML = dateKeys.map(d => {
+        const items = groups[d].map(p => {
+          const title = _highlightTokens(p.title || '(untitled)', highlight);
+          const journal = _escapeHtml(p.journal || '');
+          const doi = _escapeHtml(p.doi || '');
+          const tags = parseReason(p.gpt_reason || '');
+          const tagHtml = tags.slice(0, 8).map(t => {
+            const label = t.sharp ? `${t.broad} / ${t.sharp}` : t.broad;
+            return `<span class="inline-block text-[10px] bg-slate-100 text-slate-600 rounded px-1.5 py-0.5">${_highlightTokens(label, highlight)}</span>`;
+          }).join(' ');
+          const href = _safeUrl(p.url || (p.doi ? `https://doi.org/${p.doi}` : ''));
+          const linkOpen = href ? `<a href="${_escapeHtml(href)}" target="_blank" rel="noopener" class="block hover:bg-slate-50 px-3 py-2 rounded-md border border-transparent hover:border-slate-200 transition-all">` : `<div class="block px-3 py-2">`;
+          const linkClose = href ? '</a>' : '</div>';
+          return `${linkOpen}
+            <div class="flex items-baseline justify-between gap-3 mb-1">
+              <span class="text-xs font-bold text-navy-800 truncate">${journal || '&nbsp;'}</span>
+              ${doi ? `<span class="text-[10px] font-mono text-slate-400 truncate">${doi}</span>` : ''}
+            </div>
+            <div class="text-sm text-slate-800 leading-snug">${title}</div>
+            ${tagHtml ? `<div class="mt-1 flex flex-wrap gap-1">${tagHtml}</div>` : ''}
+          ${linkClose}`;
+        }).join('');
+        return `<div class="browse-date-header">${d} <span class="count">${groups[d].length}</span></div>${items}`;
+      }).join('');
+
+      const remaining = total - visibleCount;
+      advancedSearchLoadMore.classList.toggle('hidden', remaining <= 0);
+      advancedSearchLoadMore.textContent = remaining > 0 ? `Show more (${remaining} left)` : 'Show more';
+    }
+
+    if (advancedSearchInput) {
+      advancedSearchInput.addEventListener('input', (e) => {
+        clearTimeout(_advancedSearchDebounce);
+        _advancedSearchDebounce = setTimeout(() => renderAdvancedSearch(true), 120);
+      });
+      advancedSearchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          advancedSearchInput.value = '';
+          renderAdvancedSearch(true);
+        }
+      });
+    }
+    document.getElementById('advanced-search-clear').addEventListener('click', () => {
+      advancedSearchInput.value = '';
+      renderAdvancedSearch(true);
+      advancedSearchInput.focus();
+    });
+    advancedSearchLoadMore.addEventListener('click', () => {
+      advancedSearchVisible += ADVANCED_SEARCH_PAGE_SIZE;
+      renderAdvancedSearch(false);
+    });
+    document.querySelectorAll('.advanced-search-field').forEach(el => {
+      el.addEventListener('change', () => renderAdvancedSearch(true));
+    });
+
+    // 논문 목록
+    // 확장 검색: 제목 + 저널 + broad/sharp 키워드 + DOI 모두 매칭 (AND 조건 — 공백 구분된 모든 토큰이 어디든 매칭되어야 함)
+    function _paperMatchesQuery(p, q) {
+      if (!q) return true;
+      const tokens = q.toLowerCase().split(/\s+/).filter(Boolean);
+      if (!tokens.length) return true;
+      const haystack = [
+        (p.title || '').toLowerCase(),
+        (p.journal || '').toLowerCase(),
+        (p.doi || '').toLowerCase(),
+        (p.gpt_reason || '').toLowerCase(),
+      ].join(' | ');
+      return tokens.every(t => haystack.includes(t));
+    }
+
+    function renderPaperTable(filter='') {
+      // Home 전용 — 필터 무시하고 전체에서 검색
+      const tbody = document.getElementById('paper-tbody');
+      const papers = filter
+        ? allPapers.filter(p => _paperMatchesQuery(p, filter))
+        : allPapers;
+
+      const sorted = [...papers].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+      const display = sorted.slice(0, 300);
+
+      tbody.innerHTML = display.map(p => {
+        const title = _escapeHtml(p.title || '');
+        const journal = _escapeHtml(p.journal || '');
+        const date = _escapeHtml((p.date || '').slice(0, 10));
+        const url = _safeUrl(p.url);
+        const titleCell = url
+          ? `<a href="${_escapeHtml(url)}" target="_blank" rel="noopener" class="text-navy-700 hover:underline">${title}</a>`
+          : title;
+        return `<tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="rp-date px-3 py-2 whitespace-nowrap text-slate-500" data-label="Date">${date}</td>
+          <td class="rp-journal px-3 py-2 whitespace-nowrap font-semibold text-navy-800" data-label="Journal">${journal}</td>
+          <td class="rp-title px-3 py-2" data-label="Title">${titleCell}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    document.getElementById('paper-search').addEventListener('input', (e) => {
+      renderPaperTable(e.target.value);
+    });
+
+    // ---------- URL 안전성 검증 ----------
+    // href에 'javascript:' 'data:' 'vbscript:' 프리픽스 차단 → click-to-XSS 방지
+    function _safeUrl(url) {
+      if (!url) return '';
+      const trimmed = String(url).trim();
+      // 프로토콜 허용 목록: http/https/mailto, 절대·상대경로는 OK
+      if (/^(https?:|mailto:|\/|\.\/|\.\.\/|#)/i.test(trimmed)) return trimmed;
+      // 그 외 (javascript:, data:, vbscript: 등) 전부 차단
+      return '';
+    }
+
+    // ---------- 매칭 토큰 하이라이트 헬퍼 (Home Search 카드에서 사용) ----------
+    function _highlightTokens(text, tokens) {
+      if (!tokens.length) return _escapeHtml(text);
+      let safe = _escapeHtml(text);
+      // 토큰을 길이 내림차순으로 치환하면 부분 문자열 우선 회피
+      const sorted = [...tokens].sort((a, b) => b.length - a.length);
+      for (const t of sorted) {
+        if (!t) continue;
+        const re = new RegExp('(' + t.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&') + ')', 'gi');
+        safe = safe.replace(re, '<mark class="bg-yellow-200 text-navy-900 rounded px-0.5">$1</mark>');
+      }
+      return safe;
+    }
+
+    // ---------- Browse 뷰 ----------
+    window.setView = function(v) {
+      // Stats 접근 권한 체크 (비관리자가 URL/DevTools로 강제 전환해도 차단)
+      if (v === 'stats' && !isAdmin) v = 'home';
+      currentView = v;
+      // 탭 active 토글
+      document.getElementById('tab-home').classList.toggle('active', v === 'home');
+      document.getElementById('tab-analytics').classList.toggle('active', v === 'analytics');
+      document.getElementById('tab-browse').classList.toggle('active', v === 'browse');
+      document.getElementById('tab-advanced-search').classList.toggle('active', v === 'advanced-search');
+      const statsTab = document.getElementById('tab-stats');
+      if (statsTab) statsTab.classList.toggle('active', v === 'stats');
+      // 뷰 본문 표시/숨김
+      document.getElementById('view-home').classList.toggle('hidden', v !== 'home');
+      document.getElementById('view-analytics').classList.toggle('hidden', v !== 'analytics');
+      document.getElementById('view-browse').classList.toggle('hidden', v !== 'browse');
+      document.getElementById('view-advanced-search').classList.toggle('hidden', v !== 'advanced-search');
+      document.getElementById('view-stats').classList.toggle('hidden', v !== 'stats');
+      // 필터 바는 Analytics에서만 노출
+      document.getElementById('analytics-filters').classList.toggle('hidden', v !== 'analytics');
+      if (v === 'browse') {
+        renderBrowseList();
+        autoSelectFirstBrowseItem();
+        renderBrowseDetail();
+      } else if (v === 'advanced-search') {
+        renderAdvancedSearch(false);
+        setTimeout(() => advancedSearchInput && advancedSearchInput.focus(), 0);
+      } else if (v === 'stats') {
+        loadStats();
+        loadFeedback();
+        loadEvents();
+      }
+    };
+
+    function setStatsLoading(loading) {
+      const btn = document.getElementById('stats-refresh');
+      if (btn) btn.textContent = loading ? '불러오는 중…' : 'Refresh';
+    }
+    function showStatsError(msg) {
+      const el = document.getElementById('stats-error');
+      if (!el) return;
+      const textEl = document.getElementById('stats-error-text');
+      if (textEl) textEl.textContent = msg;
+      el.classList.remove('hidden');
+    }
+    function hideStatsError() {
+      document.getElementById('stats-error')?.classList.add('hidden');
+    }
+    document.getElementById('stats-retry-btn')?.addEventListener('click', () => loadStats());
+
+    async function loadStats() {
+      setStatsLoading(true);
+      hideStatsError();
+      try {
+        const res = await fetch('/api/stats');
+        if (!res.ok) {
+          if (!handleAdminAuthError(res)) {
+            showToast(`통계 로드 실패 (HTTP ${res.status})`, 'error');
+          }
+          showStatsError('통계를 불러오지 못했습니다.');
+          return;
+        }
+        const data = await res.json();
+        try {
+          renderStats(data);
+        } catch (renderErr) {
+          console.error('stats render failed', renderErr);
+          showToast('통계 화면 표시 중 오류가 발생했습니다.', 'error');
+          showStatsError('통계 표시 중 오류가 발생했습니다.');
+        }
+      } catch (e) {
+        showToast('네트워크 오류로 통계를 불러오지 못했습니다.', 'error');
+        showStatsError('네트워크 오류 — 다시 시도해주세요.');
+      } finally {
+        setStatsLoading(false);
+      }
+    }
+
+    function renderStats(s) {
+      s = s || {};
+      document.getElementById('stats-total-views').textContent = (Number(s.total_page_views) || 0).toLocaleString();
+      document.getElementById('stats-unique-30d').textContent = s.unique_visitors_30d ?? 0;
+      document.getElementById('stats-unique-all').textContent = s.unique_visitors_all ?? 0;
+
+      // 일별 차트 (Chart.js)
+      const daily = Array.isArray(s.daily_page_views) ? s.daily_page_views : [];
+      const labels = daily.map(r => r?.day ?? '');
+      const views = daily.map(r => Number(r?.c) || 0);
+      const canvas = document.getElementById('stats-daily-chart');
+      const ctx = canvas ? canvas.getContext('2d') : null;
+      if (ctx) {
+        if (statsDailyChart) statsDailyChart.destroy();
+        statsDailyChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [
+              { label: 'Page Views', data: views, backgroundColor: '#002F6C' },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+          },
+        });
+      }
+    }
+
+    document.getElementById('stats-refresh').addEventListener('click', () => { loadStats(); loadFeedback(); loadEvents(); });
+
+    // ---------- 최근 이벤트 (페이지네이션) ----------
+    let eventsState = { offset: 0, limit: 25, from: '', to: '', type: 'all', q: '', total: 0 };
+    let _eventsLoading = false;
+    let _eventsSearchTimer = null;
+
+    function showEventsError(msg) {
+      const el = document.getElementById('events-error');
+      if (!el) return;
+      const textEl = document.getElementById('events-error-text');
+      if (textEl) textEl.textContent = msg;
+      el.classList.remove('hidden');
+    }
+    function hideEventsError() {
+      document.getElementById('events-error')?.classList.add('hidden');
+    }
+
+    function renderEventsTable(events) {
+      const tbody = document.getElementById('stats-recent-tbody');
+      if (!tbody) return;
+      if (!events.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-slate-400">이벤트가 없습니다.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = events.map(r => {
+        const time = _escapeHtml(new Date((Number(r?.ts) || 0) * 1000).toLocaleString());
+        const typeColor = r?.type === 'login' ? 'text-blue-700' : (r?.type === 'feedback' ? 'text-emerald-700' : 'text-slate-500');
+        return `<tr class="border-b border-slate-100">
+          <td class="py-2 text-slate-500 whitespace-nowrap">${time}</td>
+          <td class="py-2 ${typeColor} font-semibold">${_escapeHtml(r?.type)}</td>
+          <td class="py-2 text-navy-800">${_escapeHtml(r?.user || '—')}</td>
+          <td class="py-2 text-slate-400 font-mono text-[11px]">${_escapeHtml(r?.ip_hash || '')}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function updateEventsPager() {
+      const { offset, limit, total } = eventsState;
+      const startN = total === 0 ? 0 : offset + 1;
+      const endN = Math.min(offset + limit, total);
+      const label = document.getElementById('events-page-label');
+      if (label) label.textContent = `${startN}–${endN} / ${total}`;
+      const prevBtn = document.getElementById('events-prev-btn');
+      const nextBtn = document.getElementById('events-next-btn');
+      if (prevBtn) prevBtn.disabled = _eventsLoading || offset <= 0;
+      if (nextBtn) nextBtn.disabled = _eventsLoading || (offset + limit >= total);
+    }
+
+    async function loadEvents() {
+      if (_eventsLoading) return;
+      _eventsLoading = true;
+      updateEventsPager();
+      hideEventsError();
+      try {
+        const params = new URLSearchParams({
+          offset: String(eventsState.offset),
+          limit: String(eventsState.limit),
+        });
+        if (eventsState.from) params.set('from', eventsState.from);
+        if (eventsState.to) params.set('to', eventsState.to);
+        if (eventsState.type && eventsState.type !== 'all') params.set('type', eventsState.type);
+        if (eventsState.q) params.set('q', eventsState.q);
+
+        const res = await fetch('/api/events?' + params.toString());
+        if (!res.ok) {
+          if (!handleAdminAuthError(res)) {
+            showToast(`이벤트 로드 실패 (HTTP ${res.status})`, 'error');
+          }
+          showEventsError('이벤트를 불러오지 못했습니다.');
+          return;
+        }
+        const data = await res.json();
+        eventsState.total = Number(data.total) || 0;
+        renderEventsTable(Array.isArray(data.events) ? data.events : []);
+      } catch (e) {
+        showToast('네트워크 오류로 이벤트를 불러오지 못했습니다.', 'error');
+        showEventsError('네트워크 오류 — 다시 시도해주세요.');
+      } finally {
+        _eventsLoading = false;
+        updateEventsPager();
+      }
+    }
+
+    document.getElementById('events-filter-from')?.addEventListener('change', (e) => {
+      eventsState.from = e.target.value; eventsState.offset = 0; loadEvents();
+    });
+    document.getElementById('events-filter-to')?.addEventListener('change', (e) => {
+      eventsState.to = e.target.value; eventsState.offset = 0; loadEvents();
+    });
+    document.getElementById('events-filter-type')?.addEventListener('change', (e) => {
+      eventsState.type = e.target.value; eventsState.offset = 0; loadEvents();
+    });
+    document.getElementById('events-filter-q')?.addEventListener('input', (e) => {
+      const val = e.target.value;
+      clearTimeout(_eventsSearchTimer);
+      _eventsSearchTimer = setTimeout(() => {
+        eventsState.q = val.trim();
+        eventsState.offset = 0;
+        loadEvents();
+      }, 350);
+    });
+    document.getElementById('events-filter-clear')?.addEventListener('click', () => {
+      eventsState = { offset: 0, limit: 25, from: '', to: '', type: 'all', q: '', total: 0 };
+      const fromEl = document.getElementById('events-filter-from'); if (fromEl) fromEl.value = '';
+      const toEl = document.getElementById('events-filter-to'); if (toEl) toEl.value = '';
+      const typeEl = document.getElementById('events-filter-type'); if (typeEl) typeEl.value = 'all';
+      const qEl = document.getElementById('events-filter-q'); if (qEl) qEl.value = '';
+      loadEvents();
+    });
+    document.getElementById('events-prev-btn')?.addEventListener('click', () => {
+      if (eventsState.offset <= 0) return;
+      eventsState.offset = Math.max(0, eventsState.offset - eventsState.limit);
+      loadEvents();
+    });
+    document.getElementById('events-next-btn')?.addEventListener('click', () => {
+      if (eventsState.offset + eventsState.limit >= eventsState.total) return;
+      eventsState.offset += eventsState.limit;
+      loadEvents();
+    });
+    document.getElementById('events-retry-btn')?.addEventListener('click', () => loadEvents());
+
+    // ---------- 피드백 (관리자 조회) ----------
+    let _feedbackCache = [];
+
+    function setFeedbackLoading(loading) {
+      if (!loading) return;
+      const listEl = document.getElementById('stats-feedback-list');
+      if (listEl) listEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">로딩…</p>';
+    }
+    function showFeedbackError(msg) {
+      const listEl = document.getElementById('stats-feedback-list');
+      if (!listEl) return;
+      listEl.innerHTML = `<div class="text-xs text-red-600 font-semibold text-center py-6 flex flex-col items-center gap-2">
+        <span>${_escapeHtml(msg)}</span>
+        <button id="feedback-retry-btn" class="text-[10px] font-bold text-navy-700 border border-navy-700 rounded px-3 py-1 hover:bg-navy-700 hover:text-white">다시 시도</button>
+      </div>`;
+      document.getElementById('feedback-retry-btn')?.addEventListener('click', () => loadFeedback());
+    }
+
+    async function loadFeedback() {
+      setFeedbackLoading(true);
+      try {
+        const res = await fetch('/api/feedback');
+        if (!res.ok) {
+          if (!handleAdminAuthError(res)) {
+            showToast(`피드백 로드 실패 (HTTP ${res.status})`, 'error');
+          }
+          showFeedbackError('피드백을 불러오지 못했습니다.');
+          return;
+        }
+        const data = await res.json();
+        _feedbackCache = Array.isArray(data.items) ? data.items : [];
+        renderFeedback();
+      } catch (e) {
+        showToast('네트워크 오류로 피드백을 불러오지 못했습니다.', 'error');
+        showFeedbackError('네트워크 오류 — 다시 시도해주세요.');
+      }
+    }
+
+    function _escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    const CATEGORY_LABEL = { bug: '🐞 버그', feature: '💡 기능제안', other: '✏️ 기타' };
+
+    function renderFeedback() {
+      const unreadOnly = document.getElementById('stats-feedback-unread-only')?.checked;
+      const items = unreadOnly ? _feedbackCache.filter(f => !f.read_at) : _feedbackCache;
+      const unreadCount = _feedbackCache.filter(f => !f.read_at).length;
+      const unreadBadge = document.getElementById('stats-feedback-unread');
+      if (unreadBadge) unreadBadge.textContent = unreadCount ? `미확인 ${unreadCount}건` : '';
+      const listEl = document.getElementById('stats-feedback-list');
+      if (!listEl) return;
+      if (!items.length) {
+        listEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">아직 피드백이 없습니다.</p>';
+        return;
+      }
+      listEl.innerHTML = items.map(f => {
+        const time = new Date(f.ts * 1000).toLocaleString();
+        const isRead = !!f.read_at;
+        let catClass = 'bg-emerald-600 text-emerald-50';
+        let toggleClass = 'text-emerald-900 hover:bg-emerald-100';
+        if (isRead) {
+          catClass = 'bg-slate-200 text-slate-700';
+          toggleClass = 'text-slate-600 hover:bg-slate-200';
+        }
+        const catLabel = CATEGORY_LABEL[f.category] || '✏️ 기타';
+        return `<div class="border ${isRead ? 'border-slate-200 bg-slate-50' : 'border-emerald-300 bg-emerald-50'} rounded-lg p-3">
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${catClass}">${catLabel}</span>
+              <span class="text-xs font-bold text-navy-800">${_escapeHtml(f.username || '익명')}</span>
+              <span class="text-[10px] text-slate-400">${time}</span>
+              <span class="text-[10px] text-slate-400 font-mono">IP(hash): ${_escapeHtml(f.ip_hash || '')}</span>
+            </div>
+            <button data-fid="${f.id}" data-read="${isRead ? 1 : 0}"
+              class="fb-toggle text-[10px] font-bold px-2 py-1 rounded ${toggleClass}">
+              ${isRead ? '↩ 미확인으로' : '✓ 확인'}
+            </button>
+          </div>
+          <p class="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">${_escapeHtml(f.message)}</p>
+        </div>`;
+      }).join('');
+      listEl.querySelectorAll('.fb-toggle').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const fid = parseInt(btn.getAttribute('data-fid'), 10);
+          const wasRead = btn.getAttribute('data-read') === '1';
+          const originalText = btn.textContent;
+          btn.disabled = true;
+          btn.textContent = '처리 중…';
+          try {
+            const res = await fetch('/api/feedback/mark_read', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: fid, read: !wasRead }),
+            });
+            if (!res.ok) {
+              if (!handleAdminAuthError(res)) {
+                showToast(`상태 변경 실패 (HTTP ${res.status})`, 'error');
+              }
+              btn.disabled = false;
+              btn.textContent = originalText;
+              return;
+            }
+            showToast(wasRead ? '미확인으로 표시했습니다.' : '확인 처리했습니다.', 'success');
+            await loadFeedback();
+          } catch (e) {
+            showToast('네트워크 오류로 상태를 변경하지 못했습니다.', 'error');
+            btn.disabled = false;
+            btn.textContent = originalText;
+          }
+        });
+      });
+    }
+
+    document.getElementById('stats-feedback-unread-only')?.addEventListener('change', renderFeedback);
+
+    // ---------- 피드백 제출 모달 ----------
+    const fbModal = document.getElementById('feedback-modal');
+    const fbMsg = document.getElementById('feedback-message');
+    const fbCount = document.getElementById('feedback-charcount');
+    const fbStatus = document.getElementById('feedback-status');
+
+    function openFeedback() {
+      fbMsg.value = '';
+      fbCount.textContent = '0';
+      fbStatus.classList.add('hidden');
+      fbStatus.textContent = '';
+      fbModal.classList.remove('hidden');
+      setTimeout(() => fbMsg.focus(), 50);
+    }
+    function closeFeedback() { fbModal.classList.add('hidden'); }
+
+    document.getElementById('feedback-btn').addEventListener('click', openFeedback);
+    document.getElementById('feedback-close').addEventListener('click', closeFeedback);
+    document.getElementById('feedback-cancel').addEventListener('click', closeFeedback);
+    fbModal.addEventListener('click', (e) => { if (e.target === fbModal) closeFeedback(); });
+    fbMsg.addEventListener('input', () => { fbCount.textContent = fbMsg.value.length; });
+
+    document.getElementById('feedback-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const category = document.getElementById('feedback-category').value;
+      const message = fbMsg.value.trim();
+      const hp = document.getElementById('feedback-hp').value;
+      if (!message) return;
+      const submitBtn = document.getElementById('feedback-submit');
+      submitBtn.disabled = true;
+      submitBtn.textContent = '전송 중…';
+      try {
+        // 익명 게스트도 제출 가능한 공개 엔드포인트 — handleAdminAuthError(관리자 세션 만료 처리)는 여기에 적용하지 않고 상태코드별로 직접 처리
+        const res = await fetch('/api/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category, message, hp }),
+        });
+        if (res.ok) {
+          fbStatus.textContent = '✓ 소중한 피드백 감사합니다!';
+          fbStatus.className = 'text-xs text-center font-semibold text-emerald-600';
+          fbStatus.classList.remove('hidden');
+          setTimeout(closeFeedback, 1400);
+        } else if (res.status === 429) {
+          fbStatus.textContent = '요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요.';
+          fbStatus.className = 'text-xs text-center font-semibold text-red-500';
+          fbStatus.classList.remove('hidden');
+        } else if (res.status === 400) {
+          fbStatus.textContent = '내용을 확인해 주세요.';
+          fbStatus.className = 'text-xs text-center font-semibold text-red-500';
+          fbStatus.classList.remove('hidden');
+        } else {
+          throw new Error('전송 실패');
+        }
+      } catch (err) {
+        fbStatus.textContent = '✗ 전송에 실패했습니다. 잠시 후 다시 시도해주세요.';
+        fbStatus.className = 'text-xs text-center font-semibold text-red-500';
+        fbStatus.classList.remove('hidden');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '보내기';
+      }
+    });
+
+    function autoSelectFirstBrowseItem() {
+      if (browseMode === 'journal' && !selectedBrowseJournal) {
+        const firstItem = document.querySelector('#browse-list .browse-item');
+        if (firstItem) {
+          const j = firstItem.querySelector('.truncate').getAttribute('title') || firstItem.querySelector('.truncate').textContent;
+          selectedBrowseJournal = j;
+          firstItem.classList.add('active');
+        }
+      } else if (browseMode === 'topic' && !selectedBrowseTopic) {
+        const firstItem = document.querySelector('#browse-list .browse-item');
+        if (firstItem) {
+          const b = firstItem.querySelector('[title]').getAttribute('title');
+          selectedBrowseTopic = b;
+          firstItem.classList.add('active');
+        }
+      }
+    }
+
+    window.setBrowseMode = function(m) {
+      browseMode = m;
+      selectedBrowseJournal = null;
+      selectedBrowseTopic = null;
+      browseExpandedBroads = new Set();
+      _browseDetailFilter = '';  // 모드 전환 시 상세 검색 리셋
+      document.getElementById('browse-mode-journal').classList.toggle('active', m === 'journal');
+      document.getElementById('browse-mode-topic').classList.toggle('active', m === 'topic');
+      document.getElementById('browse-list-header').querySelector('span').textContent = m === 'journal' ? 'Journals' : 'Topics';
+      renderBrowseList();
+      autoSelectFirstBrowseItem();
+      renderBrowseDetail();
+    };
+
+    window.setBrowseSort = function(mode) {
+      browseSort = mode;
+      document.getElementById('browse-sort-count').classList.toggle('bg-navy-800', mode === 'count');
+      document.getElementById('browse-sort-count').classList.toggle('text-white', mode === 'count');
+      document.getElementById('browse-sort-count').classList.toggle('text-slate-500', mode !== 'count');
+      document.getElementById('browse-sort-alpha').classList.toggle('bg-navy-800', mode === 'alpha');
+      document.getElementById('browse-sort-alpha').classList.toggle('text-white', mode === 'alpha');
+      document.getElementById('browse-sort-alpha').classList.toggle('text-slate-500', mode !== 'alpha');
+      renderBrowseList();
+    };
+
+    function _sortByMode(entries) {
+      // entries: [[name, count], ...]
+      if (browseSort === 'alpha') {
+        return entries.slice().sort((a,b) => a[0].localeCompare(b[0], undefined, {sensitivity:'base'}));
+      }
+      return entries.slice().sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0]));
+    }
+
+    function renderBrowseList() {
+      const container = document.getElementById('browse-list');
+      const countEl = document.getElementById('browse-list-count');
+      container.innerHTML = '';
+      if (browseMode === 'journal') {
+        const freq = {};
+        for (const p of allPapers) {
+          if (p.journal) freq[p.journal] = (freq[p.journal]||0) + 1;
+        }
+        const sorted = _sortByMode(Object.entries(freq));
+        countEl.textContent = `${sorted.length}`;
+        for (const [j, c] of sorted) {
+          const row = document.createElement('div');
+          row.className = 'browse-item' + (selectedBrowseJournal === j ? ' active' : '');
+          row.innerHTML = `<span class="truncate" title="${_escapeHtml(j)}">${_escapeHtml(j)}</span><span class="count">${c}</span>`;
+          row.onclick = () => selectBrowseJournal(j);
+          container.appendChild(row);
+        }
+      } else {
+        // Topic 모드: broad 트리
+        const broadFreq = {};
+        const sharpFreqByBroad = {};
+        for (const p of allPapers) {
+          const seenBroad = new Set();
+          const seenPair = new Set();
+          for (const { broad, sharp } of parseReason(p.gpt_reason || '')) {
+            if (!seenBroad.has(broad)) {
+              broadFreq[broad] = (broadFreq[broad]||0) + 1;
+              seenBroad.add(broad);
+            }
+            if (sharp) {
+              const k = broad + '/' + sharp;
+              if (!seenPair.has(k)) {
+                (sharpFreqByBroad[broad] ||= {})[sharp] = (sharpFreqByBroad[broad]?.[sharp]||0) + 1;
+                seenPair.add(k);
+              }
+            }
+          }
+        }
+        const sortedBroads = _sortByMode(Object.entries(broadFreq));
+        countEl.textContent = `${sortedBroads.length}`;
+        for (const [b, c] of sortedBroads) {
+          const expanded = browseExpandedBroads.has(b);
+          const hasSharps = !!sharpFreqByBroad[b];
+          const row = document.createElement('div');
+          row.className = 'browse-item' + (selectedBrowseTopic === b ? ' active' : '');
+          row.innerHTML = `
+            <span class="flex items-center gap-1 truncate">
+              <span class="expand-icon">${hasSharps ? (expanded ? '▾' : '▸') : ' '}</span>
+              <span class="truncate" title="${_escapeHtml(b)}">${_escapeHtml(b)}</span>
+            </span>
+            <span class="count">${c}</span>`;
+          row.onclick = (e) => {
+            // 왼쪽 화살표 영역(근사) 클릭 시 펼침, 나머지 영역은 선택
+            if (hasSharps && e.target.classList.contains('expand-icon')) {
+              toggleBroadExpand(b);
+            } else {
+              selectBrowseTopic(b);
+            }
+          };
+          container.appendChild(row);
+          if (expanded && hasSharps) {
+            const sharps = _sortByMode(Object.entries(sharpFreqByBroad[b]));
+            for (const [s, sc] of sharps) {
+              const key = b + '/' + s;
+              const sRow = document.createElement('div');
+              sRow.className = 'browse-item sharp' + (selectedBrowseTopic === key ? ' active' : '');
+              sRow.innerHTML = `<span class="truncate" title="${_escapeHtml(s)}">${_escapeHtml(s)}</span><span class="count">${sc}</span>`;
+              sRow.onclick = () => selectBrowseTopic(key);
+              container.appendChild(sRow);
+            }
+          }
+        }
+      }
+    }
+
+    function toggleBroadExpand(broad) {
+      if (browseExpandedBroads.has(broad)) browseExpandedBroads.delete(broad);
+      else browseExpandedBroads.add(broad);
+      renderBrowseList();
+    }
+
+    window.selectBrowseJournal = function(j) {
+      selectedBrowseJournal = j;
+      _browseDetailFilter = '';  // 선택 변경 시 상세 검색 리셋
+      renderBrowseList();
+      renderBrowseDetail();
+    };
+
+    window.selectBrowseTopic = function(key) {
+      selectedBrowseTopic = key;
+      _browseDetailFilter = '';
+      renderBrowseList();
+      renderBrowseDetail();
+    };
+
+    // Browse 상세 뷰 내부 검색 필터 (선택 변경 시 리셋)
+    let _browseDetailFilter = '';
+
+    function renderBrowseDetail() {
+      const container = document.getElementById('browse-detail');
+      let papers = [];
+      if (browseMode === 'journal' && selectedBrowseJournal) {
+        papers = allPapers.filter(p => p.journal === selectedBrowseJournal);
+      } else if (browseMode === 'topic' && selectedBrowseTopic) {
+        const hasSlash = selectedBrowseTopic.includes('/');
+        papers = allPapers.filter(p => {
+          for (const { broad, sharp } of parseReason(p.gpt_reason || '')) {
+            if (hasSlash) {
+              if (broad + '/' + (sharp||'') === selectedBrowseTopic) return true;
+            } else {
+              if (broad === selectedBrowseTopic) return true;
+            }
+          }
+          return false;
+        });
+      } else {
+        container.innerHTML = `<p class="text-xs text-slate-400 italic px-1 py-4">Select a ${browseMode === 'journal' ? 'journal' : 'topic'} from the list on the left.</p>`;
+        return;
+      }
+
+      const totalAll = papers.length;
+      // 상세 검색 필터 적용
+      if (_browseDetailFilter) {
+        papers = papers.filter(p => _paperMatchesQuery(p, _browseDetailFilter));
+      }
+
+      // 최신순 정렬, 날짜별 그룹핑
+      papers.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+      const total = papers.length;
+      const display = papers.slice(0, BROWSE_ROW_CAP);
+
+      const groups = new Map(); // date -> [papers]
+      for (const p of display) {
+        const d = (p.date || '').slice(0, 10) || '(no date)';
+        if (!groups.has(d)) groups.set(d, []);
+        groups.get(d).push(p);
+      }
+
+      const selLabel = browseMode === 'journal'
+        ? selectedBrowseJournal
+        : selectedBrowseTopic;
+      const countLabel = _browseDetailFilter
+        ? `${total} / ${totalAll} matched`
+        : `${total}`;
+      const clearBtn = _browseDetailFilter
+        ? `<button id="browse-detail-search-clear" type="button" class="text-[10px] text-slate-400 hover:text-red-500 font-semibold px-1" title="Clear search">&times; Clear</button>`
+        : '';
+      const parts = [`<div class="mb-3">
+        <div class="flex items-baseline justify-between mb-2">
+          <h3 class="text-sm font-bold text-navy-900">${_escapeHtml(selLabel)} <span class="text-xs font-normal text-slate-400">(${countLabel})</span></h3>
+        </div>
+        <div class="flex items-center gap-2">
+          <input id="browse-detail-search" type="text" value="${_escapeHtml(_browseDetailFilter)}"
+            placeholder="Search within this ${browseMode === 'journal' ? 'journal' : 'topic'} (title · keyword · DOI)…"
+            class="flex-1 text-xs border border-slate-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-navy-800" autocomplete="off">
+          ${clearBtn}
+        </div>
+      </div>`];
+
+      for (const [date, rows] of groups) {
+        parts.push(`<div><span class="browse-date-header">${_escapeHtml(date)}<span class="count">${rows.length}</span></span></div>`);
+        parts.push('<div>');
+        for (const p of rows) {
+          const title = _escapeHtml(p.title || '');
+          const url = _safeUrl(p.url);
+          const linkOpen = url ? `<a href="${_escapeHtml(url)}" target="_blank" rel="noopener">` : '';
+          const linkClose = url ? '</a>' : '';
+          const journalTag = browseMode === 'topic'
+            ? `<span class="journal-tag">${_escapeHtml(p.journal || '')}</span>`
+            : '';
+          parts.push(`<div class="browse-paper-row">${journalTag}${linkOpen}${title}${linkClose}</div>`);
+        }
+        parts.push('</div>');
+      }
+
+      if (total > BROWSE_ROW_CAP) {
+        parts.push(`<p class="text-[11px] text-slate-400 italic mt-3 pt-2 border-t border-slate-100">Showing first ${BROWSE_ROW_CAP} of ${total} papers</p>`);
+      }
+
+      container.innerHTML = parts.join('');
+
+      // 검색 입력창 이벤트 바인딩 (매 렌더마다 innerHTML로 대체되므로 재바인딩 필요)
+      const searchInput = document.getElementById('browse-detail-search');
+      if (searchInput) {
+        let deb = null;
+        searchInput.addEventListener('input', (e) => {
+          clearTimeout(deb);
+          const v = e.target.value;
+          deb = setTimeout(() => {
+            _browseDetailFilter = v;
+            _browseSearchTypingFlag = true;  // 스크롤 리셋 차단
+            renderBrowseDetail();
+            _browseSearchTypingFlag = false;
+            const after = document.getElementById('browse-detail-search');
+            if (after) {
+              after.focus();
+              after.setSelectionRange(v.length, v.length);
+            }
+          }, 120);
+        });
+        searchInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+            _browseDetailFilter = '';
+            _browseSearchTypingFlag = true;
+            renderBrowseDetail();
+            _browseSearchTypingFlag = false;
+          }
+        });
+      }
+      const clearEl = document.getElementById('browse-detail-search-clear');
+      if (clearEl) {
+        clearEl.addEventListener('click', () => {
+          _browseDetailFilter = '';
+          renderBrowseDetail();
+        });
+      }
+
+      // 선택 변경 시 스크롤 맨 위로 — 단, 검색 입력 중에는 스크롤 리셋 방지
+      if (!_browseSearchTypingFlag) {
+        let scrollParent = container.parentElement;
+        while (scrollParent && scrollParent !== document.body) {
+          const style = getComputedStyle(scrollParent);
+          if (/(auto|scroll)/.test(style.overflowY)) {
+            scrollParent.scrollTop = 0;
+            break;
+          }
+          scrollParent = scrollParent.parentElement;
+        }
+      }
+    }
+    // 검색 입력 중 렌더가 스크롤을 리셋하지 않도록 하는 플래그
+    let _browseSearchTypingFlag = false;
+
+    // ---------- 리포트 설정 모달 ----------
+    const reportModal = document.getElementById('report-modal');
+
+    function openReportModal() {
+      // 헤더 Month Range 값을 모달 기본값으로 복사
+      const headerMonths = document.getElementById('month-range').value;
+      document.getElementById('report-months').value = headerMonths;
+
+      // 현재 필터된 데이터에서 사용 가능한 broad 키워드 수집
+      const broadFreq = getFreq(filteredPapers, 'broad', '');
+      const sortedKw = Object.entries(broadFreq).sort((a,b)=>b[1]-a[1]);
+      const chipsEl = document.getElementById('report-kw-chips');
+      chipsEl.innerHTML = sortedKw.map(([kw, c], i) => {
+        // 기본: 상위 10개만 선택
+        const checked = i < 10 ? 'checked' : '';
+        return `<label class="inline-flex items-center gap-1 bg-white border border-slate-200 rounded-full px-2.5 py-1 text-[11px] cursor-pointer hover:border-navy-600 transition-colors">
+          <input type="checkbox" class="report-kw-chip" value="${_escapeHtml(kw)}" ${checked}>
+          <span>${_escapeHtml(kw)}</span>
+          <span class="text-slate-400">(${c})</span>
+        </label>`;
+      }).join('');
+
+      // 키워드별 섹션 활성 토글 동기화
+      _syncReportKwSection();
+
+      reportModal.classList.remove('hidden');
+    }
+    function closeReportModal() { reportModal.classList.add('hidden'); }
+
+    function _syncReportKwSection() {
+      const on = document.getElementById('report-inc-papers-by-kw').checked;
+      const sec = document.getElementById('report-kw-section');
+      sec.classList.toggle('opacity-50', !on);
+      sec.classList.toggle('pointer-events-none', !on);
+    }
+    document.getElementById('report-inc-papers-by-kw').addEventListener('change', _syncReportKwSection);
+
+    document.getElementById('report-kw-all').addEventListener('click', () => {
+      document.querySelectorAll('.report-kw-chip').forEach(c => c.checked = true);
+    });
+    document.getElementById('report-kw-none').addEventListener('click', () => {
+      document.querySelectorAll('.report-kw-chip').forEach(c => c.checked = false);
+    });
+
+    document.getElementById('report-btn').addEventListener('click', openReportModal);
+    document.getElementById('report-close').addEventListener('click', closeReportModal);
+    document.getElementById('report-cancel').addEventListener('click', closeReportModal);
+    reportModal.addEventListener('click', (e) => { if (e.target === reportModal) closeReportModal(); });
+
+    document.getElementById('report-generate').addEventListener('click', () => {
+      const months = parseInt(document.getElementById('report-months').value);
+      const now = new Date();
+      const range = getMonthRange(months);
+      const start = range[range.length-1];
+      const end = range[0];
+
+      // 선택 옵션
+      const opts = {
+        summary: document.getElementById('report-inc-summary').checked,
+        topkw: document.getElementById('report-inc-topkw').checked,
+        journals: document.getElementById('report-inc-journals').checked,
+        papersByKw: document.getElementById('report-inc-papers-by-kw').checked,
+        selectedKw: Array.from(document.querySelectorAll('.report-kw-chip:checked')).map(c => c.value),
+        papersPerKw: parseInt(document.getElementById('report-papers-per-kw').value),
+      };
+
+      // 기간 필터 (월별 범위)
+      const monthSet = new Set(range);
+      const scoped = filteredPapers.filter(p => {
+        const m = (p.date || '').slice(0, 7);
+        return monthSet.has(m);
+      });
+
+      let md = `# get-ASAP Paper Analysis Report\n\n`;
+      md += `**Period:** ${start} ~ ${end}\n`;
+      md += `**Generated:** ${now.toISOString().slice(0,10)}\n`;
+
+      if (opts.summary) {
+        md += `**Total Papers:** ${scoped.length}\n`;
+        md += `**Active Journals:** ${new Set(scoped.map(p=>p.journal).filter(Boolean)).size}\n\n`;
+      } else {
+        md += '\n';
+      }
+
+      if (opts.topkw) {
+        const globalFreq = getFreq(scoped, 'broad', '');
+        const top20 = Object.entries(globalFreq).sort((a,b)=>b[1]-a[1]).slice(0,20);
+        md += `## Top 20 Keywords\n\n`;
+        md += `| Rank | Keyword | Count |\n|------|---------|-------|\n`;
+        top20.forEach(([kw,c], i) => { md += `| ${i+1} | ${kw} | ${c} |\n`; });
+        md += '\n';
+      }
+
+      if (opts.journals) {
+        const journalFreq = {};
+        for (const p of scoped) { if (p.journal) journalFreq[p.journal]=(journalFreq[p.journal]||0)+1; }
+        const topJournals = Object.entries(journalFreq).sort((a,b)=>b[1]-a[1]).slice(0,15);
+        md += `## Journal Frequency (Top 15)\n\n`;
+        md += `| Journal | Papers |\n|---------|--------|\n`;
+        topJournals.forEach(([j,c]) => { md += `| ${j} | ${c} |\n`; });
+        md += '\n';
+      }
+
+      if (opts.papersByKw && opts.selectedKw.length > 0) {
+        md += `## Papers by Keyword\n\n`;
+        md += `_선택된 키워드별 논문 목록. 키워드당 최대 ${opts.papersPerKw}건._\n\n`;
+        for (const kw of opts.selectedKw) {
+          const kwPapers = scoped.filter(p => {
+            for (const { broad } of parseReason(p.gpt_reason || '')) {
+              if (broad === kw) return true;
+            }
+            return false;
+          });
+          kwPapers.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+          md += `### ${kw} (${kwPapers.length} papers)\n\n`;
+          const show = kwPapers.slice(0, opts.papersPerKw);
+          for (const p of show) {
+            const title = (p.title || '(no title)').replace(/\|/g, '\\|');
+            const journal = p.journal || '';
+            const date = (p.date || '').slice(0, 10);
+            const url = p.url || (p.doi ? `https://doi.org/${p.doi}` : '');
+            const titleCell = url ? `[${title}](${url})` : title;
+            md += `- ${date} · *${journal}* · ${titleCell}\n`;
+          }
+          if (kwPapers.length > opts.papersPerKw) {
+            md += `\n_… and ${kwPapers.length - opts.papersPerKw} more_\n`;
+          }
+          md += '\n';
+        }
+      }
+
+      md += `---\n*Generated by get-ASAP Analytics Dashboard*\n`;
+
+      const blob = new Blob([md], { type: 'text/markdown' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${start}_to_${end}_analysis.md`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      closeReportModal();
+    });
+
+    // ---------- 세션 체크 ----------
+    (async function checkSession() {
+      try {
+        const res = await fetch('/api/session');
+        if (res.ok) {
+          try {
+            const data = await res.json();
+            currentUser = data.user || '';
+            isAdmin = !!data.is_admin;
+            currentUserConfig = {
+              hidden_sections: Array.isArray(data.hidden_sections) ? data.hidden_sections : [],
+              focus_config: data.focus_config || null,
+            };
+          } catch { currentUser = ''; isAdmin = false; currentUserConfig = { hidden_sections: [], focus_config: null }; }
+          applyUserVisibility();
+          loadData();
+          syncLoginScreenFromHash();  // #admin-login 해시면 로그인 화면 유지, 아니면 대시보드 노출
+        }
+      } catch {}
+    })();
+
+  })();
+  </script>
+</body>
+</html>
