@@ -421,33 +421,51 @@ def _insert_feedback(username: str, ip: str, category: str, message: str, user_a
     return fid
 
 
-def _feedback_rate_limited(ip: str) -> bool:
-    """IP(해시) 기준 피드백 제출 빈도 제한.
+# 인메모리 슬라이딩 윈도 카운터(IP 해시 기준) — 예전엔 DB COUNT로 구현했으나 두 가지 문제가 있었다:
+# (1) COUNT와 INSERT가 별도의 _db_lock 구간이라 동시 요청 여럿이 모두 COUNT를 통과한 뒤 각자
+#     INSERT하는 TOCTOU 레이스로 15초/시간당 상한을 넘길 수 있었고,
+# (2) 저장으로 이어지지 않는 실패 경로(허니팟/빈 메시지)는 COUNT 대상에서 아예 빠져 무제한
+#     반복되며 공유 _db_lock에 COUNT 쿼리를 계속 쏟아부을 수 있었다(DB 없이도 도배 가능).
+# 이제 "시도" 자체를 락 하나로 확인+기록까지 원자적으로 처리해 DB를 거치지 않고 두 문제를 모두 막는다.
+# 재시작 시 상태는 초기화된다(sessions dict와 동일한 트레이드오프) — 재시작/프로세스 경계를
+# 넘는 방어는 nginx limit_req가 담당.
+_feedback_attempts = {}  # ip_hash -> [ts, ...] (최근 1시간 이내 시도 시각, 확인할 때마다 가지치기)
+_feedback_attempts_lock = threading.Lock()
+_feedback_attempts_sweep_counter = 0
+_FEEDBACK_ATTEMPTS_SWEEP_EVERY = 200  # 대략 이 횟수마다 완전히 만료된 키를 청소해 메모리 상한을 둠
 
-    익명 게스트에게 제출을 개방하면서 도배를 막기 위한 안전장치.
-    feedback.ip 컬럼은 이미 _hash_ip를 거친 값으로 저장되므로 조회 시에도
-    동일하게 해시해 비교한다(원본 IP는 저장/보관하지 않음).
+
+def _feedback_rate_limited(ip: str) -> bool:
+    """IP(해시) 기준 피드백 제출 빈도 제한 — 인메모리 슬라이딩 윈도(DB 미사용).
+
+    익명 게스트에게 제출을 개방하면서 도배를 막기 위한 안전장치. 저장 성패와 무관하게
+    /api/feedback에 도달하는 모든 시도(허니팟/빈 메시지 포함)를 카운트한다 — 확인과
+    기록이 같은 락 구간 안에서 원자적으로 일어나므로 동시 요청 레이스도 없다.
     """
+    global _feedback_attempts_sweep_counter
     ip_hash = _hash_ip(ip)
     now = time.time()
-    with _db_lock:
-        conn = sqlite3.connect(ACCESS_DB_PATH)
-        try:
-            recent = conn.execute(
-                "SELECT COUNT(*) FROM feedback WHERE ip = ? AND ts > ?",
-                (ip_hash, now - FEEDBACK_MIN_INTERVAL_SEC),
-            ).fetchone()[0]
-            if recent > 0:
-                return True
-            hourly = conn.execute(
-                "SELECT COUNT(*) FROM feedback WHERE ip = ? AND ts > ?",
-                (ip_hash, now - 3600),
-            ).fetchone()[0]
-            if hourly >= FEEDBACK_MAX_PER_HOUR:
-                return True
-        finally:
-            conn.close()
-    return False
+    cutoff = now - 3600
+    with _feedback_attempts_lock:
+        attempts = [t for t in _feedback_attempts.get(ip_hash, []) if t > cutoff]
+        if attempts and now - attempts[-1] < FEEDBACK_MIN_INTERVAL_SEC:
+            limited = True
+        elif len(attempts) >= FEEDBACK_MAX_PER_HOUR:
+            limited = True
+        else:
+            limited = False
+            attempts.append(now)
+        _feedback_attempts[ip_hash] = attempts
+
+        # 주기적으로 완전히 만료된(가지치기해도 남는 시각이 없는) 키를 정리 — 키 자체가 무한정
+        # 쌓이는 걸 방지(값 리스트는 위에서 이미 상한 20개 내외로 가지치기됨).
+        _feedback_attempts_sweep_counter += 1
+        if _feedback_attempts_sweep_counter >= _FEEDBACK_ATTEMPTS_SWEEP_EVERY:
+            _feedback_attempts_sweep_counter = 0
+            stale_keys = [k for k, v in _feedback_attempts.items() if not any(t > cutoff for t in v)]
+            for k in stale_keys:
+                del _feedback_attempts[k]
+    return limited
 
 
 def _list_feedback(limit: int = 200) -> list:
@@ -880,7 +898,14 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
-        content_len = int(self.headers.get("Content-Length", 0))
+        try:
+            content_len = int(self.headers.get("Content-Length", 0))
+        except (TypeError, ValueError):
+            self._send_json({"error": "bad request"}, 400)
+            return
+        if content_len < 0:
+            self._send_json({"error": "bad request"}, 400)
+            return
         # 피드백 제출은 익명 게스트도 도달 가능 → 과대 payload를 read로 버퍼링하기 전에 먼저 차단
         if path == "/api/feedback" and content_len > MAX_FEEDBACK_BODY_LEN:
             self._send_json({"error": "payload too large"}, 413)
@@ -944,15 +969,20 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json({"error": "bad request"}, 400)
                 return
 
-            # 허니팟: 숨김 필드가 채워져 있으면 봇으로 간주 — 저장 없이 성공으로 위장 응답
+            # 허니팟 판별 자체는 DB/락 없이 저렴하므로 먼저 계산 — 다만 응답은 아래 빈도
+            # 제한 확인 뒤로 미룬다(허니팟 트리거도 "시도"로 카운트되어야 도배 봇이 무제한
+            # 반복하지 못한다).
             honeypot = str(data.get("hp", "") or data.get("website", "")).strip()
-            if honeypot:
-                self._send_json({"ok": True})
-                return
 
+            # 빈도 제한(인메모리, DB/검증보다 먼저) — 저장 성패와 무관하게 모든 시도를 카운트
             client_ip = self._get_client_ip()
             if _feedback_rate_limited(client_ip):
                 self._send_json({"error": "rate_limited"}, 429)
+                return
+
+            if honeypot:
+                # 저장 없이 성공으로 위장 응답(봇에게 탐지 사실을 알리지 않음)
+                self._send_json({"ok": True})
                 return
 
             category = str(data.get("category", "other"))
