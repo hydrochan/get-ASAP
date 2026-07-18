@@ -47,7 +47,18 @@ SKIP_PREFIXES = (
     "erratum:",
     "retraction of",
     "retraction:",
+    "retraction notice",
     "withdrawn:",
+    "outstanding reviewers for",
+    "preface to",
+    "comment on ",
+    "reply to ",
+)
+
+# 제목 중간에 등장해도 비논문으로 간주할 문구(위치 무관, "contains" 매칭)
+# 예: "{journal} themed collection on ..."
+SKIP_SUBSTRINGS = (
+    "themed collection",
 )
 
 @lru_cache(maxsize=1)
@@ -81,6 +92,11 @@ def is_valid_paper_title(title: str) -> bool:
     # prefix 매칭 (예: "Outside Front Cover: ...", "Correction to ...")
     for prefix in SKIP_PREFIXES:
         if low.startswith(prefix):
+            return False
+
+    # 중간에 끼어 있어도 비논문으로 볼 수 있는 문구 (contains 매칭)
+    for substr in SKIP_SUBSTRINGS:
+        if substr in low:
             return False
 
     # 저널명 그 자체(예: "Chemical Engineering Journal")는 제외
