@@ -16,6 +16,7 @@ import os
 import sys
 
 from auth import get_gmail_service
+from excluded_journals import is_excluded_journal as _is_config_excluded_journal
 from gmail_client import (
     build_query,
     extract_body,
@@ -118,8 +119,14 @@ def _is_publisher_fallback_journal(
 
 
 def _is_excluded_journal(journal: str) -> bool:
-    """Return True when a journal should never be stored."""
-    return bool(journal) and journal.strip().casefold() in _EXCLUDED_JOURNALS
+    """Return True when a journal should never be stored.
+
+    하드코딩된 _EXCLUDED_JOURNALS와 excluded_journals.json(구독취소 등 운영 목록)을 함께 확인한다.
+    """
+    if not journal:
+        return False
+    normalized = journal.strip().casefold()
+    return normalized in _EXCLUDED_JOURNALS or _is_config_excluded_journal(journal)
 
 
 # ---------- 캐시 CSV 증분 저장 ----------

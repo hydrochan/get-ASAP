@@ -12,6 +12,7 @@ import pandas as pd
 import config
 import httpx
 
+from excluded_journals import is_excluded_journal
 from notion_client_mod import _find_monthly_db
 
 logger = logging.getLogger(__name__)
@@ -228,10 +229,24 @@ def _fetch_month_pages(database_id: str, month: str) -> list[dict]:
 
 
 def _save_cache(df: pd.DataFrame, month: str, cache_dir: str = None) -> None:
-    """DataFrame을 CSV 캐시로 저장"""
+    """DataFrame을 CSV 캐시로 저장
+
+    서빙 제외 저널(excluded_journals.json)에 해당하는 행은 여기서 드롭한다.
+    Notion 원본은 그대로 두고 캐시 CSV(서빙 레이어)에서만 걸러내는 것.
+    """
     cache_dir = cache_dir or CACHE_DIR
     os.makedirs(cache_dir, exist_ok=True)
     path = os.path.join(cache_dir, f"papers_{month}.csv")
+    if "journal" in df.columns:
+        excluded_mask = df["journal"].apply(is_excluded_journal)
+        if excluded_mask.any():
+            logger.info(
+                "제외 저널 %d건 CSV 캐시에서 드롭 (%s): %s",
+                int(excluded_mask.sum()),
+                month,
+                sorted(set(df.loc[excluded_mask, "journal"])),
+            )
+        df = df[~excluded_mask]
     # 제목에 쉼표 포함 가능 → 모든 필드를 따옴표로 감싸서 저장
     import csv
     df.to_csv(path, index=False, quoting=csv.QUOTE_ALL, encoding="utf-8-sig")
