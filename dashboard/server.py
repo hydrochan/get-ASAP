@@ -129,6 +129,12 @@ def _build_user_payload(username: str) -> dict:
 # 접속 로그 DB (SQLite) — 스레드 안전을 위해 락과 함께 사용
 _db_lock = threading.Lock()
 
+# /api/csv/{month} status 컬럼 제거(_strip_csv_column) 결과 메모이즈.
+# {csv_path: (mtime, stripped_bytes)} — 파일이 안 바뀌었으면 매 요청마다 3.8~7MB
+# CSV를 재파싱하지 않도록 한다. ThreadingHTTPServer 환경이므로 락으로 보호.
+_csv_strip_cache: dict[str, tuple[float, bytes]] = {}
+_csv_strip_cache_lock = threading.Lock()
+
 
 def _init_access_db():
     """접속 로그 DB 초기화 (테이블 없으면 생성)"""
@@ -779,6 +785,8 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
 
         # API: 월별 논문 CSV — 이제 PUBLIC (비로그인 접근 허용, contract #3).
         # status 컬럼은 서빙 시 제거해서 내려준다(캐시 파일 자체는 status를 유지하되 유출 안 됨).
+        # 매 요청마다 재파싱하지 않도록 (mtime, 결과 bytes)를 프로세스 내 메모이즈한다 —
+        # 파일은 cron(2시간 주기)에서만 바뀌므로 대부분의 요청은 캐시 히트.
         if path.startswith("/api/csv/"):
             month = path.split("/")[-1]
             # 경로 조작 방지
@@ -791,10 +799,18 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
                 self.end_headers()
                 return
             try:
-                # 캐시는 utf-8-sig(BOM)+QUOTE_ALL로 저장됨. BOM을 벗겨 파싱 후 status 제거.
-                with open(csv_path, "r", encoding="utf-8-sig") as f:
-                    raw = f.read()
-                body = _strip_csv_column(raw, "status").encode("utf-8-sig")
+                mtime = os.path.getmtime(csv_path)
+                with _csv_strip_cache_lock:
+                    cached = _csv_strip_cache.get(csv_path)
+                if cached is not None and cached[0] == mtime:
+                    body = cached[1]
+                else:
+                    # 캐시는 utf-8-sig(BOM)+QUOTE_ALL로 저장됨. BOM을 벗겨 파싱 후 status 제거.
+                    with open(csv_path, "r", encoding="utf-8-sig") as f:
+                        raw = f.read()
+                    body = _strip_csv_column(raw, "status").encode("utf-8-sig")
+                    with _csv_strip_cache_lock:
+                        _csv_strip_cache[csv_path] = (mtime, body)
             except Exception:
                 logger.exception("csv serve failed: %s", month)
                 self.send_response(500)
@@ -803,6 +819,8 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "text/csv; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
+            # Cloudflare 엣지 캐시가 존중하도록 — 이 엔드포인트만(다른 API는 넣지 말 것).
+            self.send_header("Cache-Control", "public, max-age=7200")
             self.end_headers()
             self.wfile.write(body)
             return

@@ -1260,16 +1260,23 @@
     async function loadData() {
       const months = parseInt(document.getElementById('month-range').value);
       const monthList = getMonthRange(months);
-      const frames = [];
-      for (const m of monthList) {
+      // 월별 CSV를 병렬로 fetch. Promise.all은 입력 배열(monthList) 순서를 그대로
+      // 보존해 반환하므로(완료 순서 아님), 기존 순차 처리와 동일한 병합 순서가 유지된다.
+      // 월 하나의 fetch/parse가 실패해도 나머지 월은 계속 처리되도록 개별 try/catch로 감쌈
+      // (기존 순차 루프의 내결함성과 동일).
+      const perMonth = await Promise.all(monthList.map(async (m) => {
         try {
           const res = await fetch(`/api/csv/${m}`);
-          if (!res.ok) continue;
+          if (!res.ok) return [];
           const text = await res.text();
           const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
-          frames.push(...parsed.data);
-        } catch {}
-      }
+          return parsed.data;
+        } catch {
+          return [];
+        }
+      }));
+      const frames = [];
+      for (const rows of perMonth) frames.push(...rows);
       allPapers = frames.filter(r => r.title && r.title.trim());
       // 전역 sharp→parent 맵 구축 (parseReason 의 자동 재라우팅에 사용)
       // 반드시 buildTopicFilter/applyFilter 이전에 호출 — 이후 parseReason 들이 이 맵 참조
