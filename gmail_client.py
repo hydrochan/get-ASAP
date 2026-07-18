@@ -114,7 +114,8 @@ def _initial_sync(service, state: dict, query: str) -> list[str]:
 
     # 모든 페이지 순회
     while True:
-        kwargs = {"userId": "me", "q": query}
+        # includeSpamTrash: 스팸함에 오분류된 출판사 알림도 포함 (증분 경로 history.list와 대칭)
+        kwargs = {"userId": "me", "q": query, "includeSpamTrash": True}
         if page_token:
             kwargs["pageToken"] = page_token
 
