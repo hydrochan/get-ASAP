@@ -1,6 +1,6 @@
 {
   "acs": {
-    "sender": ["updates@acspubs.org", "journalalerts@acs.org"],
+    "sender": ["updates@acspubs.org", "journalalerts@acs.org", "ealerts@acs.org"],
     "name": "ACS Publications",
     "journals": ["JACS", "Journal of the American Chemical Society", "JACS Au", "ACS Nano", "ACS Catalysis", "Nano Letters", "ACS Applied Nano Materials", "ACS Applied Energy Materials", "ACS Applied Engineering Materials", "ACS Applied Optical Materials", "ACS Applied Materials", "ACS Central Science", "ACS Energy Letters", "ACS Engineering Au", "ACS Materials Au", "ACS Materials Letters", "ACS Measurement Science Au", "ACS Nanoscience Au", "ACS Omega", "ACS Organic & Inorganic Au", "ACS Photonics", "ACS Physical Chemistry Au", "ACS Sustainable Chemistry & Engineering", "ACS Sustainable Resource Management", "Accounts of Materials Research", "Analytical Chemistry", "Chemical Reviews", "Chemistry of Materials", "Energy & Fuels", "Environmental Science & Technology", "Environmental Science & Technology Letters", "Industrial & Engineering Chemistry Research", "Journal of Chemical & Engineering Data", "Langmuir", "The Journal of Physical Chemistry C", "The Journal of Physical Chemistry Letters"],
     "doi_prefix": "10.1021/"
