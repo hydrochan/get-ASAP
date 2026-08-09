@@ -56,6 +56,8 @@ SKIP_PREFIXES = (
     "preface to",
     "comment on ",
     "reply to ",
+    "rebuttal to ",
+    "correspondence on ",
 )
 
 # 제목 중간에 등장해도 비논문으로 간주할 문구(위치 무관, "contains" 매칭)
