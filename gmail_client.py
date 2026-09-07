@@ -5,6 +5,7 @@
 import base64
 import json
 import os
+import tempfile
 from datetime import datetime, timezone
 from googleapiclient.errors import HttpError
 
@@ -63,8 +64,22 @@ def save_state(state: dict, state_path: str = "state.json") -> None:
     # lastRunAt을 현재 UTC ISO 형식으로 자동 갱신
     state["lastRunAt"] = datetime.now(timezone.utc).isoformat()
 
-    with open(state_path, "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False, indent=2)
+    # Keep the previous cursor/retry queue readable if writing is interrupted.
+    destination = os.path.abspath(state_path)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=os.path.dirname(destination),
+            prefix=".state-", suffix=".tmp", delete=False,
+        ) as f:
+            temporary = f.name
+            json.dump(state, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temporary, destination)
+    finally:
+        if temporary and os.path.exists(temporary):
+            os.unlink(temporary)
 
 
 def get_new_messages(service, state: dict, query: str) -> list[str]:

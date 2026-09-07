@@ -13,7 +13,9 @@ import json
 import logging
 import logging.handlers
 import os
+import re
 import sys
+from datetime import date
 
 from auth import get_gmail_service
 from excluded_journals import is_excluded_journal as _is_config_excluded_journal
@@ -27,7 +29,7 @@ from gmail_client import (
     mark_processed,
     save_state,
 )
-from notion_client_mod import get_or_create_db, save_papers
+from notion_client_mod import get_or_create_db, resolve_db_for_month, save_papers
 from parser_registry import load_parsers
 
 # 모듈 전용 로거 (setup_logging 이후 사용)
@@ -127,6 +129,18 @@ def _is_excluded_journal(journal: str) -> bool:
         return False
     normalized = journal.strip().casefold()
     return normalized in _EXCLUDED_JOURNALS or _is_config_excluded_journal(journal)
+
+
+# 논문 발행월 라우팅 (2026-09-07): ACS ToC 메일이 며칠 늦게 도착해 발행월과
+# 수신월이 어긋나는 문제 대응. resolve_db_for_month()의 정책 판단 없이, 여기서는
+# 그룹핑 키(월 문자열)만 순수하게 계산한다(네트워크 호출 없음).
+_MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
+
+
+def _paper_month_key(paper_date: str | None, today_month: str) -> str:
+    """paper.date[:7]가 'YYYY-MM' 형식이면 그대로, 아니면(누락/파싱 불가) 현재월로 취급."""
+    candidate = (paper_date or "")[:7]
+    return candidate if _MONTH_RE.match(candidate) else today_month
 
 
 # ---------- 캐시 CSV 증분 저장 ----------
@@ -250,19 +264,20 @@ def run_pipeline(dry_run: bool = False) -> dict:
     2. Gmail 인증
     3. 검색 쿼리 생성
     4. 상태 로드 (증분 동기화용 historyId)
-    5. 새 메일 ID 목록 가져오기
+    5. 새 메일과 미완료 메일 ID를 합쳐 커서와 함께 체크포인트(dry-run 제외)
     6. 메일이 없으면 조기 종료
     7. 라벨 준비 (dry_run 아닐 때만)
     8. 파서 로드
     9. 각 메일에서 논문 추출 (에러 시 해당 메일만 스킵)
-    10. dry_run: 콘솔 출력만 / 아니면: Notion 저장 + 라벨 마킹
+    10. dry_run: 콘솔 출력만(월 DB 미리보기 포함) / 아니면: 논문 발행월별로
+        그룹지어 각 월의 Notion DB에 저장(resolve_db_for_month) + 라벨 마킹
     11. 상태 저장 + 실행 요약 로그
 
     Args:
         dry_run: True면 Notion 저장과 라벨 마킹을 스킵하고 콘솔에만 출력
 
     Returns:
-        실행 요약 딕셔너리 {"extracted": N, "saved": N, "skipped": N, "failed": N}
+        실행 요약: extracted/saved/skipped/failed(논문 저장 실패), failed_messages(메일 재시도).
     """
     # 1. publishers.json 로드
     publishers = _load_publishers()
@@ -274,17 +289,25 @@ def run_pipeline(dry_run: bool = False) -> dict:
     query = build_query(publishers)
 
     # 4. 상태 로드 (증분 동기화용 historyId)
-    state = load_state()
+    state = dict(load_state())
 
     # 5. 새 메일 ID 목록 가져오기
-    msg_ids = get_new_messages(service, state, query)
-    logger.info("새 메일 %d건 발견", len(msg_ids))
+    pending_ids = state.get("pendingMessageIds", [])
+    msg_ids = list(dict.fromkeys([*pending_ids, *get_new_messages(service, state, query)]))
+    logger.info("처리 대상 메일 %d건(미완료 재시도 포함)", len(msg_ids))
 
     # 6. 메일이 없으면 조기 종료
     if not msg_ids:
         logger.info("새 메일 없음 - 파이프라인 종료")
+        if not dry_run:
+            save_state(state)
+        return {"extracted": 0, "saved": 0, "skipped": 0, "failed": 0, "failed_messages": 0}
+
+    if not dry_run:
+        # Checkpoint the cursor together with every unfinished message before
+        # any external write. A crash can replay completed work, never skip it.
+        state["pendingMessageIds"] = list(msg_ids)
         save_state(state)
-        return {"extracted": 0, "saved": 0, "skipped": 0, "failed": 0}
 
     # 7. 라벨 준비 (dry_run 아닐 때만 API 호출 - 불필요한 API 요청 방지)
     label_id = None
@@ -297,7 +320,10 @@ def run_pipeline(dry_run: bool = False) -> dict:
 
     # 9. 각 메일에서 논문 추출
     all_papers = []
-    processed_msg_ids = []  # 성공적으로 처리된 메일 ID (라벨 마킹 대상)
+    processed_msg_ids = []  # 파싱 완료 ID; 저장 성공 여부는 메일별로 검사
+    papers_by_message = {}
+    ignored_msg_ids = set()
+    failed_msg_ids = set()
 
     for msg_id in msg_ids:
         try:
@@ -314,6 +340,7 @@ def run_pipeline(dry_run: bool = False) -> dict:
             pub_key = _find_publisher_key(sender, publishers)
             if pub_key is None:
                 logger.warning("알 수 없는 발신자, 스킵: %s", sender)
+                ignored_msg_ids.add(msg_id)
                 continue
 
             # 해당 출판사 파서 찾기 (publishers.json의 name 필드로 매칭)
@@ -321,6 +348,7 @@ def run_pipeline(dry_run: bool = False) -> dict:
             parser = parser_map.get(pub_name)
             if parser is None:
                 logger.warning("파서 없음 (publisher=%s), 스킵: %s", pub_name, msg_id)
+                failed_msg_ids.add(msg_id)
                 continue
 
             # 메일 본문 추출 및 파싱
@@ -359,52 +387,98 @@ def run_pipeline(dry_run: bool = False) -> dict:
 
             all_papers.extend(valid_papers)
             processed_msg_ids.append(msg_id)
+            papers_by_message[msg_id] = valid_papers
 
         except Exception as e:
             # 개별 메일 처리 실패 시 스킵하고 계속 진행 (per must_haves)
             logger.warning("메일 %s 처리 실패, 스킵: %s", msg_id, e)
+            failed_msg_ids.add(msg_id)
             continue
 
     logger.info("총 %d건 논문 추출", len(all_papers))
 
     # 10. dry_run 분기
     if dry_run:
-        # dry_run: Notion 저장 없이 콘솔 출력만 (per D-02)
+        # dry_run: Notion 저장 없이 콘솔 출력만 (per D-02). 월 DB 미리보기도
+        # 순수 문자열 계산만 하고 Notion 조회는 하지 않는다(네트워크 프리).
         print(f"\n[DRY RUN] 추출된 논문 {len(all_papers)}건:")
+        today_month = date.today().strftime("%Y-%m")
         for paper in all_papers:
             print(f"  - 제목: {paper.title}")
             print(f"    저널:  {paper.journal or '(없음)'}")
             print(f"    링크:  {paper.url or '(없음)'}")
+            month_key = _paper_month_key(paper.date, today_month)
+            if month_key == today_month:
+                print(f"    월 DB:  get-ASAP {month_key}")
+            else:
+                print(f"    월 DB:  get-ASAP {month_key} (현재월 폴백은 실행 시 판단)")
             print()
 
-        save_state(state)
         result = {"extracted": len(all_papers), "saved": 0, "skipped": 0, "failed": 0}
     else:
-        # 실제 실행: Notion 저장 + 라벨 마킹
+        # 실제 실행: Notion 저장 + 라벨 마킹. 메일 하나에 여러 발행월 논문이
+        # 섞여 있을 수 있으므로 발행월별로 그룹지어 각 그룹을 해당 월 DB에 저장한다.
         db_id = get_or_create_db()
-        save_result = save_papers(all_papers, db_id)
+        today_month = date.today().strftime("%Y-%m")
+        month_db_cache: dict = {}  # 실행 1회 동안 월별 DB id 메모이즈 (resolve_db_for_month 참고)
+        save_result = {"saved": 0, "skipped": 0, "failed": 0}
+        completed_msg_ids = set(ignored_msg_ids)
+        for msg_id in processed_msg_ids:
+            papers_by_month: dict[str, list] = {}
+            for paper in papers_by_message[msg_id]:
+                month_key = _paper_month_key(paper.date, today_month)
+                papers_by_month.setdefault(month_key, []).append(paper)
+            if not papers_by_month:
+                # 필터링으로 이 메일의 논문이 모두 제외된 경우에도 기존 계약대로
+                # save_papers를 (빈 리스트로) 최소 1회 호출한다.
+                papers_by_month[today_month] = []
+
+            message_result = {"saved": 0, "skipped": 0, "failed": 0}
+            try:
+                for month_key in sorted(papers_by_month):
+                    group = papers_by_month[month_key]
+                    group_db_id = resolve_db_for_month(month_key, db_id, month_db_cache)
+                    if group_db_id != db_id:
+                        logger.info("월 라우팅: %d건 -> get-ASAP %s", len(group), month_key)
+                    group_result = save_papers(group, group_db_id)
+                    for key in message_result:
+                        message_result[key] += group_result.get(key, 0)
+            except Exception as e:
+                logger.warning("Notion 저장 실패 (msg_id=%s), 재시도 대기: %s", msg_id, e)
+                failed_msg_ids.add(msg_id)
+                continue
+            for key in save_result:
+                save_result[key] += message_result.get(key, 0)
+            if message_result.get("failed", 0):
+                failed_msg_ids.add(msg_id)
+                continue
+            # Only acknowledge a message when all its papers were saved or
+            # already present. Partial saves are retried through title dedup.
+            try:
+                mark_processed(service, msg_id, label_id)
+                completed_msg_ids.add(msg_id)
+            except Exception as e:
+                logger.warning("라벨 마킹 실패 (msg_id=%s), 재시도 대기: %s", msg_id, e)
+                failed_msg_ids.add(msg_id)
 
         # 캐시 CSV는 Notion 기준으로 전체 재생성 (드리프트 방지)
         if save_result.get("saved", 0) > 0:
             _refresh_cache_from_notion()
 
-        # 처리 완료된 메일에 라벨 마킹
-        for msg_id in processed_msg_ids:
-            try:
-                mark_processed(service, msg_id, label_id)
-            except Exception as e:
-                logger.warning("라벨 마킹 실패 (msg_id=%s): %s", msg_id, e)
-
+        state["pendingMessageIds"] = [mid for mid in msg_ids if mid not in completed_msg_ids]
         save_state(state)
         result = {"extracted": len(all_papers), **save_result}
 
+    result["failed_messages"] = len(failed_msg_ids)
+
     # 11. 실행 요약 로그 (per D-12)
     logger.info(
-        "완료: %d건 추출, %d건 저장, %d건 중복 스킵, %d건 실패",
+        "완료: %d건 추출, %d건 저장, %d건 중복 스킵, %d건 저장 실패, %d개 메일 재시도 필요",
         result["extracted"],
         result.get("saved", 0),
         result.get("skipped", 0),
         result.get("failed", 0),
+        result["failed_messages"],
     )
 
     return result
@@ -417,8 +491,8 @@ if __name__ == "__main__":
     setup_logging(args.verbose)
 
     try:
-        run_pipeline(dry_run=args.dry_run)
-        sys.exit(0)
+        result = run_pipeline(dry_run=args.dry_run)
+        sys.exit(1 if result.get("failed") or result.get("failed_messages") else 0)
     except Exception as e:
         logger.exception("파이프라인 실행 중 치명적 오류 발생: %s", e)
         sys.exit(1)

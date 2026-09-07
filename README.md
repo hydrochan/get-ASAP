@@ -10,7 +10,8 @@
 ## 주요 기능
 
 - **플러그인 파서** — `parsers/`에 파일 하나 추가하면 새 출판사 자동 등록
-- **증분 동기화** — Gmail historyId + 처리 라벨로 중복 실행에 안전
+- **증분 동기화** — Gmail historyId와 미완료 메시지 목록을 함께 저장하고, 논문 저장이 모두 성공한 메일만 처리 라벨을 부여합니다. 저장·파싱·라벨 실패는 다음 실행에서 재시도하며 `--dry-run`은 진행 상태를 변경하지 않습니다.
+- **월별 DB 자동 라우팅** — Notion DB는 `get-ASAP YYYY-MM`으로 매달 나뉘며, 각 논문은 수신월이 아니라 발행월 DB에 저장됩니다(과거월 DB가 없으면 생성하지 않고 이번 달 DB로 폴백).
 - **대시보드 4뷰** — Home · Analytics(키워드 트렌드·워드클라우드) · Browse · Advanced Search
 - **익명 공개 열람 + 관리자 무폼 로그인** — nginx Basic → 서버 세션 쿠키
 
@@ -29,6 +30,12 @@ python dashboard/server.py    # 대시보드 로컬 실행
 ## Stack
 
 Python 3.11 · Gmail/Notion API · BeautifulSoup4 · Tailwind · Chart.js · Nginx · Cloudflare · Oracle Cloud · SQLite/CSV
+
+## Tests
+
+합성 입력만 사용하는 재시도 회귀 테스트는 `.venv`의 Python으로
+`python -m pytest regression_tests/`를 실행합니다. 실제 수신 메일 fixture가 있는
+로컬 `tests/`와 별도로 버전 관리합니다.
 
 ---
 

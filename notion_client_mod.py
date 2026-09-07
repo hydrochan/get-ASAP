@@ -4,7 +4,8 @@ notion-client SDK와 이름 충돌 방지를 위해 notion_client_mod.py로 명�
 
 제공 기능:
 - create_paper_db: Notion DB 신규 생성
-- get_or_create_db: 월별 DB 자동 획득/생성
+- get_or_create_db: 이번 달 월별 DB 자동 획득/생성
+- resolve_db_for_month: 논문 발행월 기준 저장 대상 DB 결정 (과거월 DB는 자동 생성하지 않음, 2026-09-07)
 - save_paper: 단일 논문 저장 (중복 방지 포함)
 - save_papers: 배치 저장 (중복 방지 + 진행률 출력)
 """
@@ -92,7 +93,12 @@ def _find_monthly_db(parent_page_id: str, month_str: str) -> str | None:
 
 
 def get_or_create_db() -> str:
-    """월별 DB 자동 획득/생성. 'get-ASAP YYYY-MM' 형식."""
+    """이번 달 월별 DB 자동 획득/생성. 'get-ASAP YYYY-MM' 형식 (오늘 날짜 기준 월 고정).
+
+    항상 오늘 날짜 기준 월의 DB만 반환한다. 논문 자체의 발행월로 저장 DB를
+    정하려면 resolve_db_for_month()를 쓸 것 (2026-09-07 도입 - ACS ToC 메일이
+    며칠 늦게 도착해 발행월과 수신월이 어긋나는 문제 대응).
+    """
     if not config.NOTION_PARENT_PAGE_ID:
         if config.NOTION_DATABASE_ID:
             return config.NOTION_DATABASE_ID
@@ -111,6 +117,85 @@ def get_or_create_db() -> str:
     # 없으면 새로 생성
     logging.info("월별 DB 생성: get-ASAP %s", month_str)
     return create_paper_db(config.NOTION_PARENT_PAGE_ID)
+
+
+_MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
+
+
+def resolve_db_for_month(month_str: str, current_db_id: str, cache: dict) -> str:
+    """논문 발행월(month_str, 'YYYY-MM')에 맞는 저장 대상 DB id를 반환 (2026-09-07 도입).
+
+    배경: ACS ToC 알림 메일이 웹 발행 며칠 뒤에 도착해, get_or_create_db()가
+    반환하는 "오늘 날짜 기준" DB에 지난달 논문이 잘못 쌓이는 문제가 있었다
+    (backfill_acs.py가 이미 우회 중이던 문제, 2026-09-01/07에 8월 논문 387건이
+    9월 DB로 들어감). 이 함수는 Gmail 정규 경로에도 같은 월별 라우팅을 적용한다.
+
+    정책:
+    - month_str이 이번 달이면 current_db_id를 그대로 반환한다.
+    - month_str이 과거 달이고 해당 월 DB가 이미 있으면 그 DB로 라우팅한다.
+      과거 달 DB를 새로 만들지는 않는다(과거월 DB 생성은 backfill 스크립트
+      전용 - Gmail 경로가 만들면 그 사이 도착한 다른 메일과 경합할 수 있다).
+    - 그 외(과거 달인데 DB가 없음 / 미래 달 / 날짜 형식이 아님)는
+      current_db_id로 폴백하고 경고 로그를 남긴다.
+
+    Args:
+        month_str: 논문 발행월 "YYYY-MM" (형식이 아니면 폴백)
+        current_db_id: get_or_create_db()가 반환한 이번 달 DB id
+        cache: 실행(run) 동안 재사용하는 dict. 같은 월에 대해
+            _find_monthly_db() 호출을 실행당 최대 1회로 제한한다(호출부가
+            매 실행마다 새 dict를 넘겨야 함).
+
+    Returns:
+        저장에 사용할 Notion database_id
+    """
+    today_month = date.today().strftime("%Y-%m")
+
+    if not month_str or not _MONTH_RE.match(month_str):
+        logging.warning(
+            "월 라우팅: 논문 발행월(%r)을 해석할 수 없어 현재월 DB로 폴백", month_str
+        )
+        return current_db_id
+
+    if month_str == today_month:
+        return current_db_id
+
+    if month_str > today_month:
+        logging.warning(
+            "월 라우팅: 논문 발행월(%s)이 미래 달이라 현재월 DB로 폴백", month_str
+        )
+        return current_db_id
+
+    if month_str in cache:
+        return cache[month_str]
+
+    if not config.NOTION_PARENT_PAGE_ID:
+        logging.warning(
+            "월 라우팅: NOTION_PARENT_PAGE_ID 미설정으로 과거월(%s) DB를 찾을 수 없어 현재월 DB로 폴백",
+            month_str,
+        )
+        cache[month_str] = current_db_id
+        return current_db_id
+
+    try:
+        db_id = _find_monthly_db(config.NOTION_PARENT_PAGE_ID, month_str)
+    except Exception as e:
+        # 조회 자체가 실패한 경우(네트워크/API 오류)도 "DB 없음"과 동일하게
+        # 취급한다. 여기서 예외를 던지면 같은 메일 안의 다른(정상) 월 그룹까지
+        # 통째로 재시도 대기로 밀려나므로, 과거월 조회는 best-effort로 다룬다.
+        logging.warning("월 라우팅: 과거월(%s) DB 조회 실패, 현재월 DB로 폴백: %s", month_str, e)
+        cache[month_str] = current_db_id
+        return current_db_id
+
+    if db_id:
+        cache[month_str] = db_id
+        return db_id
+
+    logging.warning(
+        "월 라우팅: 과거월(%s) DB가 없어 현재월 DB로 폴백 (과거월 DB는 Gmail 경로에서 자동 생성하지 않음)",
+        month_str,
+    )
+    cache[month_str] = current_db_id
+    return current_db_id
 
 
 def _previous_month_str(month_str: str) -> str:
@@ -132,12 +217,28 @@ def _previous_months(month_str: str, count: int = 2) -> list[str]:
 
 
 def _duplicate_check_database_ids(database_id: str) -> list[str]:
-    """중복 확인 대상 DB 목록. 현재 월 DB와 직전 2개월 DB를 함께 본다."""
+    """중복 확인 대상 DB 목록.
+
+    대상(database_id) + 오늘 날짜 기준 이번달 DB(대상과 다를 때만) + 직전
+    2개월 DB를 함께 본다. 이번달 DB를 항상 포함시키는 이유(2026-09-07): 논문
+    발행월 DB로 저장하는 경로(resolve_db_for_month)가 생기면서, 이미 이번달
+    DB에 들어간 논문(예: 수신이 늦어 이번달에 먼저 저장된 지난달 논문)이
+    과거월 DB로 다시 중복 저장되는 것을 막아야 한다.
+    """
     db_ids = [database_id]
     if not config.NOTION_PARENT_PAGE_ID:
         return db_ids
 
-    for month in _previous_months(date.today().strftime("%Y-%m"), count=2):
+    today_month = date.today().strftime("%Y-%m")
+    try:
+        current_db_id = _find_monthly_db(config.NOTION_PARENT_PAGE_ID, today_month)
+    except Exception as e:
+        logging.warning("이번달 DB 중복 체크 준비 실패 (%s): %s", today_month, e)
+        current_db_id = None
+    if current_db_id and current_db_id not in db_ids:
+        db_ids.append(current_db_id)
+
+    for month in _previous_months(today_month, count=2):
         try:
             prev_db_id = _find_monthly_db(config.NOTION_PARENT_PAGE_ID, month)
         except Exception as e:
