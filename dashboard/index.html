@@ -1120,6 +1120,18 @@
       return dateStr.slice(0, 7); // month
     }
 
+    // 기간 차트가 집계에 포함할 최소 period 키 = 로드된 월 범위의 시작일(가장 오래된 달 1일).
+    // 알림은 7월에 왔지만 발행일이 6월인 논문(예: RSC 리뷰지 early view)이 수신월 DB에
+    // 남아 있으면, 그 1건만으로 범위 밖 주(W23 등)가 x축에 생기고 그 사이 주(W24·25)는
+    // 데이터가 없어 라벨조차 안 생겨 축이 끊긴 것처럼 보인다. 범위 시작 이전 키는 버린다.
+    // 키 형식("YYYY-Www" / "YYYY-MM-DD" / "YYYY-MM")이 모두 0-패딩이라 문자열 비교로 충분.
+    function periodFloorKey(mode) {
+      const n = parseInt(document.getElementById('month-range').value) || 1;
+      const now = new Date();
+      const d = new Date(now.getFullYear(), now.getMonth() - (n - 1), 1);
+      return periodKey(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`, mode);
+    }
+
     // 차트별 period 토글 버튼 스타일 갱신 헬퍼
     function _updatePeriodButtons(prefix, current, modes) {
       for (const m of modes) {
@@ -1902,9 +1914,10 @@
       const topKws = Object.entries(globalFreq).sort((a,b)=>b[1]-a[1]).slice(0,topN).map(e=>e[0]);
 
       const monthMap = {};
+      const kwMinKey = periodFloorKey(kwPeriodMode);
       for (const p of filteredPapers) {
         const m = periodKey(p.date||'', kwPeriodMode);
-        if (!m) continue;
+        if (!m || m < kwMinKey) continue;
         if (!monthMap[m]) monthMap[m] = [];
         monthMap[m].push(p);
       }
@@ -2124,9 +2137,10 @@
     function renderJournalChart() {
       const freq = {};
       const periods = new Set();
+      const jfMinKey = periodFloorKey(jfPeriodMode);
       for (const p of filteredPapers) {
         const period = periodKey(p.date || '', jfPeriodMode);
-        if (period) periods.add(period);
+        if (period && period >= jfMinKey) periods.add(period);
         if (p.journal) freq[p.journal] = (freq[p.journal]||0)+1;
       }
       const divisor = Math.max(1, periods.size);
@@ -2167,9 +2181,10 @@
     // 일별/주별/월별 (Home 전용 — 필터 무시)
     function renderDailyChart() {
       const freq = {};
+      const dailyMinKey = periodFloorKey(dailyPeriodMode);
       for (const p of allPapers) {
         const d = periodKey(p.date||'', dailyPeriodMode);
-        if (d) freq[d] = (freq[d]||0)+1;
+        if (d && d >= dailyMinKey) freq[d] = (freq[d]||0)+1;
       }
       const dates = Object.keys(freq).sort();
 
@@ -2200,9 +2215,10 @@
       const topJ = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,10).map(e=>e[0]);
 
       const monthMap = {};
+      const jmMinKey = periodFloorKey(jmPeriodMode);
       for (const p of filteredPapers) {
         const m = periodKey(p.date||'', jmPeriodMode);
-        if (!m || !p.journal) continue;
+        if (!m || !p.journal || m < jmMinKey) continue;
         if (!monthMap[m]) monthMap[m] = {};
         monthMap[m][p.journal] = (monthMap[m][p.journal]||0)+1;
       }
