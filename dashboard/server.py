@@ -30,10 +30,16 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import bcrypt
 import config
 
-logger = logging.getLogger(__name__)
-
 # 경로 설정
 DASHBOARD_DIR = os.path.dirname(os.path.abspath(__file__))
+if DASHBOARD_DIR not in sys.path:
+    sys.path.append(DASHBOARD_DIR)  # 실행 방식(스크립트/테스트/-m)과 무관하게 sync_api를 찾도록
+
+import store  # noqa: E402  (정본 SQLite - /api/refresh_all이 export_all을 호출)
+import sync_api  # noqa: E402  (/api/sync/v1/ - 설계 §5)
+
+logger = logging.getLogger(__name__)
+
 CACHE_DIR = os.path.join(os.path.dirname(DASHBOARD_DIR), "cache")
 ACCESS_DB_PATH = os.path.join(os.path.dirname(DASHBOARD_DIR), "access_log.db")
 
@@ -650,9 +656,17 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         ip = self._get_client_ip()
         _record_visit(_hash_ip(ip))
 
+    def _handle_sync(self, method: str, path: str):
+        """`/api/sync/` 요청을 sync_api로 위임. 인증 실패 잠금은 로그인 잠금 로직을 재사용(카운터 키만 분리)."""
+        sync_api.handle(self, method, path, _check_lockout, _record_attempt)
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+
+        if path.startswith(sync_api.PREFIX):
+            self._handle_sync("GET", path)  # POST만 허용 -> 405
+            return
 
         # API: 세션 체크 (페이지 조회 이벤트 기록)
         if path == "/api/session":
@@ -916,6 +930,11 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
+        # 동기화 API는 본문 상한(2 MiB)을 자체적으로 읽기 전에 검사하므로 아래 공통 본문 읽기보다 먼저 위임한다.
+        if path.startswith(sync_api.PREFIX):
+            self._handle_sync("POST", path)
+            return
+
         try:
             content_len = int(self.headers.get("Content-Length", 0))
         except (TypeError, ValueError):
@@ -1051,8 +1070,9 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             self._send_json({"ok": ok})
             return
 
-        # API: 전체 월 강제 재조회 (관리자 전용)
-        # 과거 월 논문의 Notion 수동 편집(GPT Reason 등)을 CSV 캐시에 반영하기 위한 수동 트리거.
+        # API: 전체 월 강제 재생성 (관리자 전용)
+        # 정본 SQLite의 모든 월 bucket을 cache/papers_YYYY-MM.csv로 다시 export하는 수동 트리거
+        # (제외 저널 목록 변경처럼 change_seq가 오르지 않는 변경을 CSV에 반영할 때도 쓴다).
         if path == "/api/refresh_all":
             token = self._get_session_token()
             # admin 보호 패턴: 세션 무효면 401, 유효하나 admin 아니면 403 (_validate_session이 슬라이딩 갱신도 수행)
@@ -1064,24 +1084,15 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json({"error": "forbidden"}, 403)
                 return
             try:
-                from datetime import date as _date
-                from analytics.notion_fetcher import fetch_papers
-                # 프로젝트 시작 월 ~ 현재 월 전체 재조회 (force_refresh=True)
-                # 시작 월: 환경변수 REFRESH_ALL_START_MONTH, 기본 2026-04
-                start = os.getenv("REFRESH_ALL_START_MONTH", "2026-04")
-                end = _date.today().strftime("%Y-%m")
-                logger.info("[refresh_all] 시작: %s ~ %s (by %s)",
-                            start, end, sess.get("user"))
-                df = fetch_papers(start, end, force_refresh=True)
-                # 실제 재조회된 월 목록: 결과 데이터에 존재하는 월(빈 월은 반영되지 않음)
-                refreshed_months = sorted(
-                    df["date"].dt.strftime("%Y-%m").dropna().unique().tolist()
-                )
-                logger.info("[refresh_all] 완료: %d건, %d개월", len(df), len(refreshed_months))
+                logger.info("[refresh_all] 시작 (by %s)", sess.get("user"))
+                exported = store.export_all()  # {월: 행 수}
+                refreshed_months = sorted(exported)
+                total = sum(exported.values())
+                logger.info("[refresh_all] 완료: %d건, %d개월", total, len(refreshed_months))
                 self._send_json({
                     "ok": True,
                     "refreshed_months": refreshed_months,
-                    "message": f"{len(refreshed_months)}개월 재조회 완료 ({len(df)}건)",
+                    "message": f"{len(refreshed_months)}개월 재조회 완료 ({total}건)",
                 })
             except Exception as e:
                 # 스택트레이스는 서버 로그에만 남기고, 클라이언트에는 사람이 읽을 메시지만 전달

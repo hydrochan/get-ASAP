@@ -1,11 +1,11 @@
 """Gmail ASAP 파이프라인 오케스트레이터 (per D-01, D-02, D-03)
 
 전체 실행 흐름:
-  Gmail 메일 수신 -> 출판사별 파싱 -> Notion 저장 -> 메일 라벨 마킹
+  Gmail 메일 수신 -> 출판사별 파싱 -> 정본 SQLite 저장(store.py) -> 메일 라벨 마킹 -> CSV 캐시 export
 
 사용법:
   python main.py                  # 전체 파이프라인 실행
-  python main.py --dry-run        # Notion 저장/라벨 없이 파싱 결과만 출력
+  python main.py --dry-run        # DB 저장/라벨 없이 파싱 결과만 출력
   python main.py --verbose        # DEBUG 레벨 로그 활성화
 """
 import argparse
@@ -13,7 +13,6 @@ import json
 import logging
 import logging.handlers
 import os
-import re
 import sys
 from datetime import date
 
@@ -29,7 +28,7 @@ from gmail_client import (
     mark_processed,
     save_state,
 )
-from notion_client_mod import get_or_create_db, resolve_db_for_month, save_papers
+import store
 from parser_registry import load_parsers
 
 # 모듈 전용 로거 (setup_logging 이후 사용)
@@ -131,53 +130,24 @@ def _is_excluded_journal(journal: str) -> bool:
     return normalized in _EXCLUDED_JOURNALS or _is_config_excluded_journal(journal)
 
 
-# 논문 발행월 라우팅 (2026-09-07): ACS ToC 메일이 며칠 늦게 도착해 발행월과
-# 수신월이 어긋나는 문제 대응. resolve_db_for_month()의 정책 판단 없이, 여기서는
-# 그룹핑 키(월 문자열)만 순수하게 계산한다(네트워크 호출 없음).
-_MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
-
-
-def _paper_month_key(paper_date: str | None, today_month: str) -> str:
-    """paper.date[:7]가 'YYYY-MM' 형식이면 그대로, 아니면(누락/파싱 불가) 현재월로 취급."""
-    candidate = (paper_date or "")[:7]
-    return candidate if _MONTH_RE.match(candidate) else today_month
-
-
 # ---------- 캐시 CSV 증분 저장 ----------
 
-def _refresh_cache_from_notion() -> None:
-    """최근 월 Notion DB를 통째로 읽어 cache/papers_YYYY-MM.csv를 재생성.
+def _refresh_cache() -> None:
+    """정본 SQLite에서 변경된 월 bucket만 cache/papers_YYYY-MM.csv로 export.
 
-    진실의 원천(Source of Truth)은 Notion이며, 캐시는 대시보드 서빙용 스냅샷.
-    cron 실행 마지막에 호출되어 Notion ↔ 캐시 드리프트를 제거한다.
+    진실의 원천(Source of Truth)은 data/asap.db이며, 캐시는 대시보드 서빙용 스냅샷.
+    저장이 있었던 실행 마지막에 호출된다. 실패해도 파이프라인은 실패시키지 않는다
+    (cron의 refresh_csv.py가 15분 간격으로 같은 export_dirty를 다시 수행한다).
     """
     try:
-        from datetime import date
-        from analytics.notion_fetcher import fetch_papers, recent_month_range
-
-        raw_lookback = os.getenv("CACHE_REFRESH_LOOKBACK_MONTHS", "1")
-        try:
-            lookback_months = max(0, int(raw_lookback))
-        except ValueError:
-            logger.warning(
-                "CACHE_REFRESH_LOOKBACK_MONTHS 값이 잘못되어 기본값 1 사용: %s",
-                raw_lookback,
-            )
-            lookback_months = 1
-
-        start_month, end_month = recent_month_range(
-            date.today(),
-            lookback_months=lookback_months,
-        )
-        df = fetch_papers(start_month, end_month, force_refresh=True)
-        logger.info(
-            "캐시 재생성 완료: %s~%s (%d건)",
-            start_month,
-            end_month,
-            len(df),
-        )
+        exported = store.export_dirty()
+        logger.info("캐시 재생성 완료: %s", ", ".join(f"{m}({n}건)" for m, n in exported.items()) or "변경 없음")
     except Exception as e:
         logger.warning("캐시 재생성 실패: %s", e)
+
+
+# backfill_acs.py / backfill_rsc.py가 이 이름으로 import한다(옛 Notion 일회성 스크립트 호환용 별칭).
+_refresh_cache_from_notion = _refresh_cache
 
 
 # ---------- 로깅 설정 ----------
@@ -236,14 +206,14 @@ def parse_args(argv: list[str] = None) -> argparse.Namespace:
         파싱된 Namespace (dry_run, verbose 속성 포함)
     """
     parser = argparse.ArgumentParser(
-        description="Gmail ASAP 논문 알림 -> Notion 자동화 파이프라인",
+        description="Gmail ASAP 논문 알림 -> 정본 SQLite 자동화 파이프라인",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
         default=False,
-        help="Notion 저장 + 라벨 마킹 없이 파싱 결과만 콘솔에 출력 (per D-02)",
+        help="DB 저장 + 라벨 마킹 없이 파싱 결과만 콘솔에 출력 (per D-02)",
     )
     parser.add_argument(
         "--verbose",
@@ -257,7 +227,7 @@ def parse_args(argv: list[str] = None) -> argparse.Namespace:
 # ---------- 파이프라인 ----------
 
 def run_pipeline(dry_run: bool = False) -> dict:
-    """Gmail ASAP 메일 수집 -> 파싱 -> DOI 조회 -> Notion 저장 전체 파이프라인 실행 (per D-01).
+    """Gmail ASAP 메일 수집 -> 파싱 -> 정본 SQLite 저장 전체 파이프라인 실행 (per D-01).
 
     실행 순서:
     1. publishers.json 로드
@@ -269,12 +239,12 @@ def run_pipeline(dry_run: bool = False) -> dict:
     7. 라벨 준비 (dry_run 아닐 때만)
     8. 파서 로드
     9. 각 메일에서 논문 추출 (에러 시 해당 메일만 스킵)
-    10. dry_run: 콘솔 출력만(월 DB 미리보기 포함) / 아니면: 논문 발행월별로
-        그룹지어 각 월의 Notion DB에 저장(resolve_db_for_month) + 라벨 마킹
+    10. dry_run: 콘솔 출력만(월 버킷 미리보기 포함) / 아니면: 메일 1통씩 한 트랜잭션으로
+        store.save_papers(발행월 기준 bucket_month 배정 + 전역 제목 중복 스킵) + 저장 성공 후에만 라벨 마킹
     11. 상태 저장 + 실행 요약 로그
 
     Args:
-        dry_run: True면 Notion 저장과 라벨 마킹을 스킵하고 콘솔에만 출력
+        dry_run: True면 DB 저장과 라벨 마킹을 스킵하고 콘솔에만 출력
 
     Returns:
         실행 요약: extracted/saved/skipped/failed(논문 저장 실패), failed_messages(메일 재시도).
@@ -399,52 +369,29 @@ def run_pipeline(dry_run: bool = False) -> dict:
 
     # 10. dry_run 분기
     if dry_run:
-        # dry_run: Notion 저장 없이 콘솔 출력만 (per D-02). 월 DB 미리보기도
-        # 순수 문자열 계산만 하고 Notion 조회는 하지 않는다(네트워크 프리).
+        # dry_run: DB 저장 없이 콘솔 출력만 (per D-02). 월 버킷 미리보기는 순수 계산이라
+        # DB를 열지 않는다(네트워크·파일 프리).
         print(f"\n[DRY RUN] 추출된 논문 {len(all_papers)}건:")
-        today_month = date.today().strftime("%Y-%m")
         for paper in all_papers:
             print(f"  - 제목: {paper.title}")
             print(f"    저널:  {paper.journal or '(없음)'}")
             print(f"    링크:  {paper.url or '(없음)'}")
-            month_key = _paper_month_key(paper.date, today_month)
-            if month_key == today_month:
-                print(f"    월 DB:  get-ASAP {month_key}")
-            else:
-                print(f"    월 DB:  get-ASAP {month_key} (현재월 폴백은 실행 시 판단)")
+            print(f"    월 버킷: {store.bucket_month_for(paper.date)}")
             print()
 
         result = {"extracted": len(all_papers), "saved": 0, "skipped": 0, "failed": 0}
     else:
-        # 실제 실행: Notion 저장 + 라벨 마킹. 메일 하나에 여러 발행월 논문이
-        # 섞여 있을 수 있으므로 발행월별로 그룹지어 각 그룹을 해당 월 DB에 저장한다.
-        db_id = get_or_create_db()
-        today_month = date.today().strftime("%Y-%m")
-        month_db_cache: dict = {}  # 실행 1회 동안 월별 DB id 메모이즈 (resolve_db_for_month 참고)
+        # 실제 실행: 정본 SQLite 저장 + 라벨 마킹. 메일 1통을 한 트랜잭션으로 저장하며
+        # (발행월별 bucket_month 배정은 store.save_papers가 한다), 저장이 끝난 메일에만 라벨을 붙인다.
+        store.require_db()  # DB/스키마가 없으면 빈 DB를 만들지 않고 여기서 실패 -> 체크포인트의 pending이 유지된다
         save_result = {"saved": 0, "skipped": 0, "failed": 0}
         completed_msg_ids = set(ignored_msg_ids)
         for msg_id in processed_msg_ids:
-            papers_by_month: dict[str, list] = {}
-            for paper in papers_by_message[msg_id]:
-                month_key = _paper_month_key(paper.date, today_month)
-                papers_by_month.setdefault(month_key, []).append(paper)
-            if not papers_by_month:
-                # 필터링으로 이 메일의 논문이 모두 제외된 경우에도 기존 계약대로
-                # save_papers를 (빈 리스트로) 최소 1회 호출한다.
-                papers_by_month[today_month] = []
-
-            message_result = {"saved": 0, "skipped": 0, "failed": 0}
+            # 필터링으로 이 메일의 논문이 모두 제외된 경우(빈 리스트)에도 기존 계약대로 save_papers를 호출한다.
             try:
-                for month_key in sorted(papers_by_month):
-                    group = papers_by_month[month_key]
-                    group_db_id = resolve_db_for_month(month_key, db_id, month_db_cache)
-                    if group_db_id != db_id:
-                        logger.info("월 라우팅: %d건 -> get-ASAP %s", len(group), month_key)
-                    group_result = save_papers(group, group_db_id)
-                    for key in message_result:
-                        message_result[key] += group_result.get(key, 0)
+                message_result = store.save_papers(papers_by_message[msg_id])
             except Exception as e:
-                logger.warning("Notion 저장 실패 (msg_id=%s), 재시도 대기: %s", msg_id, e)
+                logger.warning("DB 저장 실패 (msg_id=%s), 재시도 대기: %s", msg_id, e)
                 failed_msg_ids.add(msg_id)
                 continue
             for key in save_result:
@@ -461,9 +408,9 @@ def run_pipeline(dry_run: bool = False) -> dict:
                 logger.warning("라벨 마킹 실패 (msg_id=%s), 재시도 대기: %s", msg_id, e)
                 failed_msg_ids.add(msg_id)
 
-        # 캐시 CSV는 Notion 기준으로 전체 재생성 (드리프트 방지)
+        # 캐시 CSV는 정본 DB에서 변경된 월만 다시 export (드리프트 방지)
         if save_result.get("saved", 0) > 0:
-            _refresh_cache_from_notion()
+            _refresh_cache()
 
         state["pendingMessageIds"] = [mid for mid in msg_ids if mid not in completed_msg_ids]
         save_state(state)

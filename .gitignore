@@ -46,6 +46,9 @@ Thumbs.db
 cache/
 reports/
 
+# 정본 SQLite DB + 일일 gzip 백업 (VM 전용, 절대 커밋 금지)
+data/
+
 # Dashboard access log DB (로컬/서버 각각 유지)
 access_log.db
 access_log.db-journal
