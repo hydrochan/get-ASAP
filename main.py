@@ -14,7 +14,7 @@ import logging
 import logging.handlers
 import os
 import sys
-from datetime import date
+from datetime import date, datetime, timezone
 
 from auth import get_gmail_service
 from excluded_journals import is_excluded_journal as _is_config_excluded_journal
@@ -98,6 +98,19 @@ def _extract_header(headers: list[dict], name: str) -> str:
         if header.get("name", "").lower() == name_lower:
             return header.get("value", "")
     return ""
+
+
+def _mail_received_date(msg: dict, fallback: str) -> str:
+    """Gmail 메시지의 internalDate(epoch 밀리초 문자열)를 UTC 기준 YYYY-MM-DD로 변환한다.
+
+    논문 날짜가 없을 때 처리일(today) 대신 메일 수신일을 쓰기 위한 값이다(재시도·지연 처리 메일의
+    날짜 왜곡 방지). 서버(UTC VM)의 date.today()와 같은 UTC 기준을 유지한다.
+    internalDate가 없거나 해석할 수 없으면 fallback(처리일)을 돌려준다.
+    """
+    try:
+        return datetime.fromtimestamp(int(msg["internalDate"]) // 1000, tz=timezone.utc).date().isoformat()
+    except (KeyError, TypeError, ValueError, OverflowError, OSError):
+        return fallback
 
 
 def _is_publisher_fallback_journal(
@@ -327,7 +340,8 @@ def run_pipeline(dry_run: bool = False) -> dict:
             logger.debug("메일 %s: %d건 추출", msg_id, len(papers))
 
             # 각 paper의 누락 필드 보완. 저널 추론이 출판사명 fallback이면 비논문 메일로 보고 제외.
-            today = __import__("datetime").date.today().isoformat()
+            # 날짜 없는 논문은 메일 수신일(UTC)로 채운다. internalDate가 없거나 깨졌으면 처리일로 폴백.
+            mail_date = _mail_received_date(msg, date.today().isoformat())
             valid_papers = []
             for paper in papers:
                 if not paper.journal:
@@ -352,7 +366,7 @@ def run_pipeline(dry_run: bool = False) -> dict:
                     )
                     continue
                 if not paper.date:
-                    paper.date = today
+                    paper.date = mail_date
                 valid_papers.append(paper)
 
             all_papers.extend(valid_papers)

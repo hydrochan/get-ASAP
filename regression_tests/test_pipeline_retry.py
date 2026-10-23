@@ -1,6 +1,7 @@
 """Synthetic, credential-free retry regressions kept outside private email fixtures."""
 import copy
 import os
+from datetime import date, datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -22,6 +23,7 @@ def pipeline(monkeypatch):
         state={"historyId": "100"}, checkpoints=[], message_ids=["m1", "m2"],
         parse_failures=set(), save_failures=set(), label_failures=set(),
         saved_titles=set(), labels=[], paper_counts={}, store_exception=False,
+        internal_dates={}, paper_dates={}, saved_dates={},  # 메일 internalDate·파서 날짜 주입, 저장된 날짜 기록
     )
     service = MagicMock()
 
@@ -38,14 +40,15 @@ def pipeline(monkeypatch):
         execute=lambda: {"payload": {"body_id": kw["id"], "headers": [
             {"name": "From", "value": "alerts@example.invalid"},
             {"name": "Subject", "value": "Synthetic journal"},
-        ]}},
+        ]}, **({"internalDate": h.internal_dates[kw["id"]]} if kw["id"] in h.internal_dates else {})},
     )
 
     def parse(mid):
         if mid in h.parse_failures:
             raise ValueError("Synthetic parser error")
         return [SimpleNamespace(
-            title=f"{mid}-{i}", journal="Synthetic journal", date="2026-09-07", url="",
+            title=f"{mid}-{i}", journal="Synthetic journal",
+            date=h.paper_dates.get(mid, "2026-09-07"), url="",
         ) for i in range(h.paper_counts.get(mid, 1))]
 
     def save_papers(papers):
@@ -53,6 +56,7 @@ def pipeline(monkeypatch):
             raise RuntimeError("Synthetic store exception")
         result = {"saved": 0, "skipped": 0, "failed": 0}
         for paper in papers:
+            h.saved_dates[paper.title] = paper.date
             if paper.title in h.save_failures:
                 result["failed"] += 1
             elif paper.title in h.saved_titles:
@@ -195,6 +199,51 @@ def test_interruption_after_external_writes_preserves_retry_checkpoint(pipeline,
     result = h.run()
     assert result["saved"] == 0 and result["skipped"] == 2
     assert h.state["pendingMessageIds"] == []
+
+
+# ---------- 날짜 없는 논문: 메일 수신일(internalDate, UTC)로 채움 ----------
+
+def _internal_date(iso_utc: str) -> str:
+    """UTC ISO 시각을 Gmail internalDate 형식(epoch 밀리초 문자열)으로 만든다."""
+    return str(int(datetime.fromisoformat(iso_utc).replace(tzinfo=timezone.utc).timestamp() * 1000))
+
+
+@pytest.mark.parametrize("received_utc, expected", [
+    ("2026-10-22T23:30:00", "2026-10-22"),  # KST로는 10-23이지만 UTC 기준 날짜를 쓴다
+    ("2026-10-23T00:00:00", "2026-10-23"),  # UTC 자정 경계
+    ("2026-10-22T09:15:30", "2026-10-22"),
+])
+def test_dateless_paper_gets_mail_received_date_in_utc(pipeline, received_utc, expected):
+    h = pipeline
+    h.message_ids = ["m1"]
+    h.paper_dates["m1"] = ""
+    h.internal_dates["m1"] = _internal_date(received_utc)
+    assert h.run()["saved"] == 1
+    assert h.saved_dates["m1-0"] == expected
+
+
+def test_parsed_date_is_kept_over_mail_received_date(pipeline):
+    h = pipeline
+    h.message_ids = ["m1"]
+    h.paper_dates["m1"] = "2026-08-30"
+    h.internal_dates["m1"] = _internal_date("2026-10-22T23:30:00")
+    assert h.run()["saved"] == 1
+    assert h.saved_dates["m1-0"] == "2026-08-30"
+
+
+_MISSING = object()
+
+
+@pytest.mark.parametrize("internal_date", [_MISSING, "not-a-number", "", None, "9" * 30])
+def test_dateless_paper_falls_back_to_today_without_valid_internal_date(pipeline, monkeypatch, internal_date):
+    h = pipeline
+    h.message_ids = ["m1"]
+    h.paper_dates["m1"] = ""
+    if internal_date is not _MISSING:
+        h.internal_dates["m1"] = internal_date
+    monkeypatch.setattr(main, "date", SimpleNamespace(today=lambda: date(2026, 10, 23)))
+    assert h.run()["saved"] == 1
+    assert h.saved_dates["m1-0"] == "2026-10-23"
 
 
 # ---------- 실제 SQLite 정본과 엮은 통합 검증 (합성 메일) ----------
