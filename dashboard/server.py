@@ -411,6 +411,14 @@ def _query_metrics() -> dict:
 MAX_FEEDBACK_LEN = 2000
 ALLOWED_FEEDBACK_CATEGORIES = {"bug", "feature", "other"}
 MAX_FEEDBACK_BODY_LEN = 16384  # 본문 크기 상한(바이트) — 이걸 넘으면 read 전에 413으로 차단
+
+# 검토 UI(관리자) API - docs/review-ui-design.md §1. 본문 상한은 피드백과 같은 방식(읽기 전에 413)이되,
+# 판정 200건(항목당 최대 ~75B, 약 15 KB)이 16 KB 경계에 붙으므로 여유를 둔 64 KiB (Nginx 전체 상한 256k 이내).
+REVIEW_PAPERS_PATH = "/api/admin/review/papers"
+REVIEW_STATUS_PATH = "/api/admin/review/status"
+MAX_REVIEW_BODY_LEN = 65536
+MAX_REVIEW_ITEMS = 200
+REVIEW_PAGE_DEFAULT = 100
 # 익명 게스트 허용에 따른 IP(해시) 기준 도배 방지 — NAT 공유 기관망은 통과, 단일 플러더는 차단
 FEEDBACK_MIN_INTERVAL_SEC = 15  # 같은 IP 연속 제출 최소 간격(초)
 FEEDBACK_MAX_PER_HOUR = 20  # 같은 IP 시간당 최대 제출 수
@@ -608,9 +616,11 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         logger.info(format, *args)
 
-    def _send_json(self, data, status=200):
+    def _send_json(self, data, status=200, extra_headers=None):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
+        for k, v in (extra_headers or {}).items():
+            self.send_header(k, v)
         self.end_headers()
         self.wfile.write(json.dumps(data).encode())
 
@@ -659,6 +669,99 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
     def _handle_sync(self, method: str, path: str):
         """`/api/sync/` 요청을 sync_api로 위임. 인증 실패 잠금은 로그인 잠금 로직을 재사용(카운터 키만 분리)."""
         sync_api.handle(self, method, path, _check_lockout, _record_attempt)
+
+    def _request_origin_ok(self) -> bool:
+        """상태를 바꾸는 관리자 요청의 CSRF 방어: Origin(없으면 Referer)이 이 서버 자신의 origin일 때만 True.
+
+        자기 origin = 요청의 Host 헤더(Nginx가 `proxy_set_header Host $host`로 공개 호스트명을 그대로 전달한다).
+        스킴은 비교하지 않는다(TLS를 Cloudflare/Nginx가 끝내므로 앱이 보는 스킴이 브라우저의 것과 다를 수 있다).
+        Origin이 있으면(값이 "null"이어도) 그것만 본다 - Referer로 되돌아가지 않는다. 둘 다 없으면 거부한다.
+        세션 쿠키가 SameSite=Strict라 교차 사이트 요청에는 애초에 쿠키가 실리지 않지만, 이 검사가 두 번째 방어선이다.
+        """
+        value = self.headers.get("Origin")
+        if value is None:
+            value = self.headers.get("Referer") or ""
+        host = (self.headers.get("Host") or "").strip().lower()
+        try:
+            parsed = urllib.parse.urlparse(value.strip())
+        except ValueError:
+            return False
+        return bool(host) and parsed.scheme in ("http", "https") and parsed.netloc.lower() == host
+
+    def _handle_review(self, path: str, body: bytes):
+        """`POST /api/admin/review/{papers,status}` - 검토 UI(설계 docs/review-ui-design.md §1). 관리자 전용.
+
+        순서: 세션 401 -> 관리자 403 -> Origin/Referer 403 -> 본문 400 -> DB 503. 모든 응답에 `Cache-Control: private, no-store`
+        (Cloudflare가 /api/* 를 캐시하지 못하게). 본문 크기 상한은 do_POST가 읽기 전에 이미 검사했다.
+        """
+        no_store = {"Cache-Control": "private, no-store"}
+
+        def reply(data, status=200):
+            self._send_json(data, status, no_store)
+
+        token = self._get_session_token()
+        # admin 보호 패턴: 세션 무효면 401, 유효하나 admin 아니면 403 (_validate_session이 슬라이딩 갱신도 수행)
+        if not token or not _validate_session(token):
+            reply({"error": "unauthorized"}, 401)
+            return
+        sess = sessions.get(token)
+        user = sess.get("user", "") if sess else ""
+        if user not in config.DASHBOARD_ADMINS:
+            reply({"error": "forbidden"}, 403)
+            return
+        if not self._request_origin_ok():
+            reply({"error": "bad_origin"}, 403)
+            return
+        try:
+            data = json.loads(body) if body.strip() else {}
+        except (ValueError, UnicodeDecodeError):
+            data = None
+        if not isinstance(data, dict):
+            reply({"error": "bad_request"}, 400)
+            return
+        try:
+            conn = store.connect()
+        except (FileNotFoundError, sqlite3.Error):
+            reply({"error": "db_unavailable"}, 503)
+            return
+        try:
+            if path == REVIEW_PAPERS_PATH:
+                status = data.get("status")
+                q = data.get("q")
+                month = data.get("month")
+                try:
+                    limit = sync_api._int_field(data, "limit", REVIEW_PAGE_DEFAULT, minimum=1, maximum=store.REVIEW_MAX_LIMIT)
+                    offset = sync_api._int_field(data, "offset", 0, minimum=0)
+                    if not (status is None or isinstance(status, str)) or not (q is None or isinstance(q, str)) \
+                            or not (month is None or isinstance(month, str)):
+                        raise ValueError("type")
+                    payload = store.list_review_papers(
+                        conn, status or store.REVIEW_DEFAULT_STATUS, month or None, q or None, limit, offset
+                    )
+                except ValueError:
+                    reply({"error": "bad_request"}, 400)
+                    return
+            else:  # REVIEW_STATUS_PATH
+                items = data.get("items")
+                if not isinstance(items, list) or len(items) > MAX_REVIEW_ITEMS:
+                    reply({"error": "bad_request"}, 400)
+                    return
+                payload = store.set_human_status(conn, items, user)
+                counts = {}
+                for r in payload["results"]:
+                    counts[r["result"]] = counts.get(r["result"], 0) + 1
+                logger.info("[review] %s 판정 %d건 적용: %s", user, len(items), counts)  # 제목 등 내용은 로그에 남기지 않는다
+        except sqlite3.Error:
+            logger.exception("review API DB 오류: %s", path)
+            reply({"error": "db_unavailable"}, 503)
+            return
+        except Exception:
+            logger.exception("review API 처리 실패: %s", path)
+            reply({"error": "internal_error"}, 500)
+            return
+        finally:
+            conn.close()
+        reply(payload)
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -947,7 +1050,16 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         if path == "/api/feedback" and content_len > MAX_FEEDBACK_BODY_LEN:
             self._send_json({"error": "payload too large"}, 413)
             return
+        # 검토 API도 같은 방식: 과대 본문은 버퍼링하기 전에 차단 (이 응답에도 no-store)
+        if path in (REVIEW_PAPERS_PATH, REVIEW_STATUS_PATH) and content_len > MAX_REVIEW_BODY_LEN:
+            self._send_json({"error": "payload_too_large"}, 413, {"Cache-Control": "private, no-store"})
+            return
         body = self.rfile.read(content_len) if content_len else b""
+
+        # 검토 UI API (관리자 전용 - 세션·Origin 검사는 핸들러 안에서)
+        if path in (REVIEW_PAPERS_PATH, REVIEW_STATUS_PATH):
+            self._handle_review(path, body)
+            return
 
         # 로그인
         if path == "/api/login":

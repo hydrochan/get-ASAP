@@ -162,7 +162,8 @@ _DDL = [
         old_source TEXT,
         new_source TEXT NOT NULL,
         seq INTEGER NOT NULL,
-        at TEXT NOT NULL
+        at TEXT NOT NULL,
+        actor TEXT
     )
     """,
     "CREATE INDEX IF NOT EXISTS ix_status_history_paper ON status_history(paper_id, seq)",
@@ -170,11 +171,19 @@ _DDL = [
 ]
 
 
+def _ensure_history_actor(conn: sqlite3.Connection) -> None:
+    """status_history.actor(판정한 관리자 ID) 열을 보장한다(가산·멱등). 검토 UI 이전에 만든 DB를 위한 것으로,
+    write_tx 안에서 호출한다(BEGIN IMMEDIATE가 동시 ALTER를 직렬화). 사람 판정이 아닌 기존 경로는 이 열을 쓰지 않는다."""
+    if "actor" not in [r[1] for r in conn.execute("PRAGMA table_info(status_history)")]:
+        conn.execute("ALTER TABLE status_history ADD COLUMN actor TEXT")
+
+
 def init_schema(conn: sqlite3.Connection) -> None:
     """스키마 생성(멱등). 더 새로운 schema_version의 DB면 거부한다."""
     with write_tx(conn):
         for stmt in _DDL:
             conn.execute(stmt)
+        _ensure_history_actor(conn)
         conn.execute("INSERT OR IGNORE INTO meta(key, value) VALUES('schema_version', ?)", (str(SCHEMA_VERSION),))
         conn.execute("INSERT OR IGNORE INTO meta(key, value) VALUES('last_seq', '0')")
         conn.execute("INSERT OR IGNORE INTO meta(key, value) VALUES('db_epoch', ?)", (_new_epoch(),))
@@ -321,14 +330,22 @@ def _update_paper(
     now: str | None = None,
     status_source: str | None = None,
     extra: dict | None = None,
+    actor: str | None = None,
+    claim_source: bool = False,
 ) -> bool:
     """추적 열이 실제로 바뀐 경우에만 UPDATE + seq 부여. 바뀐 게 없으면 아무것도 쓰지 않고 False.
 
     - status가 바뀌면 status_seq=새 seq, status_source=인자값(필수)으로 갱신하고 status_history에 남긴다.
     - extra는 비추적 열(예: notion_last_edited)로, 추적 열 변경이 있을 때만 함께 기록된다.
+    - claim_source=True(사람 판정 전용): status가 그대로여도 status_source가 인자값과 다르면 그것을 '변경'으로 친다.
+      status_source는 추적 열이 아니지만 변경 피드(change_seq)를 타지 않으면 paper_autodown이 "사람이 이 값을
+      확인했다"는 사실을 영영 받지 못하고, 충돌 규칙(human AND status_seq > seen_through)도 이 확인을 보호하지
+      못한다. 그래서 출처만 바뀌어도 seq를 올리고 status_seq=새 seq로 한다(seq 부여는 여전히 이 함수 한 곳).
+    - actor: 판정한 사람(status_history.actor). None이면 열을 쓰지 않는다(열이 없는 구 DB도 그대로 동작).
     """
     diff = {c: v for c, v in changes.items() if c in TRACKED and v != row[c]}
-    if not diff:
+    source_flip = claim_source and status_source is not None and status_source != row["status_source"]
+    if not diff and not source_flip:
         return False
     now = now or _now()
     seq = _bump(conn)
@@ -337,15 +354,18 @@ def _update_paper(
     sets["updated_at"] = now
     if "title" in diff:
         sets["title_key"] = normalize_title(diff["title"])
-    if "status" in diff:
+    if "status" in diff or source_flip:
         if status_source is None:
             raise ValueError("status 변경에는 status_source가 필요합니다.")
         sets["status_seq"] = seq
         sets["status_source"] = status_source
+        hist_cols = ["paper_id", "old_status", "new_status", "old_source", "new_source", "seq", "at"]
+        hist_vals = [row["id"], row["status"], diff.get("status", row["status"]), row["status_source"], status_source, seq, now]
+        if actor is not None:
+            hist_cols.append("actor")
+            hist_vals.append(actor)
         conn.execute(
-            "INSERT INTO status_history (paper_id, old_status, new_status, old_source, new_source, seq, at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (row["id"], row["status"], diff["status"], row["status_source"], status_source, seq, now),
+            f"INSERT INTO status_history ({', '.join(hist_cols)}) VALUES ({', '.join('?' * len(hist_cols))})", hist_vals
         )
     for k, v in (extra or {}).items():
         sets[k] = v
@@ -556,6 +576,126 @@ def _apply_one_verdict(conn: sqlite3.Connection, item, seen_through: int, now: s
     extra = {"status_source": "paper_autodown"} if row["status_source"] == "notion_migrated" else None
     changed = _update_paper(conn, row, changes, now=now, status_source="paper_autodown", extra=extra)
     return {"ref": ref, "result": "updated" if changed else "unchanged"}
+
+
+# ---------- 검토 UI(관리자): 목록 조회 / 사람 판정 (docs/review-ui-design.md §1) ----------
+
+HUMAN_STATUSES = ("관련", "불확실", "무관", "다운완료")  # 사람이 지정할 수 있는 라벨(대기중·실패는 시스템 상태)
+REVIEW_DEFAULT_STATUS = "불확실"
+REVIEW_MAX_LIMIT = 500
+REVIEW_MAX_Q = 200
+
+
+def _review_row(r: sqlite3.Row) -> dict:
+    """검토 목록 한 행(설계 §1 응답 필드). date는 pub_date(없으면 None)."""
+    return {
+        "ref": r["ref"],
+        "title": r["title"],
+        "journal": r["journal"],
+        "date": r["pub_date"],
+        "url": r["url"],
+        "status": r["status"],
+        "status_source": r["status_source"],
+        "gpt_reason": r["gpt_reason"],
+        "created_at": r["created_at"],
+        "bucket_month": r["bucket_month"],
+    }
+
+
+def list_review_papers(
+    conn: sqlite3.Connection,
+    status: str = REVIEW_DEFAULT_STATUS,
+    month: str | None = None,
+    q: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> dict:
+    """검토 목록. 한 읽기 스냅샷에서 {rows, total, counts, months}를 돌려준다.
+
+    - 대상: tombstone(deleted_at)과 dup_of 행을 뺀 정본 행. created_at DESC(같으면 id DESC)로 정렬.
+    - status: 라벨 하나 또는 "all". month: bucket_month(YYYY-MM). q: 제목·저널 부분일치(대소문자 무시).
+    - q 비교는 중복 키와 같은 정규화(NFKC·대시 통일·공백·casefold)를 양쪽에 적용한다(SQLite LIKE는 비ASCII 대소문자를 못 접는다).
+    - counts: 같은 month·q 조건에서 상태별 건수(여섯 라벨 모두, 0 포함). total: 선택한 status의 건수("all"이면 합계).
+    - months: month 조건과 무관하게 정본 행이 있는 bucket_month 전체(내림차순) - 월 선택 목록용.
+    잘못된 값(status·month·limit·offset)은 ValueError.
+    """
+    if status != "all" and status not in STATUSES:
+        raise ValueError(f"status: {status!r}")
+    if month:
+        _check_month(month)
+    if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= REVIEW_MAX_LIMIT:
+        raise ValueError("limit")
+    if not isinstance(offset, int) or isinstance(offset, bool) or offset < 0:
+        raise ValueError("offset")
+    if q is not None and not isinstance(q, str):
+        raise ValueError("q")
+    base = "deleted_at IS NULL AND dup_of IS NULL"
+    where, params = base, []
+    if month:
+        where += " AND bucket_month = ?"
+        params.append(month)
+    needle = normalize_title(q[:REVIEW_MAX_Q]) if q else ""
+    if needle:
+        conn.create_function("_fold", 1, normalize_title, deterministic=True)
+        where += " AND (instr(title_key, ?) > 0 OR instr(_fold(journal), ?) > 0)"
+        params += [needle, needle]
+    with read_tx(conn):
+        counts = {s: 0 for s in STATUSES}
+        for st, n in conn.execute(f"SELECT status, COUNT(*) FROM papers WHERE {where} GROUP BY status", params):
+            counts[st] = n
+        total = sum(counts.values()) if status == "all" else counts[status]
+        row_where, row_params = where, list(params)
+        if status != "all":
+            row_where += " AND status = ?"
+            row_params.append(status)
+        got = conn.execute(
+            f"SELECT * FROM papers WHERE {row_where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
+            row_params + [limit, offset],
+        ).fetchall()
+        months = [
+            r[0] for r in conn.execute(
+                f"SELECT DISTINCT bucket_month FROM papers WHERE {base} ORDER BY bucket_month DESC"
+            )
+        ]
+    return {"rows": [_review_row(r) for r in got], "total": total, "counts": counts, "months": months}
+
+
+def set_human_status(conn: sqlite3.Connection, items: list, actor: str) -> dict:
+    """사람(관리자)의 판정 배치 적용(배치 1개 = 트랜잭션 1개). 항목 {ref, status}, status는 HUMAN_STATUSES 중 하나.
+
+    항목별 결과: updated / unchanged / gone(모르는 ref·tombstone) / invalid. updated·unchanged에는 current(검토 목록 행)가 붙는다.
+    - 적용하면 status_source는 **항상** 'human'이 된다. status가 그대로여도 마찬가지다(사람이 확인했다는 표시).
+    - status가 바뀌거나 출처만 바뀌면 change_seq와 status_seq를 새 seq로 올리고 status_history에 actor와 함께 남긴다.
+      출처만 바뀌는 경우에도 change_seq를 올리는 이유: 변경 피드가 paper_autodown의 유일한 수신 경로이고, 충돌 규칙
+      (human AND status_seq > seen_through)이 이 확인을 오래된 자동 판정으로부터 지키려면 status_seq가 새로워야 한다.
+    - 이미 human이고 status도 같으면 unchanged(아무것도 쓰지 않는다).
+    """
+    if not isinstance(actor, str) or not actor.strip():
+        raise ValueError("actor")
+    results = []
+    with write_tx(conn):
+        _ensure_history_actor(conn)
+        now = _now()
+        for item in items:
+            results.append(_set_one_human_status(conn, item, actor, now))
+    return {"results": results}
+
+
+def _set_one_human_status(conn: sqlite3.Connection, item, actor: str, now: str) -> dict:
+    ref = item.get("ref") if isinstance(item, dict) else None
+    if not isinstance(ref, str) or not ref:
+        return {"ref": None, "result": "invalid"}
+    status = item.get("status")
+    if status not in HUMAN_STATUSES:
+        return {"ref": ref, "result": "invalid"}
+    row = conn.execute("SELECT * FROM papers WHERE ref=?", (ref,)).fetchone()
+    if row is None or row["deleted_at"] is not None:
+        return {"ref": ref, "result": "gone"}
+    changed = _update_paper(
+        conn, row, {"status": status}, now=now, status_source="human", actor=actor, claim_source=True
+    )
+    current = _review_row(conn.execute("SELECT * FROM papers WHERE id=?", (row["id"],)).fetchone())
+    return {"ref": ref, "result": "updated" if changed else "unchanged", "current": current}
 
 
 # ---------- CSV export (_save_cache 바이트 호환) ----------

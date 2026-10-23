@@ -70,6 +70,9 @@
     /* 토스트 알림 */
     @keyframes toastIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
     .toast-enter { animation: toastIn 0.18s ease-out; }
+    /* Review 뷰 (관리자): GPT reason 기본 2줄, 클릭하면 펼침 */
+    .review-reason { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
+    .review-reason.expanded { display: block; overflow: visible; }
     /* 모바일 전용 반응형 */
     @media (max-width: 640px) {
       .view-tab { padding: 10px 12px; font-size: 12px; letter-spacing: 0.04em; }
@@ -311,13 +314,14 @@
       </div>
     </header>
 
-    <!-- 뷰 탭 (Home / Analytics / Browse / Advanced Search / Stats) -->
+    <!-- 뷰 탭 (Home / Analytics / Browse / Advanced Search / Stats / Review - 마지막 둘은 관리자 전용) -->
     <nav id="view-tabs" class="bg-white border-b border-slate-200 px-4 sm:px-6 flex gap-0 overflow-x-auto whitespace-nowrap">
       <button id="tab-home" class="view-tab active" onclick="setView('home')">Home</button>
       <button id="tab-analytics" class="view-tab" onclick="setView('analytics')">Analytics</button>
       <button id="tab-browse" class="view-tab" onclick="setView('browse')">Browse</button>
       <button id="tab-advanced-search" class="view-tab" onclick="setView('advanced-search')">Advanced Search</button>
       <button id="tab-stats" class="view-tab hidden" onclick="setView('stats')">Stats</button>
+      <button id="tab-review" class="view-tab hidden" onclick="setView('review')">Review</button>
     </nav>
 
     <!-- 필터 바 묶음 (Analytics 탭에서만 노출 · 기본 숨김) -->
@@ -795,6 +799,49 @@
       </section>
     </main>
 
+    <!-- Review 뷰: 논문 판정 검토 (관리자 전용) - POST /api/admin/review/{papers,status} -->
+    <main id="view-review" class="hidden max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4">
+      <section class="card p-4 sm:p-6">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <div>
+            <h2 class="text-xl font-black text-navy-900 tracking-tight">Review</h2>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">Admin only · 논문 판정 검토 · 수동 판정은 자동 분류가 덮어쓰지 않습니다</p>
+          </div>
+          <button id="review-refresh" type="button" class="px-4 py-2 bg-gradient-to-r from-navy-900 to-navy-800 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">Refresh</button>
+        </div>
+        <div id="review-chips" class="flex items-center gap-1.5 flex-wrap mb-3" role="group" aria-label="상태 필터"></div>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <select id="review-month" aria-label="월 선택" class="text-xs border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-800">
+            <option value="">전체 기간</option>
+          </select>
+          <input id="review-q" type="search" placeholder="제목·저널 검색" autocomplete="off" aria-label="제목·저널 검색"
+            class="flex-1 text-sm border border-slate-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-navy-800">
+        </div>
+      </section>
+
+      <section class="card p-4 sm:p-6">
+        <div id="review-bulkbar" class="flex items-center gap-2 flex-wrap pb-3 border-b border-slate-100">
+          <label class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+            <input type="checkbox" id="review-select-all"><span>전체 선택</span>
+          </label>
+          <span id="review-selected-count" class="text-[11px] font-semibold text-slate-400"></span>
+          <span class="flex-1"></span>
+          <span class="text-[10px] font-bold text-slate-400">선택 항목을</span>
+          <button type="button" data-bulk="관련" class="review-bulk px-2.5 py-1 text-[11px] font-bold border border-slate-200 rounded-md bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed" disabled>관련</button>
+          <button type="button" data-bulk="불확실" class="review-bulk px-2.5 py-1 text-[11px] font-bold border border-slate-200 rounded-md bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed" disabled>불확실</button>
+          <button type="button" data-bulk="무관" class="review-bulk px-2.5 py-1 text-[11px] font-bold border border-slate-200 rounded-md bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed" disabled>무관</button>
+          <button type="button" data-bulk="다운완료" class="review-bulk px-2.5 py-1 text-[11px] font-bold border border-slate-200 rounded-md bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed" disabled>다운완료</button>
+        </div>
+        <div id="review-list" class="min-h-[200px]">
+          <p class="text-xs text-slate-400 text-center py-12">로딩…</p>
+        </div>
+        <div class="mt-4 flex flex-col items-center gap-2">
+          <span id="review-summary" class="text-[11px] font-semibold text-slate-400"></span>
+          <button id="review-load-more" type="button" class="hidden px-4 py-2 text-xs font-bold text-navy-800 border border-navy-800 rounded-lg hover:bg-navy-800 hover:text-white transition-all">더 보기</button>
+        </div>
+      </section>
+    </main>
+
     <footer class="text-center text-[10px] text-slate-400 py-4 leading-relaxed">
       get-ASAP &copy; 2026 Chan Kim (@hydro_chan). All rights reserved.<br>
       Unauthorized copying, reproduction, or distribution of this site or its source is prohibited.
@@ -1048,11 +1095,15 @@
       // 관리자만 Stats 탭 노출
       const statsTab = document.getElementById('tab-stats');
       if (statsTab) statsTab.classList.toggle('hidden', !isAdmin);
+      // 관리자만 Review 탭 노출 (비관리자/로그아웃 시 메모리·DOM의 검토 데이터도 비운다)
+      const reviewTab = document.getElementById('tab-review');
+      if (reviewTab) reviewTab.classList.toggle('hidden', !isAdmin);
+      if (!isAdmin) resetReview();
       // 관리자만 Force Refresh All 버튼 노출
       const refreshAllBtn = document.getElementById('refresh-all-btn');
       if (refreshAllBtn) refreshAllBtn.classList.toggle('hidden', !isAdmin);
-      // 비관리자가 Stats 화면에 남아있으면 Home으로 방어적 이동 (권한 하향 시)
-      if (!isAdmin && currentView === 'stats') setView('home');
+      // 비관리자가 Stats/Review 화면에 남아있으면 Home으로 방어적 이동 (권한 하향 시)
+      if (!isAdmin && (currentView === 'stats' || currentView === 'review')) setView('home');
 
       // 게스트(비로그인) 모드: 로그아웃 UI만 숨김 (로그인 진입점은 공개 노출 없음 — #admin-login 해시 전용)
       // 피드백 제출은 익명 게스트도 가능 → 버튼은 항상 노출
@@ -1080,7 +1131,16 @@
     }
 
     // Browse 뷰 상태
-    let currentView = 'home';             // 'home' | 'analytics' | 'browse' | 'advanced-search' | 'stats'
+    let currentView = 'home';             // 'home' | 'analytics' | 'browse' | 'advanced-search' | 'stats' | 'review'
+    // Review 뷰(관리자) 상태 - 로직은 아래 "Review 뷰" 섹션. applyUserVisibility가 먼저 불려도 안전하도록 여기서 선언한다.
+    const review = {
+      status: '불확실', month: '', q: '',            // 필터
+      rows: [], total: 0, counts: {}, months: [],      // 서버 응답 (rows는 "더 보기"로 누적)
+      selected: new Set(), busy: new Set(), expanded: new Set(),
+      loaded: false, loading: false, error: '',
+      seq: 0,   // 목록 요청 번호 - 늦게 도착한 오래된 응답을 버린다
+      gen: 0,   // 목록 세대 - 필터 변경/초기화 뒤에 끝난 판정 요청이 새 목록의 건수를 건드리지 않게 한다
+    };
     let browseMode = 'journal';           // 'journal' | 'topic'
     let selectedBrowseJournal = null;
     let selectedBrowseTopic = null;       // 'broad' 또는 'broad/sharp' key
@@ -2854,8 +2914,8 @@
 
     // ---------- Browse 뷰 ----------
     window.setView = function(v) {
-      // Stats 접근 권한 체크 (비관리자가 URL/DevTools로 강제 전환해도 차단)
-      if (v === 'stats' && !isAdmin) v = 'home';
+      // Stats/Review 접근 권한 체크 (비관리자가 URL/DevTools로 강제 전환해도 차단 - 서버도 별도로 401/403)
+      if ((v === 'stats' || v === 'review') && !isAdmin) v = 'home';
       currentView = v;
       // 탭 active 토글
       document.getElementById('tab-home').classList.toggle('active', v === 'home');
@@ -2864,12 +2924,15 @@
       document.getElementById('tab-advanced-search').classList.toggle('active', v === 'advanced-search');
       const statsTab = document.getElementById('tab-stats');
       if (statsTab) statsTab.classList.toggle('active', v === 'stats');
+      const reviewTabEl = document.getElementById('tab-review');
+      if (reviewTabEl) reviewTabEl.classList.toggle('active', v === 'review');
       // 뷰 본문 표시/숨김
       document.getElementById('view-home').classList.toggle('hidden', v !== 'home');
       document.getElementById('view-analytics').classList.toggle('hidden', v !== 'analytics');
       document.getElementById('view-browse').classList.toggle('hidden', v !== 'browse');
       document.getElementById('view-advanced-search').classList.toggle('hidden', v !== 'advanced-search');
       document.getElementById('view-stats').classList.toggle('hidden', v !== 'stats');
+      document.getElementById('view-review').classList.toggle('hidden', v !== 'review');
       // 필터 바는 Analytics에서만 노출
       document.getElementById('analytics-filters').classList.toggle('hidden', v !== 'analytics');
       if (v === 'browse') {
@@ -2883,6 +2946,8 @@
         loadStats();
         loadFeedback();
         loadEvents();
+      } else if (v === 'review') {
+        openReview();
       }
     };
 
@@ -3200,6 +3265,372 @@
     }
 
     document.getElementById('stats-feedback-unread-only')?.addEventListener('change', renderFeedback);
+
+    // ---------- Review 뷰 (관리자 전용) ----------
+    // 정본 DB의 논문 판정을 사람이 검토·수정한다 (설계: docs/review-ui-design.md).
+    //   POST /api/admin/review/papers  {status, month, q, limit, offset} -> {rows, total, counts, months}
+    //   POST /api/admin/review/status  {items:[{ref, status}]}           -> {results:[{ref, result, current}]}
+    // 사람이 정한 판정(status_source='human')은 서버의 충돌 규칙이 자동 분류의 덮어쓰기로부터 보호한다.
+    // 서버에서 온 모든 문자열은 esc()(= 공용 _escapeHtml)를 거쳐 렌더링하고, 외부 링크는 http(s)만
+    // target=_blank rel="noopener noreferrer"로 연다. 상태는 위쪽 `review` 객체.
+    const esc = _escapeHtml;
+    const REVIEW_PAGE = 100;                                      // "더 보기" 단위
+    const REVIEW_BATCH = 200;                                     // 서버의 요청당 항목 상한
+    const REVIEW_CONFIRM_OVER = 20;                               // 이보다 많은 일괄 적용은 확인 모달을 거친다
+    const REVIEW_LABELS = ['관련', '불확실', '무관', '다운완료'];    // 사람이 지정할 수 있는 판정
+    const REVIEW_CHIPS = ['불확실', '관련', '실패', '대기중', '다운완료', '무관', 'all'];
+    const REVIEW_BADGE = {
+      '관련': 'bg-emerald-100 text-emerald-800', '불확실': 'bg-amber-100 text-amber-800',
+      '무관': 'bg-slate-200 text-slate-600', '다운완료': 'bg-blue-100 text-blue-800',
+      '실패': 'bg-red-100 text-red-700', '대기중': 'bg-violet-100 text-violet-700',
+    };
+    const REVIEW_BTN_ON = {
+      '관련': 'bg-emerald-600 text-white border-emerald-600', '불확실': 'bg-amber-500 text-white border-amber-500',
+      '무관': 'bg-slate-500 text-white border-slate-500', '다운완료': 'bg-blue-700 text-white border-blue-700',
+    };
+
+    async function reviewPost(path, body) {
+      const res = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(body),
+      });
+      let data = null;
+      try { data = await res.json(); } catch (_) { data = null; }
+      return { res, data };
+    }
+    function reviewErr(res, data) { return (data && data.error) || ('HTTP ' + res.status); }
+    // javascript: 같은 스킴이 href로 들어가지 않도록 http(s)만 링크로 만든다
+    function reviewSafeUrl(u) {
+      const s = String(u == null ? '' : u).trim();
+      return /^https?:\/\//i.test(s) ? s : '';
+    }
+    function reviewFind(ref) { return review.rows.find(r => r.ref === ref) || null; }
+    function reviewMatches(r) { return review.status === 'all' || r.status === review.status; }
+    function reviewMatchedCount() { return review.rows.reduce((n, r) => n + (reviewMatches(r) ? 1 : 0), 0); }
+    // 상태별 건수 (chip 표시). 'all'은 합계. 아직 못 받았으면 null
+    function reviewCount(s) {
+      const c = review.counts || {};
+      if (!Object.keys(c).length) return null;
+      return s === 'all' ? Object.values(c).reduce((a, b) => a + (Number(b) || 0), 0) : (Number(c[s]) || 0);
+    }
+    function reviewBump(label, delta) {
+      if (label in review.counts) review.counts[label] = Math.max(0, (Number(review.counts[label]) || 0) + delta);
+    }
+    // 행의 판정을 바꾸고 건수·total을 같이 맞춘다 (낙관적 반영/되돌림/서버 확정 모두 이 함수)
+    function reviewSetRowState(r, status, source) {
+      if (r.status !== status) { reviewBump(r.status, -1); reviewBump(status, 1); }
+      r.status = status;
+      r.status_source = source;
+      review.total = reviewCount(review.status) || 0;
+    }
+
+    function reviewRowHtml(r) {
+      const url = reviewSafeUrl(r.url);
+      const title = esc(r.title || '(제목 없음)');
+      const titleHtml = url
+        ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer" class="text-sm font-semibold text-navy-900 hover:underline leading-snug">${title}</a>`
+        : `<span class="text-sm font-semibold text-navy-900 leading-snug">${title}</span>`;
+      const human = r.status_source === 'human';
+      const busy = review.busy.has(r.ref);
+      const left = !reviewMatches(r);   // 방금 판정을 바꿔 현재 필터에서 벗어난 행 - 흐리게 남겨 둔다
+      const badge = `<span class="font-bold px-1.5 py-0.5 rounded ${esc(REVIEW_BADGE[r.status] || 'bg-slate-100 text-slate-600')}">${esc(r.status)}</span>`
+        + (human ? ' <span class="font-bold px-1.5 py-0.5 rounded bg-navy-800 text-white" title="사람이 정한 판정 (자동 분류가 덮어쓰지 않음)">수동</span>' : '');
+      const buttons = REVIEW_LABELS.map(l => {
+        const on = r.status === l;
+        const locked = on && human;
+        const cls = on ? REVIEW_BTN_ON[l] : 'bg-white text-slate-600 hover:bg-slate-50';
+        const tip = locked ? `${l} (수동 판정)` : (on ? `${l}로 확정 (수동 판정으로 표시)` : `${l}(으)로 지정`);
+        return `<button type="button" data-act="set" data-ref="${esc(r.ref)}" data-status="${esc(l)}" aria-pressed="${on}" title="${esc(tip)}"`
+          + `${busy || locked ? ' disabled' : ''} class="px-2.5 py-1 text-[11px] font-bold border rounded-md ${cls}${busy ? ' opacity-50 cursor-wait' : (locked ? ' cursor-default' : '')}">${esc(l)}</button>`;
+      }).join('');
+      const reason = String(r.gpt_reason || '').trim();
+      const reasonHtml = reason
+        ? `<p class="review-reason text-xs text-slate-600 leading-relaxed mt-1 whitespace-pre-wrap${review.expanded.has(r.ref) ? ' expanded' : ''}" data-act="reason" data-ref="${esc(r.ref)}" title="클릭하면 펼치거나 접습니다">${esc(reason)}</p>`
+        : '<p class="text-xs text-slate-300 mt-1">GPT reason 없음</p>';
+      return `<div class="review-row flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3 py-3 border-b border-slate-100${left ? ' opacity-60' : ''}" data-ref="${esc(r.ref)}">
+        <div class="flex gap-3 flex-1 min-w-0">
+          <input type="checkbox" class="mt-1 shrink-0" data-act="check" data-ref="${esc(r.ref)}" aria-label="선택"${review.selected.has(r.ref) ? ' checked' : ''}>
+          <div class="flex-1 min-w-0">
+            <div>${titleHtml}</div>
+            <div class="flex items-center gap-1.5 flex-wrap mt-1 text-[11px] text-slate-500">
+              ${badge}
+              <span>${esc(r.journal || '')}</span><span>·</span><span>${esc(r.date || '날짜 없음')}</span>
+            </div>
+            ${reasonHtml}
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-1 shrink-0 pl-7 sm:pl-0">${buttons}</div>
+      </div>`;
+    }
+
+    function renderReviewMonths() {
+      const sel = document.getElementById('review-month');
+      if (!sel) return;
+      const months = review.months.slice();
+      if (review.month && !months.includes(review.month)) months.unshift(review.month);
+      const key = months.join(',');
+      if (sel.getAttribute('data-key') !== key) {
+        sel.innerHTML = '';
+        for (const m of [''].concat(months)) {
+          const o = document.createElement('option');
+          o.value = m;
+          o.textContent = m || '전체 기간';
+          sel.appendChild(o);
+        }
+        sel.setAttribute('data-key', key);
+      }
+      sel.value = review.month;
+    }
+
+    // 칩·일괄 바·요약·더 보기 (행 목록은 건드리지 않는다)
+    function renderReviewMeta() {
+      const chips = document.getElementById('review-chips');
+      if (chips) {
+        chips.innerHTML = REVIEW_CHIPS.map(s => {
+          const n = reviewCount(s);
+          return `<button type="button" data-status="${esc(s)}" aria-pressed="${review.status === s}" class="journal-chip${review.status === s ? ' active' : ''}">${esc(s === 'all' ? '전체' : s)}${n == null ? '' : ' ' + esc(n.toLocaleString())}</button>`;
+        }).join('');
+      }
+      const selected = review.selected.size;
+      const countEl = document.getElementById('review-selected-count');
+      if (countEl) countEl.textContent = selected ? `${selected.toLocaleString()}건 선택` : '';
+      document.querySelectorAll('#review-bulkbar .review-bulk').forEach(b => { b.disabled = selected === 0; });
+      const all = document.getElementById('review-select-all');
+      if (all) {
+        const every = review.rows.length > 0 && review.rows.every(r => review.selected.has(r.ref));
+        all.checked = every;
+        all.indeterminate = selected > 0 && !every;
+      }
+      const matched = reviewMatchedCount();
+      const more = document.getElementById('review-load-more');
+      const summary = document.getElementById('review-summary');
+      if (summary) summary.textContent = review.loaded ? `총 ${review.total.toLocaleString()}건 중 ${matched.toLocaleString()}건 표시` : '';
+      if (more) {
+        more.classList.toggle('hidden', !(review.loaded && matched < review.total));
+        more.disabled = review.loading;
+        more.textContent = review.loading ? '불러오는 중…' : '더 보기';
+      }
+    }
+
+    function renderReviewList() {
+      const el = document.getElementById('review-list');
+      if (!el) return;
+      if (!review.rows.length && review.error) {
+        el.innerHTML = `<div class="text-xs text-red-600 font-semibold bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-center justify-between gap-3 flex-wrap"><span>${esc(review.error)}</span><button type="button" data-act="retry" class="text-[10px] font-bold text-red-700 border border-red-300 rounded px-3 py-1 hover:bg-red-100">다시 시도</button></div>`;
+      } else if (!review.rows.length) {
+        el.innerHTML = `<p class="text-xs text-slate-400 text-center py-12">${review.loading ? '불러오는 중…' : '해당하는 논문이 없습니다.'}</p>`;
+      } else {
+        el.innerHTML = review.rows.map(reviewRowHtml).join('');
+      }
+      renderReviewMeta();
+    }
+
+    // 한 행만 다시 그린다 (낙관적 반영/응답 반영용)
+    function renderReviewRow(ref) {
+      const r = reviewFind(ref);
+      const el = document.querySelector('#review-list .review-row[data-ref="' + CSS.escape(ref) + '"]');
+      if (r && el) el.outerHTML = reviewRowHtml(r);
+    }
+
+    function resetReview() {
+      review.seq++; review.gen++;
+      review.rows = []; review.total = 0; review.counts = {}; review.months = [];
+      review.loaded = false; review.loading = false; review.error = '';
+      review.selected.clear(); review.busy.clear(); review.expanded.clear();
+      review.status = '불확실'; review.month = ''; review.q = '';
+      const list = document.getElementById('review-list');
+      if (list) list.innerHTML = '';
+      const q = document.getElementById('review-q');
+      if (q) q.value = '';
+      renderReviewMonths();
+    }
+
+    function openReview() {
+      if (!isAdmin) return;
+      if (!review.loaded && !review.loading) loadReview(false);
+      else renderReviewList();
+    }
+
+    // append=false: 필터 변경/새로고침 (처음부터), true: "더 보기" (지금까지 필터에 맞는 행 수만큼 건너뛰고 이어 받는다)
+    async function loadReview(append) {
+      const my = ++review.seq;
+      review.loading = true;
+      if (!append) {
+        review.gen++;
+        review.error = '';
+        review.rows = [];
+        review.total = 0;
+        review.selected.clear();
+        review.expanded.clear();
+      }
+      renderReviewList();
+      const offset = append ? reviewMatchedCount() : 0;
+      try {
+        const { res, data } = await reviewPost('/api/admin/review/papers', {
+          status: review.status, month: review.month || null, q: review.q || null, limit: REVIEW_PAGE, offset,
+        });
+        if (my !== review.seq) return;   // 그 사이 더 새로운 요청/초기화가 있었다
+        if (!res.ok || !data || !Array.isArray(data.rows)) {
+          if (!handleAdminAuthError(res)) showToast(`목록을 불러오지 못했습니다 (${reviewErr(res, data)})`, 'error');
+          if (!append) review.error = '목록을 불러오지 못했습니다.';
+          return;
+        }
+        const have = new Set(review.rows.map(r => r.ref));
+        for (const r of data.rows) if (!have.has(r.ref)) review.rows.push(r);
+        review.counts = data.counts || {};
+        if (Array.isArray(data.months)) review.months = data.months;
+        review.total = Number(data.total) || 0;
+        review.loaded = true;
+        renderReviewMonths();
+      } catch (e) {
+        if (my !== review.seq) return;
+        if (!append) review.error = '네트워크 오류 — 다시 시도해주세요.';
+        showToast('네트워크 오류로 목록을 불러오지 못했습니다.', 'error');
+      } finally {
+        if (my === review.seq) { review.loading = false; renderReviewList(); }
+      }
+    }
+
+    // 선택한 행들에 판정 적용. 이미 같은 판정을 사람이 정한 행은 건너뛴다. 서버 상한(200)씩 나눠 순서대로 보낸다.
+    async function applyReviewStatus(refs, status) {
+      const targets = [];
+      for (const ref of refs) {
+        const r = reviewFind(ref);
+        if (r && !review.busy.has(ref) && !(r.status === status && r.status_source === 'human')) targets.push(r);
+      }
+      if (!targets.length) {
+        if (refs.length > 1) showToast(`선택한 항목은 이미 모두 '${status}' 수동 판정입니다.`, 'info');
+        return;
+      }
+      if (targets.length > REVIEW_CONFIRM_OVER) {
+        const proceed = await showConfirmModal({
+          title: '일괄 판정',
+          message: `${targets.length.toLocaleString()}건을 '${status}'(으)로 지정합니다.\n\n사람이 정한 판정으로 기록되며, 자동 분류가 덮어쓰지 않습니다.`,
+          confirmText: '적용',
+          cancelText: '취소',
+        });
+        hideConfirmModal();
+        if (!proceed) return;
+      }
+      let done = 0;
+      for (let i = 0; i < targets.length; i += REVIEW_BATCH) {
+        const n = await applyReviewChunk(targets.slice(i, i + REVIEW_BATCH), status);
+        if (n < 0) break;   // 인증 오류/네트워크 오류 - 나머지는 보내지 않는다
+        done += n;
+      }
+      if (done > 1) showToast(`${done.toLocaleString()}건을 '${status}'(으)로 지정했습니다.`, 'success');
+    }
+
+    // 한 묶음을 낙관적으로 반영 -> 서버 응답으로 확정/되돌림. 반환: 반영된 건수(오류로 중단해야 하면 -1)
+    async function applyReviewChunk(chunk, status) {
+      const gen = review.gen;
+      const before = new Map(chunk.map(r => [r.ref, { status: r.status, source: r.status_source }]));
+      const revert = (r) => { const b = before.get(r.ref); reviewSetRowState(r, b.status, b.source); };
+      for (const r of chunk) { review.busy.add(r.ref); reviewSetRowState(r, status, 'human'); }
+      renderReviewMeta();
+      chunk.forEach(r => renderReviewRow(r.ref));
+      let applied = 0;
+      let outcome = 0;
+      try {
+        const { res, data } = await reviewPost('/api/admin/review/status', { items: chunk.map(r => ({ ref: r.ref, status })) });
+        const stale = gen !== review.gen;   // 응답을 기다리는 사이 목록이 바뀌었다(필터 변경/새로고침/로그아웃)
+        if (!res.ok || !data || !Array.isArray(data.results)) {
+          if (!stale) chunk.forEach(revert);
+          if (!handleAdminAuthError(res)) showToast(`판정을 저장하지 못했습니다 (${reviewErr(res, data)})`, 'error');
+          outcome = -1;
+        } else {
+          const byRef = new Map(data.results.map(x => [x.ref, x]));
+          let failed = 0, gone = 0;
+          for (const r of chunk) {
+            const x = byRef.get(r.ref);
+            const ok = x && (x.result === 'updated' || x.result === 'unchanged') && x.current;
+            if (stale) { if (!ok) { if (x && x.result === 'gone') gone++; else failed++; } else applied++; continue; }
+            if (ok) {
+              reviewSetRowState(r, x.current.status, x.current.status_source);   // 서버가 확정한 값
+              Object.assign(r, x.current);
+              review.selected.delete(r.ref);
+              applied++;
+            } else if (x && x.result === 'gone') {
+              // 삭제된 논문: 낙관적으로 올려 둔 새 판정 건수만 되돌리고(옛 건수는 이미 빠졌다) 목록에서 제거
+              reviewBump(r.status, -1);
+              review.rows = review.rows.filter(y => y.ref !== r.ref);
+              review.selected.delete(r.ref);
+              gone++;
+            } else {
+              revert(r);
+              failed++;
+            }
+          }
+          if (failed) showToast(`${failed.toLocaleString()}건은 반영되지 않아 되돌렸습니다.`, 'error');
+          if (gone) showToast(`이미 삭제된 논문 ${gone.toLocaleString()}건은 목록에서 제거했습니다.`, 'info');
+        }
+      } catch (e) {
+        if (gen === review.gen) chunk.forEach(revert);
+        showToast('네트워크 오류로 판정을 저장하지 못했습니다. 되돌렸습니다.', 'error');
+        outcome = -1;
+      } finally {
+        chunk.forEach(r => review.busy.delete(r.ref));
+        if (gen === review.gen) {
+          review.total = reviewCount(review.status) || 0;
+          renderReviewList();   // 전체 다시 그림 (제거된 행·되돌린 행·잠금 상태 반영)
+        }
+      }
+      return outcome < 0 ? -1 : applied;
+    }
+
+    (function wireReview() {
+      const byId = (id) => document.getElementById(id);
+      byId('review-chips')?.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-status]');
+        if (!b || b.getAttribute('data-status') === review.status) return;
+        review.status = b.getAttribute('data-status');
+        loadReview(false);
+      });
+      byId('review-month')?.addEventListener('change', (e) => { review.month = e.target.value; loadReview(false); });
+      const qEl = byId('review-q');
+      let qTimer = null;
+      const applyQuery = () => {
+        clearTimeout(qTimer);
+        const v = qEl.value.trim();
+        if (v !== review.q) { review.q = v; loadReview(false); }
+      };
+      qEl?.addEventListener('input', () => { clearTimeout(qTimer); qTimer = setTimeout(applyQuery, 300); });
+      qEl?.addEventListener('keydown', (e) => { if (e.key === 'Enter') applyQuery(); });
+      byId('review-refresh')?.addEventListener('click', () => loadReview(false));
+      byId('review-load-more')?.addEventListener('click', () => { if (!review.loading) loadReview(true); });
+      byId('review-select-all')?.addEventListener('change', (e) => {
+        for (const r of review.rows) { if (e.target.checked) review.selected.add(r.ref); else review.selected.delete(r.ref); }
+        renderReviewList();
+      });
+      byId('review-bulkbar')?.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-bulk]');
+        if (b && !b.disabled) applyReviewStatus(Array.from(review.selected), b.getAttribute('data-bulk'));
+      });
+      const list = byId('review-list');
+      list?.addEventListener('click', (e) => {
+        const t = e.target.closest('[data-act]');
+        if (!t) return;
+        const act = t.getAttribute('data-act');
+        const ref = t.getAttribute('data-ref');
+        if (act === 'set' && !t.disabled) {
+          applyReviewStatus([ref], t.getAttribute('data-status'));
+        } else if (act === 'reason') {
+          const open = t.classList.toggle('expanded');
+          if (open) review.expanded.add(ref); else review.expanded.delete(ref);
+        } else if (act === 'retry') {
+          loadReview(false);
+        }
+      });
+      list?.addEventListener('change', (e) => {
+        const t = e.target;
+        if (!t || t.getAttribute('data-act') !== 'check') return;
+        const ref = t.getAttribute('data-ref');
+        if (t.checked) review.selected.add(ref); else review.selected.delete(ref);
+        renderReviewMeta();
+      });
+    })();
 
     // ---------- 피드백 제출 모달 ----------
     const fbModal = document.getElementById('feedback-modal');
