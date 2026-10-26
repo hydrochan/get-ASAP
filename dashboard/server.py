@@ -35,6 +35,7 @@ DASHBOARD_DIR = os.path.dirname(os.path.abspath(__file__))
 if DASHBOARD_DIR not in sys.path:
     sys.path.append(DASHBOARD_DIR)  # 실행 방식(스크립트/테스트/-m)과 무관하게 sync_api를 찾도록
 
+import access_auth  # noqa: E402  (Cloudflare Access JWT 검증 - GET /manage)
 import store  # noqa: E402  (정본 SQLite - /api/refresh_all이 export_all을 호출)
 import sync_api  # noqa: E402  (/api/sync/v1/ - 설계 §5)
 
@@ -950,24 +951,49 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         #   - Nginx 는 그 외 모든 location 에서 X-Basic-User 를 ""(빈 값)으로 덮어써(제거) 클라이언트 위조를 차단한다.
         #   따라서 X-Basic-User 는 '이 핸들러 안에서만' 신뢰할 수 있다.
         #   CRITICAL: X-Basic-User 는 코드베이스 전체에서 반드시 이 /manage 핸들러에서만 읽는다(다른 어떤 곳에서도 읽지 않는다).
+        # Cloudflare Access 경로(access_auth 설정 시):
+        #   - 원본 VM 은 IP 로도 직접 닿으므로 Cf-Access-* '헤더 값'은 믿지 않는다. Cf-Access-Jwt-Assertion 의 RS256 JWT 를
+        #     access_auth 가 서명·aud·iss·exp 까지 직접 검증하고, 검증된 email 클레임만 사용자명으로 매핑한다.
+        #     (Cf-Access-Authenticated-User-Email 헤더는 인증에 쓰지 않는다.)
+        #   - JWT 헤더가 있으면(빈 값 포함) 검증 실패 시 Basic 으로 되돌아가지 않고 403 한다.
+        #   - JWT 헤더가 없으면 전환 기간 동안 기존 X-Basic-User 경로를 그대로 쓴다.
         if path == "/manage":
-            # 헤더 접근은 대소문자 무시(email.message 기반) — Nginx 가 어떤 케이스로 보내든 매칭된다.
-            basic_user = self.headers.get("X-Basic-User", "")
-            if not basic_user or basic_user not in config.DASHBOARD_ADMINS:
-                # 빈 값이거나 관리자 명단(config.DASHBOARD_ADMINS)에 없음
-                # → 세션을 만들지 않고, 리다이렉트도 하지 않고 403.
-                self.send_response(403)
-                self.end_headers()
-                return
+            access_jwt = self.headers.get("Cf-Access-Jwt-Assertion")
+            if access_jwt is not None and access_auth.is_configured():
+                try:
+                    access_email, login_user = access_auth.authenticate(access_jwt.strip())
+                except access_auth.AccessAuthError as exc:
+                    # 토큰 자체는 로그에 남기지 않는다(사유 코드와, 서명 검증을 통과한 경우의 이메일만).
+                    logger.warning("Access 로그인 거부: %s%s (ip=%s)", exc.reason,
+                                   f" email={exc.email}" if exc.email else "", self._get_client_ip())
+                    self.send_response(403)
+                    self.end_headers()
+                    return
+                if login_user not in config.DASHBOARD_ADMINS:
+                    logger.warning("Access 로그인 거부: 매핑된 사용자가 관리자 아님 (email=%s ip=%s)",
+                                   access_email, self._get_client_ip())
+                    self.send_response(403)
+                    self.end_headers()
+                    return
+                logger.info("Access 로그인 성공: email=%s user=%s", access_email, login_user)
+            else:
+                # 헤더 접근은 대소문자 무시(email.message 기반) — Nginx 가 어떤 케이스로 보내든 매칭된다.
+                login_user = self.headers.get("X-Basic-User", "")
+                if not login_user or login_user not in config.DASHBOARD_ADMINS:
+                    # 빈 값이거나 관리자 명단(config.DASHBOARD_ADMINS)에 없음
+                    # → 세션을 만들지 않고, 리다이렉트도 하지 않고 403.
+                    self.send_response(403)
+                    self.end_headers()
+                    return
             # POST /api/login 성공과 '동일한' 세션 생성 + 쿠키 설정 경로를 그대로 재사용한다:
             #   - 토큰 생성: secrets.token_hex(32)                          (via _create_session)
             #   - 세션 저장소: sessions[token] = {"user": <name>, "expires": ...}  (via _create_session)
             #   - Set-Cookie: HttpOnly; SameSite=Strict + X-Forwarded-Proto 기반 조건부 Secure (login 코드와 동일)
             # 이렇게 심은 세션은 기존 is_admin 판정(user in config.DASHBOARD_ADMINS)을 그대로 통과하므로
             # SPA 는 /api/session 을 통해 자동으로 admin 모드로 로드된다(별도 로그인 폼 불필요).
-            token = _create_session(basic_user)
+            token = _create_session(login_user)
             # 로그인 이벤트 기록(감사 로그) — POST /api/login 경로와 동일하게 남긴다.
-            _log_event("login", basic_user, self._get_client_ip(), self.headers.get("User-Agent", ""))
+            _log_event("login", login_user, self._get_client_ip(), self.headers.get("User-Agent", ""))
             self.send_response(302)
             # X-Forwarded-Proto(Nginx가 전달) 기반으로 HTTPS 판단 → Secure 플래그 조건부 부여 (login 과 동일)
             forwarded_proto = self.headers.get("X-Forwarded-Proto", "").lower()
@@ -1241,6 +1267,7 @@ def main():
     # 접속 로그 DB 초기화
     _init_access_db()
     logger.info("Access log DB: %s (admins=%s)", ACCESS_DB_PATH, sorted(config.DASHBOARD_ADMINS))
+    logger.info("Cloudflare Access 로그인(/manage): %s", "켜짐" if access_auth.is_configured() else "꺼짐 (nginx Basic 경로만)")
     if getattr(config, "VISIT_HASH_SALT_IS_EPHEMERAL", False):
         logger.warning(
             "VISIT_HASH_SALT 미설정 — 임시(프로세스 한정) salt 사용 중. "

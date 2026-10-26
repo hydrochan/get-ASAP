@@ -53,6 +53,26 @@ elif DASHBOARD_USERNAME:
 else:
     DASHBOARD_ADMINS = set()
 
+# Cloudflare Access(Zero Trust) 로그인 — /manage 진입용. 세 값이 모두 있어야 켜진다(하나라도 비면 꺼짐).
+#   ACCESS_TEAM_DOMAIN: Zero Trust 팀 도메인, 예) https://<team>.cloudflareaccess.com (JWT iss 와 정확히 일치해야 함)
+#   ACCESS_AUD:         Access 애플리케이션의 AUD 태그
+#   ACCESS_EMAIL_USERS: 로그인 이메일 → 대시보드 사용자명 매핑(JSON 한 줄). 이메일 비교는 대소문자 무시(access_auth 에서 처리).
+#                       예) {"me@example.com":"<DASHBOARD_ADMINS 에 있는 사용자명>"}
+ACCESS_TEAM_DOMAIN = os.getenv("ACCESS_TEAM_DOMAIN", "").strip().rstrip("/")
+ACCESS_AUD = os.getenv("ACCESS_AUD", "").strip()
+ACCESS_EMAIL_USERS: dict[str, str] = {}
+_access_users_json = os.getenv("ACCESS_EMAIL_USERS", "").strip()
+if _access_users_json:
+    try:
+        parsed = json.loads(_access_users_json)
+        if isinstance(parsed, dict):
+            ACCESS_EMAIL_USERS.update(
+                {str(k).strip(): str(v).strip() for k, v in parsed.items() if str(k).strip() and str(v).strip()}
+            )
+    except json.JSONDecodeError:
+        # 파싱 실패 시 매핑이 비어 Access 로그인은 꺼진 채로 남는다(fail-closed, 기존 Basic 경로만 동작)
+        pass
+
 # 사용자별 프로필 매핑 (프론트엔드 노출 금지 정보. 서버에서만 조회)
 # 형식: {"username": {"hidden_sections": ["section-id", ...], "focus_profile": "profile_key" | null}}
 # 프론트엔드는 로그인 시 "본인의" hidden_sections와 focus_config만 전달받음
