@@ -231,6 +231,67 @@ def test_parsed_date_is_kept_over_mail_received_date(pipeline):
     assert h.saved_dates["m1-0"] == "2026-08-30"
 
 
+# ---------- 발행일이 메일 수신일보다 미래: 수신일로 대체 (ACS가 2026-12-31을 기재한 사고) ----------
+
+def test_future_paper_date_is_clamped_to_mail_received_date(pipeline, caplog):
+    h = pipeline
+    h.message_ids = ["m1"]
+    h.paper_dates["m1"] = "2026-12-31"
+    h.internal_dates["m1"] = _internal_date("2026-10-29T03:00:00")
+    with caplog.at_level("INFO", logger="main"):
+        assert h.run()["saved"] == 1
+    assert h.saved_dates["m1-0"] == "2026-10-29"
+    msg = next(r.getMessage() for r in caplog.records if "미래" in r.getMessage())
+    assert "2026-12-31" in msg and "2026-10-29" in msg and "m1-0" in msg
+
+
+def test_past_and_same_day_paper_dates_are_kept(pipeline, caplog):
+    h = pipeline
+    h.message_ids = ["m1", "m2"]
+    h.paper_dates.update({"m1": "2026-10-28", "m2": "2026-10-29"})
+    h.internal_dates.update({k: _internal_date("2026-10-29T03:00:00") for k in ("m1", "m2")})
+    with caplog.at_level("INFO", logger="main"):
+        assert h.run()["saved"] == 2
+    assert (h.saved_dates["m1-0"], h.saved_dates["m2-0"]) == ("2026-10-28", "2026-10-29")
+    assert not any("미래" in r.getMessage() for r in caplog.records)
+
+
+def test_future_date_beyond_utc_mail_date_is_clamped_at_the_boundary(pipeline):
+    h = pipeline
+    h.message_ids = ["m1"]
+    h.paper_dates["m1"] = "2026-10-23"  # KST로는 수신일(10-23)이지만 UTC 수신일은 10-22
+    h.internal_dates["m1"] = _internal_date("2026-10-22T23:30:00")
+    assert h.run()["saved"] == 1
+    assert h.saved_dates["m1-0"] == "2026-10-22"
+
+
+def test_future_date_without_valid_internal_date_is_clamped_to_today(pipeline, monkeypatch):
+    h = pipeline
+    h.message_ids = ["m1"]
+    h.paper_dates["m1"] = "2026-12-31"
+    monkeypatch.setattr(main, "date", SimpleNamespace(today=lambda: date(2026, 10, 23)))
+    assert h.run()["saved"] == 1
+    assert h.saved_dates["m1-0"] == "2026-10-23"
+
+
+@pytest.mark.parametrize("paper_date, mail_date, expected", [
+    ("2026-12-31", "2026-10-29", "2026-10-29"),  # 미래 -> 수신일
+    ("2026-10-30", "2026-10-29", "2026-10-29"),  # 하루 뒤도 미래
+    ("2026-10-29", "2026-10-29", "2026-10-29"),  # 같은 날 유지
+    ("2026-08-07", "2026-10-29", "2026-08-07"),  # 과거 유지
+    ("", "2026-10-29", "2026-10-29"),            # 누락 -> 수신일
+    (None, "2026-10-29", "2026-10-29"),
+    ("2027-01-01T00:00:00", "2026-10-29", "2026-10-29"),  # 시각이 붙어도 앞 10자로 비교
+    ("2026-10-29T23:59:59", "2026-10-29", "2026-10-29T23:59:59"),  # 같은 날이면 원문 그대로 유지
+    ("2026-02-30", "2026-10-29", "2026-02-30"),  # 달력에 없는 날짜: 해석 불가라 건드리지 않음
+    ("garbage", "2026-10-29", "garbage"),
+    ("2026-8-7", "2026-10-29", "2026-8-7"),  # 0 패딩 없는 형식: 해석 불가라 건드리지 않음
+    ("2026-12-31", "not-a-date", "2026-12-31"),  # 수신일을 못 믿으면 건드리지 않음
+])
+def test_effective_pub_date_rule(paper_date, mail_date, expected):
+    assert main._effective_pub_date(paper_date, mail_date) == expected
+
+
 _MISSING = object()
 
 
@@ -283,6 +344,19 @@ def test_real_store_end_to_end_second_run_saves_nothing(real_store_pipeline, db_
     conn = store.connect(str(db_file))
     try:
         assert store.last_seq(conn) == 3
+    finally:
+        conn.close()
+
+
+def test_real_store_persists_clamped_future_date(real_store_pipeline, db_file):
+    h = real_store_pipeline
+    h.message_ids = ["m1"]
+    h.paper_dates["m1"] = "2026-12-31"
+    h.internal_dates["m1"] = _internal_date("2026-10-29T03:00:00")
+    assert h.run()["saved"] == 1
+    conn = store.connect(str(db_file))
+    try:
+        assert conn.execute("SELECT pub_date FROM papers WHERE title='m1-0'").fetchone()[0] == "2026-10-29"
     finally:
         conn.close()
 

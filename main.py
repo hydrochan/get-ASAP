@@ -113,6 +113,23 @@ def _mail_received_date(msg: dict, fallback: str) -> str:
         return fallback
 
 
+def _effective_pub_date(paper_date: str, mail_date: str) -> str:
+    """논문 발행일을 저장할 값으로 정한다: 없으면 메일 수신일, 수신일보다 미래면 수신일, 아니면 그대로.
+
+    출판사가 미래 날짜를 넣는 경우(예: ACS가 JACS 논문 발행일을 2026-12-31로 기재)가 있어 대시보드 추이를 왜곡한다.
+    그래서 발행일이 수신일보다 늦으면 수신일로 대체한다. 수신일 전체로 덮어쓰지는 않는다(ACS는 주간 묶음 메일이라
+    일별 추이가 뭉개진다). 두 값 모두 store.normalize_pub_date로 엄격 검증(앞 10자가 실제 달력 날짜인 YYYY-MM-DD)한
+    뒤 비교한다 - 검증을 통과한 값끼리는 문자열 순서가 날짜 순서와 같다. 발행일을 해석할 수 없으면 건드리지 않는다.
+    """
+    if not paper_date:
+        return mail_date
+    paper_norm = store.normalize_pub_date(paper_date)
+    mail_norm = store.normalize_pub_date(mail_date)
+    if paper_norm is None or mail_norm is None:
+        return paper_date
+    return mail_date if paper_norm > mail_norm else paper_date
+
+
 def _is_publisher_fallback_journal(
     journal: str,
     publisher_name: str,
@@ -341,6 +358,7 @@ def run_pipeline(dry_run: bool = False) -> dict:
 
             # 각 paper의 누락 필드 보완. 저널 추론이 출판사명 fallback이면 비논문 메일로 보고 제외.
             # 날짜 없는 논문은 메일 수신일(UTC)로 채운다. internalDate가 없거나 깨졌으면 처리일로 폴백.
+            # 발행일이 수신일보다 미래인 논문(출판사가 미래 날짜를 기재)도 수신일로 대체한다(_effective_pub_date).
             mail_date = _mail_received_date(msg, date.today().isoformat())
             valid_papers = []
             for paper in papers:
@@ -365,8 +383,15 @@ def run_pipeline(dry_run: bool = False) -> dict:
                         paper.title[:80],
                     )
                     continue
-                if not paper.date:
-                    paper.date = mail_date
+                effective_date = _effective_pub_date(paper.date, mail_date)
+                if paper.date and effective_date != paper.date:
+                    logger.info(
+                        "발행일이 메일 수신일보다 미래라 수신일로 대체 (발행일=%s, 수신일=%s): %s",
+                        paper.date,
+                        mail_date,
+                        paper.title[:80],
+                    )
+                paper.date = effective_date
                 valid_papers.append(paper)
 
             all_papers.extend(valid_papers)
