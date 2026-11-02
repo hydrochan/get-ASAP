@@ -39,7 +39,6 @@ logger = logging.getLogger(__name__)
 _PUBLISHERS_PATH = os.path.join(os.path.dirname(__file__), "publishers.json")
 _EXCLUDED_JOURNALS = {
     "inorganic chemistry",
-    "nature methods",
     "photon science",
 }
 

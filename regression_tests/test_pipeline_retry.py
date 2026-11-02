@@ -378,7 +378,7 @@ def test_is_message_not_found_only_matches_http_404():
     assert is_message_not_found(ValueError("404")) is False
 
 
-# ---------- Nature Methods: 저널 추론이 'Nature'로 삼키지 않아야 제외 저널로 걸러진다 ----------
+# ---------- Nature Methods: 저널 추론이 'Nature'로 삼키지 않아야 'Nature Methods'로 저장된다 ----------
 
 NATURE_SENDER = "Nature Portfolio eAlerts <ealert@nature.com>"
 
@@ -398,10 +398,17 @@ def test_every_excluded_nature_journal_is_listed_in_publishers():
     """제외 목록에만 있고 publishers.json엔 없으면 더 짧은 이름('Nature')으로 추론돼 제외가 작동하지 않는다."""
     nature_journals = {j.lower() for j in _REAL_LOAD_PUBLISHERS()["nature"]["journals"]}
     excluded_nature = {j for j in main._EXCLUDED_JOURNALS if j.startswith("nature ")}
-    assert excluded_nature and excluded_nature <= nature_journals
+    assert excluded_nature <= nature_journals  # 지금은 제외 중인 Nature 계열 저널이 없어 비어 있을 수 있다
 
 
-def test_nature_methods_alert_is_skipped_as_excluded_while_others_are_saved(pipeline, monkeypatch):
+def test_nature_methods_is_listed_in_publishers_and_not_excluded():
+    nature_journals = {j.lower() for j in _REAL_LOAD_PUBLISHERS()["nature"]["journals"]}
+    assert "nature methods" in nature_journals
+    assert "nature methods" not in main._EXCLUDED_JOURNALS
+    assert _REAL_IS_EXCLUDED("Nature Methods") is False
+
+
+def test_nature_methods_alert_is_saved_as_nature_methods_not_nature(pipeline, monkeypatch):
     h = pipeline
     # fixture는 publishers와 제외 판정을 가짜로 바꿔 둔다 - 여기선 둘 다 실제(publishers.json, 제외 목록)를 쓴다
     monkeypatch.setattr(main, "_load_publishers", _REAL_LOAD_PUBLISHERS)
@@ -415,8 +422,9 @@ def test_nature_methods_alert_is_skipped_as_excluded_while_others_are_saved(pipe
         "catalysis": (NATURE_SENDER, "Nature Catalysis Contents: Volume 9 Number 10"),
     })
     result = h.run()
-    assert result["saved"] == 1
-    assert h.saved_journals == {"catalysis-0": "Nature Catalysis"}  # Methods 논문은 'Nature'로도 저장되지 않는다
+    assert result["saved"] == 2
+    # Methods 논문은 'Nature'가 아니라 'Nature Methods'로 저장된다
+    assert h.saved_journals == {"methods-0": "Nature Methods", "catalysis-0": "Nature Catalysis"}
     assert h.labels == ["methods", "catalysis"] and h.state["pendingMessageIds"] == []  # 메일 자체는 처리 완료
 
 

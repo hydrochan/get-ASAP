@@ -147,12 +147,14 @@ def test_dry_run_reports_new_papers_and_misattributed_rows_without_writing(seede
     out = capsys.readouterr().out
 
     assert code == 0
-    assert "드라이런" in out and "신규 논문 5건" in out
-    # 저널별 신규: Catalysis는 C3 하나(C1 저장됨·C2 삭제행도 이미 점유), Energy 3(Research 2 + Reviews 1), Nature 본지 N1 하나
-    assert "Nature Energy: 3건" in out and "Nature Catalysis: 1건" in out and "Nature: 1건" in out
+    assert "드라이런" in out and "신규 논문 6건" in out
+    # 저널별 신규: Catalysis는 C3 하나(C1 저장됨·C2 삭제행도 이미 점유), Energy 3(Research 2 + Reviews 1), Nature 본지 N1 하나,
+    # Nature Methods는 M2 하나(M1·X는 'Nature'로 이미 DB에 있어 제목 키가 점유)
+    assert "Nature Energy: 3건" in out and "Nature Catalysis: 1건" in out and "Nature: 1건" in out and "Nature Methods: 1건" in out
     assert C3 in out and N1 in out and E3 in out and C1 not in out
-    # Nature Methods 알림 논문은 제외 저널 규칙으로 새 후보가 아니다
-    assert M2 not in out.split("오기 저널 의심")[0]
+    # Nature Methods 알림 논문 M2는 'Nature Methods' 새 후보다. 오기 저널 행 M1은 제목 키가 이미 DB에 있어 새 후보가 아니다
+    new_part = out.split("오기 저널 의심")[0]
+    assert "[Nature Methods] " + M2[:40] in new_part and M1 not in new_part
     # 오기 저널 의심: Methods 알림에 실린 'Nature' 행 M1만. X는 진짜 Nature 알림에도 실려서, 관계없는 행·삭제행은 대상이 아니다
     mis = out.split("오기 저널 의심")[1]
     m1_id = seeded.execute("SELECT id FROM papers WHERE title=?", (M1,)).fetchone()[0]
@@ -177,7 +179,7 @@ def test_gmail_is_only_listed_and_fetched_for_nature_senders_since_the_cutoff(se
 def test_since_filters_by_utc_received_date(seeded, monkeypatch, capsys):
     _run(monkeypatch, ["--since", "2026-10-01"])
     out = capsys.readouterr().out
-    assert "신규 논문 2건" in out and C3 in out and N1 in out and E1 not in out and O1 not in out
+    assert "신규 논문 3건" in out and C3 in out and N1 in out and M2 in out and E1 not in out and O1 not in out
 
 
 def test_apply_backs_up_first_saves_only_new_papers_and_exports_affected_months(seeded, monkeypatch, capsys):
@@ -188,18 +190,19 @@ def test_apply_backs_up_first_saves_only_new_papers_and_exports_affected_months(
     out = capsys.readouterr().out
 
     assert code == 0 and backups == [seq_before]  # 백업은 저장 전에
-    assert "적용 결과" in out and "저장 5건" in out
+    assert "적용 결과" in out and "저장 6건" in out
     rows = {r["title"]: r for r in seeded.execute("SELECT * FROM papers WHERE deleted_at IS NULL")}
-    assert {t: rows[t]["journal"] for t in (C3, E1, E2, E3, N1)} == {
-        C3: "Nature Catalysis", E1: "Nature Energy", E2: "Nature Energy", E3: "Nature Energy", N1: "Nature",
+    assert {t: rows[t]["journal"] for t in (C3, E1, E2, E3, N1, M2)} == {
+        C3: "Nature Catalysis", E1: "Nature Energy", E2: "Nature Energy", E3: "Nature Energy", N1: "Nature", M2: "Nature Methods",
     }
     # 발행일 규칙: 파서가 날짜를 주지 않으므로 메일 수신일(UTC), bucket 은 발행월
     assert (rows[C3]["pub_date"], rows[C3]["bucket_month"]) == ("2026-10-23", "2026-10")
     assert (rows[E1]["pub_date"], rows[E1]["bucket_month"]) == ("2026-09-21", "2026-09")
-    assert all(rows[t]["status"] == "대기중" and rows[t]["status_source"] == "get_asap" for t in (C3, E1, E2, E3, N1))
-    # 제외 저널(Nature Methods)·기간 밖·타 발신자·이미 있는 논문은 저장되지 않는다
-    assert not {M2, O1, "Synthetic paper from some other sender"} & set(rows)
-    assert "Nature Methods" not in _journal_counts(seeded)
+    assert (rows[M2]["pub_date"], rows[M2]["bucket_month"]) == ("2026-10-10", "2026-10")
+    assert all(rows[t]["status"] == "대기중" and rows[t]["status_source"] == "get_asap" for t in (C3, E1, E2, E3, N1, M2))
+    # 기간 밖·타 발신자·이미 있는 논문은 저장되지 않는다
+    assert not {O1, "Synthetic paper from some other sender"} & set(rows)
+    assert _journal_counts(seeded)["Nature Methods"] == 1
     # 오기 저널 행은 건드리지 않는다(삭제·정정은 사용자가 따로 결정)
     assert rows[M1]["journal"] == "Nature" and rows[X]["journal"] == "Nature"
     # 영향받은 두 달의 CSV 가 생겼다
@@ -225,6 +228,27 @@ def test_skip_backup_flag(seeded, monkeypatch, skip_backup):
     monkeypatch.setattr(bnr.backup_db, "make_backup", lambda: calls.append(1) or "backup.db.gz")
     assert _run(monkeypatch, ["--apply"] + (["--skip-backup"] if skip_backup else []))[1] == 0
     assert calls == ([] if skip_backup else [1])
+
+
+def test_misattributed_row_is_listed_but_never_saved_again_as_a_nature_methods_duplicate(seeded, monkeypatch):
+    """M1은 'Nature'로 오기된 채 DB에 있고 Methods 알림에도 실린다 - 오기 목록에만 오르고 새 후보·중복 행이 되지 않는다."""
+    monkeypatch.setattr(bnr.backup_db, "make_backup", lambda: "backup.db.gz")
+    plan = bnr.collect(FakeGmail(_mails()), bnr.pipeline._load_publishers(), dt.date(2026, 4, 1), seeded)
+    assert [r["title"] for r in plan["misattributed"]] == [M1]
+    assert M1 not in {paper.title for _, paper in plan["new"]} and plan["stats"]["already_in_db"] >= 2  # M1·X
+    assert M2 in {paper.title for _, paper in plan["new"]}
+
+    assert _run(monkeypatch, ["--apply"])[1] == 0
+    rows = seeded.execute("SELECT journal FROM papers WHERE title=?", (M1,)).fetchall()
+    assert [r["journal"] for r in rows] == ["Nature"]  # 'Nature Methods' 두 번째 행이 생기지 않는다
+
+
+def test_excluded_journal_rule_still_applies_to_alert_papers(seeded, monkeypatch, capsys):
+    monkeypatch.setattr(bnr.pipeline, "_EXCLUDED_JOURNALS", {"nature energy"})
+    _run(monkeypatch, [])
+    out = capsys.readouterr().out
+    assert "신규 논문 3건" in out and "Nature Energy" not in out.split("오기 저널 의심")[0].split("저널별:")[1]
+    assert E1 not in out and M2 in out
 
 
 def test_future_dated_paper_uses_the_same_clamp_as_the_pipeline(conn, monkeypatch):

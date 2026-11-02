@@ -203,6 +203,14 @@ def test_get_json_gives_up_after_max_retries_and_does_not_retry_404(monkeypatch)
     ("Cu &amp; Zn catalysts for CO<sup>2+</sup> uptake", "Cu & Zn catalysts for CO2+ uptake"),
     ("Strain effects when x < 5 and y > 3 in films", "Strain effects when x < 5 and y > 3 in films"),
     ("  Leading&nbsp;and trailing  ", "Leading and trailing"),
+    ("CF\n  <sub>3</sub>\n  -substituted", "CF3-substituted"),
+    ("Ti <sub>3</sub> XC <sub>2</sub>", "Ti3XC2"),
+    ("Fe<sup>3+</sup> ions", "Fe3+ ions"),
+    ("imaging\n <i>in vivo</i>", "imaging in vivo"),
+    ("CO<sub>2</sub> reduction", "CO2 reduction"),
+    ("CF\n <jats:sub>3</jats:sub>\n -substituted", "CF3-substituted"),
+    ("Fe <MML:SUP>3+</MML:SUP> ions", "Fe3+ ions"),
+    ("CO<sub>2</sub> Reduction - a review", "CO2 Reduction - a review"),
 ])
 def test_clean_title(raw, expected):
     assert cs.clean_title(raw) == expected

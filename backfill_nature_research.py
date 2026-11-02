@@ -18,6 +18,8 @@
   저널별 신규 건수 + 샘플 제목, 그리고 '오기 저널 의심 목록'.
   오기 저널 의심 = DB에서 journal이 'Nature'인데 제목이 Nature Methods 알림에 실린 행.
   (publishers.json에 Nature Methods가 없던 때 Methods 논문이 'Nature'로 저장됐다.)
+  지금은 Nature Methods도 정상 수집 대상이라 그 알림의 논문은 'Nature Methods' 신규 후보가 되지만,
+  오기 행은 제목 키가 이미 DB에 있어 신규 후보(중복 행)가 되지 않는다.
   이 목록은 보여주기만 한다. 삭제·저널명 정정은 하지 않는다(사용자가 따로 결정).
 
 사용법 (VM의 프로젝트 루트에서):

@@ -179,6 +179,13 @@ def fetch_works_many(issns: list[str], from_created, until_created=None) -> list
 # ---------- 항목 -> 논문 ----------
 
 _TAG_RE = re.compile(r"</?[A-Za-z][^<>]*>")  # "x < 5 and y > 3" 같은 본문 부등호는 건드리지 않도록 태그 모양만
+# Crossref(RSC·일부 Elsevier/Wiley)는 <sub>/<sup> 앞뒤에 공백·개행을 넣어 둔다 -> 그대로 두면 "CF 3 -substituted"
+# 닫는 태그 뒤 공백은 "-substituted"·"XC<sub>2" 처럼 이어지는 경우만 지운다("CO2 reduction"·"CO2 Reduction"의 띄어쓰기는 보존).
+_SS = r"(?:[A-Za-z][\w.-]*:)?su[bp]"  # sub/sup, jats:/mml: 접두어 허용
+_SCRIPT_OPEN_RE = re.compile(rf"\s*(<{_SS}(?=[\s/>])[^<>]*>)\s*", re.IGNORECASE)
+_SCRIPT_CLOSE_RE = re.compile(
+    rf"\s*(</{_SS}\s*>)(?:\s+(?=-\w|[)\],.;:]|(?-i:(?:[A-Z][a-z]?\d*)+)<{_SS}(?=[\s/>])))?", re.IGNORECASE
+)
 _WS_RE = re.compile(r"\s+")
 _NON_RESEARCH_RE = re.compile(
     r"^(?:(?:author|publisher)\s+)?"
@@ -188,8 +195,13 @@ _NON_RESEARCH_RE = re.compile(
 
 
 def clean_title(raw: str) -> str:
-    """JATS/HTML 태그를 공백 없이 제거 -> 엔티티 해제 -> 공백 정리. CO<sub>2</sub> -> CO2."""
-    return _WS_RE.sub(" ", html.unescape(_TAG_RE.sub("", raw or ""))).strip()
+    """JATS/HTML 태그를 공백 없이 제거 -> 엔티티 해제 -> 공백 정리. CO<sub>2</sub> -> CO2.
+
+    <sub>/<sup> 안팎의 공백은 먼저 지운다("CF\\n <sub>3</sub>\\n -substituted" -> CF3-substituted).
+    <i>/<b> 같은 다른 태그 주변 공백은 그대로 둔다.
+    """
+    raw = _SCRIPT_CLOSE_RE.sub(r"\1", _SCRIPT_OPEN_RE.sub(r"\1", raw or ""))
+    return _WS_RE.sub(" ", html.unescape(_TAG_RE.sub("", raw))).strip()
 
 
 def item_title(item: dict) -> str:
