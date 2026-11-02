@@ -667,6 +667,62 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         ip = self._get_client_ip()
         _record_visit(_hash_ip(ip))
 
+    def _serve_slim_csv(self, month: str, versioned: bool):
+        """`GET /api/csv/<월>?fmt=slim[&v=<ver>]`. 파일이 없거나 전체 CSV 보다 낡았으면 DB 에서 지연 생성한다.
+        `v` 는 캐시 키일 뿐이라 값을 검사하지 않고 항상 현재 내용을 준다(옛 v 라도 404 아님). v 가 있으면 immutable 1년."""
+        try:
+            if not store.ensure_slim_csv(month, cache_dir=CACHE_DIR):
+                self._send_json({"error": "db_unavailable"}, 503, {"Cache-Control": "no-store"})
+                return
+            with open(store.slim_csv_path(month, CACHE_DIR), "rb") as f:
+                body = f.read()
+        except Exception:
+            logger.exception("slim csv serve failed: %s", month)
+            self.send_response(500)
+            self.end_headers()
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "text/csv; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "public, max-age=31536000, immutable" if versioned else "public, max-age=7200")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _redirect_to_paper(self, raw_id: str):
+        """`GET /api/link/<id>` -> 302 Location: 저장된 url. 삭제되지 않은 행의 http(s) url 만. 그 외(없음·삭제·정수 아님·
+        http 아님)는 본문 없는 404 - 아무것도 노출하지 않는다. 리다이렉트 목적지는 DB 에 저장된 값뿐이다(요청값은 id 만).
+        DB 는 읽기 전용 연결로만 연다."""
+        def reply(status, extra=None):
+            self.send_response(status)
+            for k, v in (extra or {}).items():
+                self.send_header(k, v)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        if not re.fullmatch(r"[0-9]{1,15}", raw_id):
+            reply(404, {"Cache-Control": "no-store"})
+            return
+        try:
+            conn = store.connect(readonly=True)
+        except (FileNotFoundError, sqlite3.Error):
+            reply(503, {"Cache-Control": "no-store"})
+            return
+        try:
+            row = conn.execute("SELECT url FROM papers WHERE id=? AND deleted_at IS NULL", (int(raw_id),)).fetchone()
+        except sqlite3.Error:
+            logger.exception("link lookup failed")
+            reply(503, {"Cache-Control": "no-store"})
+            return
+        finally:
+            conn.close()
+        url = ((row["url"] if row else "") or "").strip()
+        if not url.lower().startswith(("http://", "https://")):
+            reply(404, {"Cache-Control": "no-store"})
+            return
+        # Location 헤더는 latin-1 이어야 하고 줄바꿈이 있으면 헤더 주입이 된다 -> 비ASCII·제어문자·공백만 %XX 로 인코딩(이미 있는 %XX 와 URL 구분자는 그대로).
+        location = urllib.parse.quote(url, safe="%!#$&'()*+,/:;=?@[]~")
+        reply(302, {"Location": location, "Cache-Control": "public, max-age=86400"})
+
     def _handle_sync(self, method: str, path: str):
         """`/api/sync/` 요청을 sync_api로 위임. 인증 실패 잠금은 로그인 잠금 로직을 재사용(카운터 키만 분리)."""
         sync_api.handle(self, method, path, _check_lockout, _record_attempt)
@@ -901,20 +957,46 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json({"error": f"announcements parse fail: {e}"}, 500)
             return
 
+        # API: 월별 슬림 CSV 버전 목록 — PUBLIC. {"months": {"2026-11": "<ver>", ...}} (최신 월 먼저).
+        # 경로가 /api/csv 로 시작하지 않아 Cloudflare 의 /api/csv* 엣지 캐시 규칙에 걸리지 않는다. 항상 no-cache.
+        if path == "/api/versions":
+            try:
+                months = store.csv_versions(CACHE_DIR)
+            except Exception:
+                logger.exception("versions failed")
+                self._send_json({"error": "internal server error"}, 500, {"Cache-Control": "no-store"})
+                return
+            self._send_json({"months": months}, 200, {"Cache-Control": "no-cache"})
+            return
+
+        # API: 논문 원문 링크 리다이렉트 — PUBLIC. 슬림 CSV 가 url 을 빼므로 id 로 저장된 원본 링크를 302 로 돌려준다.
+        if path.startswith("/api/link/"):
+            self._redirect_to_paper(path[len("/api/link/"):])
+            return
+
         # API: 월별 논문 CSV — 이제 PUBLIC (비로그인 접근 허용, contract #3).
         # status 컬럼은 서빙 시 제거해서 내려준다(캐시 파일 자체는 status를 유지하되 유출 안 됨).
         # 매 요청마다 재파싱하지 않도록 (mtime, 결과 bytes)를 프로세스 내 메모이즈한다 —
         # 파일은 cron(2시간 주기)에서만 바뀌므로 대부분의 요청은 캐시 히트.
+        #   ?fmt=slim[&v=<ver>] : 슬림 형식(id,title,journal,date,doi,gpt_reason - 추적 URL 제외). v 가 있으면 1년 immutable.
         if path.startswith("/api/csv/"):
             month = path.split("/")[-1]
             # 경로 조작 방지
             if not all(c in "0123456789-" for c in month) or len(month) != 7:
                 self._send_json({"error": "invalid month"}, 400)
                 return
+            qs = urllib.parse.parse_qs(parsed.query)
+            fmt = (qs.get("fmt") or [""])[0]
+            if fmt not in ("", "slim"):
+                self._send_json({"error": "invalid fmt"}, 400)
+                return
             csv_path = os.path.join(CACHE_DIR, f"papers_{month}.csv")
             if not os.path.exists(csv_path):
                 self.send_response(404)
                 self.end_headers()
+                return
+            if fmt == "slim":
+                self._serve_slim_csv(month, versioned=bool((qs.get("v") or [""])[0]))
                 return
             try:
                 mtime = os.path.getmtime(csv_path)

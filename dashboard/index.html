@@ -292,8 +292,8 @@
         </div>
         <select id="month-range" class="text-xs font-semibold border border-slate-200 rounded-lg px-2 sm:px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-800">
           <option value="1">1 Month</option>
-          <option value="3" selected>3 Months</option>
-          <option value="6">6 Months</option>
+          <option value="3">3 Months</option>
+          <option value="6" selected>6 Months</option>
           <option value="12">12 Months</option>
         </select>
         <button id="refresh-btn" class="px-3 sm:px-4 py-2 bg-gradient-to-r from-navy-900 to-navy-800 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">
@@ -373,29 +373,36 @@
     <main id="view-home" class="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6">
       <!-- KPI 카드 -->
       <section class="grid grid-cols-2 md:grid-cols-6 gap-4">
+        <!-- 캡션은 div: `.kpi-card p[id]` 규칙(글자색 고정)에 걸리지 않게 하려는 것 -->
         <div class="card kpi-card p-3 sm:p-5">
-          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Total Papers</p>
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Papers</p>
           <p id="kpi-total" class="text-2xl font-black text-navy-900 mt-1">—</p>
+          <div id="kpi-total-sub" class="text-[10px] font-medium text-slate-400 mt-1"></div>
         </div>
         <div class="card kpi-card p-3 sm:p-5">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Journals</p>
           <p id="kpi-journals" class="text-2xl font-black text-navy-900 mt-1">—</p>
+          <div id="kpi-journals-sub" class="text-[10px] font-medium text-slate-400 mt-1"></div>
         </div>
         <div class="card kpi-card p-3 sm:p-5">
-          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">This Month</p>
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]"><span id="kpi-month-label">Month to date</span></p>
           <p id="kpi-month" class="text-2xl font-black text-navy-900 mt-1">—</p>
+          <div id="kpi-month-sub" class="text-[10px] font-medium text-slate-400 mt-1"></div>
         </div>
         <div class="card kpi-card p-3 sm:p-5">
-          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">This Week</p>
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Last 7 Days</p>
           <p id="kpi-week" class="text-2xl font-black text-navy-900 mt-1">—</p>
+          <div id="kpi-week-sub" class="text-[10px] font-medium text-slate-400 mt-1"></div>
         </div>
         <div class="card kpi-card p-3 sm:p-5">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Daily Average</p>
           <p id="kpi-daily" class="text-2xl font-black text-navy-900 mt-1">—</p>
+          <div id="kpi-daily-sub" class="text-[10px] font-medium text-slate-400 mt-1"></div>
         </div>
         <div class="card kpi-card p-3 sm:p-5">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Top Keyword</p>
-          <p id="kpi-topkw" class="text-2xl font-black text-navy-900 mt-1">—</p>
+          <p id="kpi-topkw" class="text-lg leading-8 font-black text-navy-900 mt-1 truncate">—</p>
+          <div id="kpi-topkw-sub" class="text-[10px] font-medium text-slate-400 mt-1"></div>
         </div>
       </section>
 
@@ -438,6 +445,7 @@
         <div class="chart-container" style="height:250px">
           <canvas id="chart-daily"></canvas>
         </div>
+        <p id="chart-daily-note" class="hidden text-[10px] text-slate-400 mt-2">Dashed / faded = current period, still in progress</p>
       </section>
 
       <!-- Recent Papers (Home 하단) -->
@@ -493,6 +501,7 @@
           <div class="chart-container flex-1" style="min-height:320px">
             <canvas id="chart-keyword"></canvas>
           </div>
+          <p id="chart-keyword-note" class="hidden text-[10px] text-slate-400 mt-2">Dashed / faded = current period, still in progress</p>
         </div>
         <!-- 키워드 태그 클라우드 -->
         <div class="card p-4 sm:p-6 flex flex-col">
@@ -541,6 +550,7 @@
           <div class="chart-container" style="height:360px">
             <canvas id="chart-journal-monthly"></canvas>
           </div>
+          <p id="chart-journal-monthly-note" class="hidden text-[10px] text-slate-400 mt-2">Dashed / faded = current period, still in progress</p>
         </div>
       </section>
 
@@ -970,6 +980,94 @@
       '#EF4444','#8B5CF6','#EC4899','#F59E0B','#6366F1'
     ];
 
+    // ---------- 저널명 약어 (ISO 4) — 표시 전용 ----------
+    // p.journal(전체 이름)은 필터·집계·선택 상태의 키라서 절대 바꾸지 않고, 화면에 그릴 때만 journalAbbr()를 거친다.
+    // 전체 이름은 title 속성/툴팁/Report/내보내기에 그대로 남긴다. 전체 이름 → 약어 사전(Map이라 'constructor' 같은 이름도 안전).
+    const JOURNAL_ABBR = new Map(Object.entries({
+      'ACS Applied Energy Materials':'ACS Appl. Energy Mater.','ACS Applied Engineering Materials':'ACS Appl. Eng. Mater.',
+      'ACS Applied Materials':'ACS Appl. Mater. Interfaces','ACS Applied Nano Materials':'ACS Appl. Nano Mater.',
+      'ACS Applied Optical Materials':'ACS Appl. Opt. Mater.','ACS Catalysis':'ACS Catal.',
+      'ACS Central Science':'ACS Cent. Sci.','ACS Chemical Biology':'ACS Chem. Biol.',
+      'ACS Energy Letters':'ACS Energy Lett.','ACS Engineering Au':'ACS Eng. Au',
+      'ACS Materials Au':'ACS Mater. Au','ACS Materials Letters':'ACS Mater. Lett.',
+      'ACS Measurement Science Au':'ACS Meas. Sci. Au','ACS Nano':'ACS Nano',
+      'ACS Nanoscience Au':'ACS Nanosci. Au','ACS Omega':'ACS Omega',
+      'ACS Organic & Inorganic Au':'ACS Org. Inorg. Au','ACS Photonics':'ACS Photonics',
+      'ACS Physical Chem Au':'ACS Phys. Chem. Au','ACS Physical Chemistry Au':'ACS Phys. Chem. Au',
+      'ACS Polymers Au':'ACS Polym. Au','ACS Sustainable Chemistry & Engineering':'ACS Sustainable Chem. Eng.',
+      'ACS Sustainable Resource Management':'ACS Sustainable Resour. Manage.','Accounts of Materials Research':'Acc. Mater. Res.',
+      'Advanced Energy Materials':'Adv. Energy Mater.','Advanced Functional Materials':'Adv. Funct. Mater.',
+      'Advanced Materials':'Adv. Mater.','Analytical Chemistry':'Anal. Chem.',
+      'Angewandte Chemie':'Angew. Chem. Int. Ed.','Applied Catalysis A':'Appl. Catal. A',
+      'Applied Catalysis B':'Appl. Catal. B','Applied Energy':'Appl. Energy',
+      'Applied Surface Science':'Appl. Surf. Sci.','Catalysis Science & Technology':'Catal. Sci. Technol.',
+      'Catalysis Today':'Catal. Today','Cell':'Cell',
+      'Cell Reports Physical Science':'Cell Rep. Phys. Sci.','Chem':'Chem',
+      'Chem Catalysis':'Chem Catal.','ChemSusChem':'ChemSusChem',
+      'Chemical Engineering Journal':'Chem. Eng. J.','Chemical Reviews':'Chem. Rev.',
+      'Chemical Science':'Chem. Sci.','Chemical Society Reviews':'Chem. Soc. Rev.',
+      'Chemistry':'Chemistry','Chemistry of Materials':'Chem. Mater.',
+      'Dalton Transactions':'Dalton Trans.','Electrochimica Acta':'Electrochim. Acta',
+      'Energy & Environmental Science':'Energy Environ. Sci.','Energy & Fuels':'Energy Fuels',
+      'Engineering Research from ACS Publications':'Eng. Res. ACS Publ.','Environmental Science & Technology':'Environ. Sci. Technol.',
+      'Environmental Science & Technology Letters':'Environ. Sci. Technol. Lett.','Green Chemistry':'Green Chem.',
+      'Industrial & Engineering Chemistry Research':'Ind. Eng. Chem. Res.','International Journal of Hydrogen Energy':'Int. J. Hydrogen Energy',
+      'JACS':'J. Am. Chem. Soc.','JACS Au':'JACS Au',
+      'Joule':'Joule','Journal of Catalysis':'J. Catal.',
+      'Journal of Chemical & Engineering Data':'J. Chem. Eng. Data','Journal of Materials Chemistry A':'J. Mater. Chem. A',
+      'Journal of Materials Chemistry B':'J. Mater. Chem. B','Journal of Materials Chemistry C':'J. Mater. Chem. C',
+      'Journal of the American Chemical Society':'J. Am. Chem. Soc.','Langmuir':'Langmuir',
+      'Nano Energy':'Nano Energy','Nano Letters':'Nano Lett.',
+      'Nanoscale':'Nanoscale','Nature':'Nature',
+      'Nature Catalysis':'Nat. Catal.','Nature Chemical Engineering':'Nat. Chem. Eng.',
+      'Nature Chemistry':'Nat. Chem.','Nature Communications':'Nat. Commun.',
+      'Nature Energy':'Nat. Energy','Nature Materials':'Nat. Mater.',
+      'Nature Nanotechnology':'Nat. Nanotechnol.','Nature Photonics':'Nat. Photonics',
+      'Nature Physics':'Nat. Phys.','Nature Reviews Chemistry':'Nat. Rev. Chem.',
+      'Nature Reviews Materials':'Nat. Rev. Mater.','Nature Sustainability':'Nat. Sustain.',
+      'Physical Chemistry Chemical Physics':'Phys. Chem. Chem. Phys.','Science':'Science',
+      'Science Advances':'Sci. Adv.','Science Signaling':'Sci. Signal.',
+      'Small':'Small','The Journal of Physical Chemistry C':'J. Phys. Chem. C',
+      'The Journal of Physical Chemistry Letters':'J. Phys. Chem. Lett.','iScience':'iScience',
+      'npj Nanophotonics':'npj Nanophotonics'
+    }));
+    // 사전에 없는 이름용 단어 규칙 (소문자 → 약어)
+    const JOURNAL_WORD_ABBR = new Map(Object.entries({
+      journal:'J.',chemistry:'Chem.',chemical:'Chem.',chemie:'Chem.',materials:'Mater.',international:'Int.',
+      american:'Am.',society:'Soc.',engineering:'Eng.',science:'Sci.',sciences:'Sci.',applied:'Appl.',
+      advanced:'Adv.',advances:'Adv.',letters:'Lett.',communications:'Commun.',physical:'Phys.',physics:'Phys.',
+      environmental:'Environ.',technology:'Technol.',catalysis:'Catal.',analytical:'Anal.',functional:'Funct.',research:'Res.',
+      reviews:'Rev.',management:'Manage.',resource:'Resour.',measurement:'Meas.',surface:'Surf.',organic:'Org.',
+      inorganic:'Inorg.',industrial:'Ind.',polymers:'Polym.',biology:'Biol.',optical:'Opt.',nanoscience:'Nanosci.',
+      nanotechnology:'Nanotechnol.',transactions:'Trans.',accounts:'Acc.',central:'Cent.',publications:'Publ.',signaling:'Signal.',
+      sustainability:'Sustain.',sustainable:'Sustain.',reports:'Rep.',nature:'Nat.',angewandte:'Angew.',electrochimica:'Electrochim.',
+      european:'Eur.',edition:'Ed.'
+    }));
+    const JOURNAL_STOPWORDS = new Set(['of','the','and','&','for','from','in','on','et','und','de','der','für']);
+    const _journalAbbrCache = new Map();
+
+    // 저널명 → 표시용 약어: 사전 → 단어 규칙 → 원래 이름. (입력이 비면 '')
+    function journalAbbr(name) {
+      if (!name) return '';
+      let v = _journalAbbrCache.get(name);
+      if (v !== undefined) return v;
+      v = JOURNAL_ABBR.get(name);
+      if (v === undefined) {
+        // 불용어를 빼고 토큰이 하나만 남으면 그대로(단일 단어 이름은 이미 짧다), 둘 이상이면 단어별로 치환
+        const tokens = String(name).trim().split(/\s+/).filter(t => !JOURNAL_STOPWORDS.has(t.toLowerCase()));
+        v = tokens.length === 0 ? name
+          : tokens.length === 1 ? tokens[0]
+          : tokens.map(t => JOURNAL_WORD_ABBR.get(t.toLowerCase()) || t).join(' ');
+      }
+      _journalAbbrCache.set(name, v);
+      return v;
+    }
+    // 차트 축/범례·히트맵·칩처럼 폭이 좁은 곳용 — 약어가 그래도 28자를 넘으면 안전하게 자른다
+    function journalLabel(name) {
+      const s = journalAbbr(name);
+      return s.length > 28 ? s.slice(0, 25) + '...' : s;
+    }
+
     // ---------- 토스트 알림 (전역) ----------
     // showToast(message, type, opts) : type = 'success' | 'error' | 'info', opts = { duration }
     let _toastSeq = 0;
@@ -1186,10 +1284,72 @@
     // 데이터가 없어 라벨조차 안 생겨 축이 끊긴 것처럼 보인다. 범위 시작 이전 키는 버린다.
     // 키 형식("YYYY-Www" / "YYYY-MM-DD" / "YYYY-MM")이 모두 0-패딩이라 문자열 비교로 충분.
     function periodFloorKey(mode) {
+      return periodKey(localDateStr(rangeStartDate()), mode);
+    }
+
+    // 로컬(브라우저) 기준 YYYY-MM-DD
+    function localDateStr(d) {
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    // 로드 범위의 시작일 = 가장 오래된 로드 월(getMonthRange의 마지막 달)의 1일 (로컬 Date).
+    // KPI의 "범위 안" 판정과 periodFloorKey가 같은 날짜를 쓰도록 한 곳에서 정의한다.
+    function rangeStartDate() {
       const n = parseInt(document.getElementById('month-range').value) || 1;
       const now = new Date();
-      const d = new Date(now.getFullYear(), now.getMonth() - (n - 1), 1);
-      return periodKey(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`, mode);
+      return new Date(now.getFullYear(), now.getMonth() - (n - 1), 1);
+    }
+
+    // "Last N months" 캡션 (#month-range 선택값 따라감, 1이면 "Last month")
+    function rangeCaption() {
+      const n = parseInt(document.getElementById('month-range').value) || 1;
+      return n === 1 ? 'Last month' : `Last ${n} months`;
+    }
+
+    // 진행 중인(아직 끝나지 않은) period 정보. key가 오늘이 속한 period 키와 같으면
+    // {elapsed, length}(일 단위: 오늘까지 지난 일수 / period 전체 일수), 아니면 null.
+    // 'day' 모드의 진행 중 period는 오늘 자체다. 오늘이 속한 period는 오늘 자정 전까지 끝나지 않으므로
+    // 키 일치만으로 충분하다(미래 날짜는 로드 시 오늘로 당겨져 오늘보다 뒤 period는 없다).
+    function periodProgress(key, mode) {
+      const now = new Date();
+      if (!key || key !== periodKey(localDateStr(now), mode)) return null;
+      if (mode === 'day') return { elapsed: 1, length: 1 };
+      if (mode === 'week') return { elapsed: (now.getDay() + 6) % 7 + 1, length: 7 };   // 월=1..일=7
+      return { elapsed: now.getDate(), length: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() };
+    }
+
+    // 시계열 차트 공통: 마지막 라벨이 진행 중 period면 그 정보, 아니면 null (정렬된 라벨의 마지막만 현재일 수 있다)
+    function lastPeriodProgress(labels, mode) {
+      return labels.length ? periodProgress(labels[labels.length - 1], mode) : null;
+    }
+
+    // 툴팁 footer용 문구: "In progress · day 2 of 30" / "In progress · today"
+    function progressText(info, mode) {
+      return mode === 'day' ? 'In progress · today' : `In progress · day ${info.elapsed} of ${info.length}`;
+    }
+
+    // 마지막 포인트/막대 툴팁에 붙일 footer 콜백 (진행 중이 아니면 줄을 추가하지 않는다)
+    function progressFooter(info, mode, lastIdx) {
+      return (items) => (info && items.some(it => it.dataIndex === lastIdx)) ? progressText(info, mode) : [];
+    }
+
+    // "Dashed / faded = ..." 캡션 표시 토글
+    function setProgressNote(id, show) {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('hidden', !show);
+    }
+
+    // 선 차트 dataset에 얹을 진행 중 스타일: 마지막 구간 점선 + 마지막 점은 흰 바탕에 시리즈색 테두리.
+    // 나머지 점은 기존 모양(채움=dataset backgroundColor, 없으면 Chart.js 기본값)을 그대로 유지한다.
+    function partialLineStyle(color, lastIdx) {
+      return {
+        segment: { borderDash: (ctx) => ctx.p1DataIndex === lastIdx ? [5, 4] : undefined },
+        pointBackgroundColor: (ctx) => ctx.dataIndex === lastIdx
+          ? '#fff'
+          : (ctx.dataset.backgroundColor ?? Chart.defaults.backgroundColor),
+        pointBorderColor: color,
+        pointBorderWidth: (ctx) => ctx.dataIndex === lastIdx ? 2 : 1,
+      };
     }
 
     // 차트별 period 토글 버튼 스타일 갱신 헬퍼
@@ -1332,13 +1492,30 @@
     async function loadData() {
       const months = parseInt(document.getElementById('month-range').value);
       const monthList = getMonthRange(months);
+      // 월별 버전 맵: 그 달 데이터가 바뀌면 값이 바뀌는 불투명 문자열.
+      // 항상 no-store 로 새로 받는다 — 이 값이 slim CSV URL(?v=)에 들어가므로, 데이터가 바뀐 달만
+      // 새 URL(=CDN·브라우저 캐시 미스)이 되고 안 바뀐 달은 immutable 캐시를 그대로 쓴다.
+      // 실패하거나 JSON 이 아니면(구형 서버) null → 아래에서 예전 full CSV 경로로 폴백한다.
+      let versions = null;
+      try {
+        const vr = await fetch('/api/versions', { cache: 'no-store' });
+        if (vr.ok) {
+          const vj = await vr.json();
+          if (vj && vj.months && typeof vj.months === 'object') versions = vj.months;
+        }
+      } catch { versions = null; }
       // 월별 CSV를 병렬로 fetch. Promise.all은 입력 배열(monthList) 순서를 그대로
       // 보존해 반환하므로(완료 순서 아님), 기존 순차 처리와 동일한 병합 순서가 유지된다.
       // 월 하나의 fetch/parse가 실패해도 나머지 월은 계속 처리되도록 개별 try/catch로 감쌈
       // (기존 순차 루프의 내결함성과 동일).
+      // slim 행: id,title,journal,date,doi,gpt_reason / full 행: title,journal,date,url,gpt_reason.
+      // 링크는 어느 쪽이든 paperHref(p) 가 결정한다.
       const perMonth = await Promise.all(monthList.map(async (m) => {
         try {
-          const res = await fetch(`/api/csv/${m}`);
+          const csvUrl = versions
+            ? `/api/csv/${m}?fmt=slim&v=${encodeURIComponent(versions[m] || 0)}`
+            : `/api/csv/${m}`;
+          const res = await fetch(csvUrl);
           if (!res.ok) return [];
           const text = await res.text();
           const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
@@ -1350,6 +1527,19 @@
       const frames = [];
       for (const rows of perMonth) frames.push(...rows);
       allPapers = frames.filter(r => r.title && r.title.trim());
+      // 미래 발행일 보정: 오늘(로컬)보다 늦은 날짜는 오늘로 당기고 _dateClamped 표시.
+      // 파이프라인 규칙(main._effective_pub_date: 발행일이 수신일보다 미래면 수신일로 대체)과 같은 취지의 방어선.
+      // KPI·차트·목록·검색이 모두 allPapers를 쓰므로 이 한 곳에서 보정하면 전부 반영된다.
+      // 앞 10자가 실제 달력 날짜인 YYYY-MM-DD일 때만 건드린다(해석 불가 값은 그대로 둔다).
+      const todayStr = localDateStr(new Date());
+      for (const p of allPapers) {
+        const d = (p.date || '').slice(0, 10);
+        if (d <= todayStr || !/^\d{4}-\d{2}-\d{2}$/.test(d)) continue;
+        const t = new Date(d + 'T00:00:00Z');
+        if (isNaN(t) || t.toISOString().slice(0, 10) !== d) continue;
+        p.date = todayStr;
+        p._dateClamped = true;
+      }
       // 전역 sharp→parent 맵 구축 (parseReason 의 자동 재라우팅에 사용)
       // 반드시 buildTopicFilter/applyFilter 이전에 호출 — 이후 parseReason 들이 이 맵 참조
       buildSharpToParent(allPapers);
@@ -1370,7 +1560,8 @@
     }
 
     document.getElementById('month-range').addEventListener('change', loadData);
-    document.getElementById('refresh-btn').addEventListener('click', loadData);
+    // Refresh: loadData 가 매번 /api/versions 를 no-store 로 다시 받으므로, 바뀐 달은 새 v 로 새로 받는다(CDN 캐시 우회).
+    document.getElementById('refresh-btn').addEventListener('click', () => loadData());
     document.getElementById('kw-top-n').addEventListener('change', () => { renderKeywordChart(); renderWordCloud(); });
 
     // 관리자 전용: 전체 월 Notion 강제 재조회
@@ -1502,7 +1693,7 @@
         const online = Number.isFinite(data.online) ? data.online : 0;
         const today = Number.isFinite(data.today) ? data.today : 0;
         const total = Number.isFinite(data.total) ? data.total : 0;
-        textEl.textContent = `${online} online · ${today} today · ${total} total`;
+        textEl.textContent = `Visitors: ${online} online · ${today} today · ${total} total`;
         if (dotEl) dotEl.classList.remove('hidden');
       } catch {
         textEl.textContent = 'Visitor info —';
@@ -1527,7 +1718,8 @@
       for (const [j, count] of sorted) {
         const chip = document.createElement('span');
         chip.className = 'journal-chip active';
-        chip.textContent = `${j.length > 20 ? j.slice(0,18)+'..' : j} (${count})`;
+        chip.textContent = `${journalLabel(j)} (${count})`;
+        chip.title = j;
         chip.dataset.journal = j;
         chip.addEventListener('click', () => toggleJournal(j, chip));
         container.appendChild(chip);
@@ -1801,39 +1993,70 @@
     }
 
     // KPI
+    // Home 전용 — 필터 무시. "범위 안" = 범위 시작일 ≤ 날짜 ≤ 오늘 (범위 시작일은 periodFloorKey와 같은 rangeStartDate()).
+    // 범위 이전 날짜(수신월 DB에 섞인 early view 등)는 빼고, 미래 날짜는 loadData에서 이미 오늘로 보정돼 있다.
+    // 모든 카드가 이 한 집합에서 계산되고, 각 카드 아래 캡션이 집계 범위를 밝힌다.
     function renderKPIs() {
-      // Home 전용 — 필터 무시하고 전체 데이터로 KPI 집계
-      const papers = allPapers;
+      const now = new Date();
+      const today = localDateStr(now);
+      const start = localDateStr(rangeStartDate());
+      const papers = allPapers.filter(p => { const d = (p.date || '').slice(0, 10); return d >= start && d <= today; });
       const total = papers.length;
       const journals = new Set(papers.map(p => p.journal).filter(Boolean));
-      const now = new Date();
-      const curMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-      const thisMonth = papers.filter(p => (p.date||'').startsWith(curMonth)).length;
+      const rangeText = rangeCaption();
+      const plural = (n, w) => `${n.toLocaleString()} ${w}${n === 1 ? '' : 's'}`;
+      // 두 YYYY-MM-DD 사이 일수(b - a). UTC 자정끼리 빼므로 DST와 무관.
+      const dayDiff = (a, b) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000);
+      const countBetween = (from, to) => papers.filter(p => { const d = p.date.slice(0, 10); return d >= from && d <= to; }).length;
+      const shiftDays = (n) => localDateStr(new Date(now.getFullYear(), now.getMonth(), now.getDate() + n));
 
-      // 최근 7일(오늘 포함) — YYYY-MM-DD 문자열 사전식 비교
-      const weekAgo = new Date(now.getTime() - 6*86400000);
-      const weekAgoStr = `${weekAgo.getFullYear()}-${String(weekAgo.getMonth()+1).padStart(2,'0')}-${String(weekAgo.getDate()).padStart(2,'0')}`;
-      const thisWeek = papers.filter(p => (p.date||'').slice(0,10) >= weekAgoStr).length;
+      // 이번 달 누적 (월 1일 ~ 오늘). 범위 시작일은 항상 이번 달 1일 이전이라 로드 범위에 완전히 포함된다.
+      const monthName = now.toLocaleString('en-US', { month: 'short' });
+      const monthStart = today.slice(0, 8) + '01';
+      const monthDays = now.getDate();
+      const monthCount = countBetween(monthStart, today);
 
-      const dates = papers.map(p => p.date).filter(Boolean).sort();
-      let daily = 0;
-      if (dates.length > 1) {
-        const first = new Date(dates[0]);
-        const last = new Date(dates[dates.length-1]);
-        const days = Math.max(1, (last - first) / 86400000 + 1);
-        daily = (total / days).toFixed(1);
+      // 최근 7일(오늘 포함) vs 그 직전 7일
+      const curFrom = shiftDays(-6);
+      const prevFrom = shiftDays(-13);
+      const prevTo = shiftDays(-7);
+      const weekCount = countBetween(curFrom, today);
+      const prevCount = countBetween(prevFrom, prevTo);
+      let weekSub;
+      if (curFrom < start) {
+        // 7일 창이 로드 범위보다 앞서 시작(예: 1 Month 선택 + 월초) — 숫자가 로드된 날만 센 값임을 밝힌다
+        weekSub = `Partial: data loaded from ${rangeStartDate().toLocaleString('en-US', { month: 'short', day: 'numeric' })}`;
+      } else if (prevFrom < start) {
+        weekSub = '— prior 7 days not loaded';
+      } else if (prevCount === 0) {
+        weekSub = '— vs prior 7 days';
+      } else {
+        const pct = Math.round((weekCount - prevCount) / prevCount * 100);
+        weekSub = `${pct > 0 ? '▲ ' : pct < 0 ? '▼ ' : ''}${Math.abs(pct).toLocaleString()}% vs prior 7 days`;
       }
 
-      const globalFreq = getFreq(papers, 'broad', '');
+      // 일평균 = 범위 안 논문 수 ÷ (범위 시작일 ~ 오늘 일수, 양끝 포함)
+      const rangeDays = dayDiff(start, today) + 1;
+
+      const globalFreq = getFreq(papers, 'broad', '');   // paper 단위 중복 제거 — 값이 곧 "그 broad 키워드를 가진 논문 수"
       const topKw = Object.entries(globalFreq).sort((a,b)=>b[1]-a[1]);
       const topKwName = topKw.length ? topKw[0][0] : '—';
 
-      document.getElementById('kpi-total').textContent = total.toLocaleString();
-      document.getElementById('kpi-journals').textContent = journals.size;
-      document.getElementById('kpi-month').textContent = thisMonth.toLocaleString();
-      document.getElementById('kpi-week').textContent = thisWeek.toLocaleString();
-      document.getElementById('kpi-daily').textContent = daily || '—';
-      document.getElementById('kpi-topkw').textContent = topKwName;
+      const set = (id, text) => { document.getElementById(id).textContent = text; };
+      set('kpi-total', total.toLocaleString());
+      set('kpi-total-sub', rangeText);
+      set('kpi-journals', journals.size.toLocaleString());
+      set('kpi-journals-sub', rangeText);
+      set('kpi-month-label', `${monthName} to date`);
+      set('kpi-month', monthCount.toLocaleString());
+      set('kpi-month-sub', `${monthName} 1${monthDays > 1 ? '–' + monthDays : ''} · ${plural(monthDays, 'day')}`);
+      set('kpi-week', weekCount.toLocaleString());
+      set('kpi-week-sub', weekSub);
+      set('kpi-daily', total ? (total / rangeDays).toFixed(1) : '—');
+      set('kpi-daily-sub', rangeText);
+      set('kpi-topkw', topKwName);
+      document.getElementById('kpi-topkw').title = topKwName;
+      set('kpi-topkw-sub', topKw.length ? plural(topKw[0][1], 'paper') : '');
     }
 
     // gpt_reason 파싱: "batteries/solid-electrolytes, biology" → [{broad, sharp}, ...]
@@ -1985,6 +2208,11 @@
 
       if (charts.keyword) charts.keyword.destroy();
 
+      // 마지막 period가 진행 중(오늘이 속한 period)이면 점선/흐림/툴팁 표시 + 캡션 (미래 추정 없음)
+      const kwProgress = lastPeriodProgress(months, kwPeriodMode);
+      const kwLast = months.length - 1;
+      setProgressNote('chart-keyword-note', !!kwProgress);
+
       // 기간 포인트가 1개 이하면 line이 의미 없으므로 horizontal bar로 전환
       if (months.length <= 1) {
         const label = months[0] || '—';
@@ -1995,13 +2223,17 @@
             labels: topKws,
             datasets: [{
               label, data,
-              backgroundColor: topKws.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]),
+              // 단일 period가 진행 중이면 모든 막대를 흐리게 (색 + '80' = 알파 50%)
+              backgroundColor: topKws.map((_, i) => CHART_COLORS[i % CHART_COLORS.length] + (kwProgress ? '80' : '')),
               borderRadius: 4,
             }]
           },
           options: {
             indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false }, tooltip: { callbacks: { title: () => label } } },
+            plugins: {
+              legend: { display: false },
+              tooltip: { callbacks: { title: () => label, footer: progressFooter(kwProgress, kwPeriodMode, 0) } }
+            },
             scales: {
               x: { beginAtZero: true, ticks: { font: { size: 10 }, precision: 0 } },
               y: { ticks: { font: { size: 10, family: 'Manrope' } } }
@@ -2017,6 +2249,7 @@
         borderColor: CHART_COLORS[i % CHART_COLORS.length],
         backgroundColor: CHART_COLORS[i % CHART_COLORS.length] + '20',
         tension: 0.3, borderWidth: 2, pointRadius: 3,
+        ...(kwProgress ? partialLineStyle(CHART_COLORS[i % CHART_COLORS.length], kwLast) : {}),
       }));
 
       charts.keyword = new Chart(document.getElementById('chart-keyword'), {
@@ -2024,7 +2257,10 @@
         data: { labels: months, datasets },
         options: {
           responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { position: 'bottom', labels: { font: { size: 10, family: 'Manrope' }, boxWidth: 12 } } },
+          plugins: {
+            legend: { position: 'bottom', labels: { font: { size: 10, family: 'Manrope' }, boxWidth: 12 } },
+            tooltip: { callbacks: { footer: progressFooter(kwProgress, kwPeriodMode, kwLast) } }
+          },
           scales: {
             x: { ticks: { font: { size: 10 } } },
             y: { beginAtZero: true, ticks: { font: { size: 10 } } }
@@ -2203,7 +2439,14 @@
         if (period && period >= jfMinKey) periods.add(period);
         if (p.journal) freq[p.journal] = (freq[p.journal]||0)+1;
       }
-      const divisor = Math.max(1, periods.size);
+      // 진행 중인 현재 period는 1이 아니라 지난 비율(지난 일수 / period 일수)만큼만 센다 —
+      // 하루치밖에 안 쌓인 주를 한 주로 세면 주당 평균이 깎인다. (현재 period에 논문이 없으면 periods에 없어 영향 없음)
+      let divisor = periods.size;
+      for (const key of periods) {
+        const prog = periodProgress(key, jfPeriodMode);
+        if (prog) divisor += prog.elapsed / prog.length - 1;
+      }
+      divisor = Math.max(1, divisor);
       const sorted = Object.entries(freq)
         .map(([journal, count]) => [journal, count / divisor, count])
         .sort((a,b)=>b[1]-a[1])
@@ -2214,7 +2457,7 @@
       charts.journal = new Chart(document.getElementById('chart-journal'), {
         type: 'bar',
         data: {
-          labels: sorted.map(e => e[0].length > 28 ? e[0].slice(0,25)+'...' : e[0]),
+          labels: sorted.map(e => journalLabel(e[0])),
           datasets: [{ data: sorted.map(e=>Number(e[1].toFixed(2))), backgroundColor: '#002F6C', borderRadius: 4 }]
         },
         options: {
@@ -2223,6 +2466,7 @@
             legend: { display: false },
             tooltip: {
               callbacks: {
+                title: (items) => sorted[items[0].dataIndex][0],   // 축 라벨은 약어, 툴팁 제목은 전체 이름
                 label: (ctx) => {
                   const row = sorted[ctx.dataIndex];
                   return `${row[1].toFixed(2)} papers / ${unit} (${row[2]} total)`;
@@ -2248,16 +2492,28 @@
       }
       const dates = Object.keys(freq).sort();
 
+      // 마지막 막대가 진행 중 period면 흐리게(알파 50%) + 툴팁 footer + 캡션
+      const dailyProgress = lastPeriodProgress(dates, dailyPeriodMode);
+      const dailyLast = dates.length - 1;
+      setProgressNote('chart-daily-note', !!dailyProgress);
+
       if (charts.daily) charts.daily.destroy();
       charts.daily = new Chart(document.getElementById('chart-daily'), {
         type: 'bar',
         data: {
           labels: dates.map(d => d.slice(5)),
-          datasets: [{ data: dates.map(d=>freq[d]), backgroundColor: '#1A56A8', borderRadius: 2 }]
+          datasets: [{
+            data: dates.map(d=>freq[d]),
+            backgroundColor: dates.map((_, i) => dailyProgress && i === dailyLast ? '#1A56A880' : '#1A56A8'),
+            borderRadius: 2
+          }]
         },
         options: {
           responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { footer: progressFooter(dailyProgress, dailyPeriodMode, dailyLast) } }
+          },
           scales: {
             x: { ticks: { font: { size: 9 }, maxRotation: 45 } },
             y: { beginAtZero: true, ticks: { font: { size: 10 } } }
@@ -2286,6 +2542,11 @@
 
       if (charts.journalMonthly) charts.journalMonthly.destroy();
 
+      // 마지막 period가 진행 중이면 점선/흐림/툴팁 표시 + 캡션 (Keyword Trends와 동일 규칙)
+      const jmProgress = lastPeriodProgress(months, jmPeriodMode);
+      const jmLast = months.length - 1;
+      setProgressNote('chart-journal-monthly-note', !!jmProgress);
+
       // 기간 포인트가 1개 이하면 horizontal bar로 전환
       if (months.length <= 1) {
         const label = months[0] || '—';
@@ -2293,16 +2554,24 @@
         charts.journalMonthly = new Chart(document.getElementById('chart-journal-monthly'), {
           type: 'bar',
           data: {
-            labels: topJ.map(j => j.length > 22 ? j.slice(0,20)+'..' : j),
+            labels: topJ.map(j => journalLabel(j)),
             datasets: [{
               label, data,
-              backgroundColor: topJ.map((_, i) => CHART_COLORS[i]),
+              // 단일 period가 진행 중이면 모든 막대를 흐리게 (색 + '80' = 알파 50%)
+              backgroundColor: topJ.map((_, i) => CHART_COLORS[i] + (jmProgress ? '80' : '')),
               borderRadius: 4,
             }]
           },
           options: {
             indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false }, tooltip: { callbacks: { title: () => label } } },
+            plugins: {
+              legend: { display: false },
+              tooltip: { callbacks: {
+                title: () => label,
+                label: (ctx) => `${topJ[ctx.dataIndex]}: ${ctx.formattedValue}`,   // 축 라벨은 약어, 툴팁은 전체 이름
+                footer: progressFooter(jmProgress, jmPeriodMode, 0)
+              } }
+            },
             scales: {
               x: { beginAtZero: true, ticks: { font: { size: 10 }, precision: 0 } },
               y: { ticks: { font: { size: 10, family: 'Manrope' } } }
@@ -2313,9 +2582,10 @@
       }
 
       const datasets = topJ.map((j, i) => ({
-        label: j.length > 20 ? j.slice(0,18)+'..' : j,
+        label: journalLabel(j),
         data: months.map(m => monthMap[m]?.[j]||0),
         borderColor: CHART_COLORS[i], tension: 0.3, borderWidth: 2, pointRadius: 3,
+        ...(jmProgress ? partialLineStyle(CHART_COLORS[i], jmLast) : {}),
       }));
 
       charts.journalMonthly = new Chart(document.getElementById('chart-journal-monthly'), {
@@ -2323,7 +2593,13 @@
         data: { labels: months, datasets },
         options: {
           responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { position: 'bottom', labels: { font: { size: 9, family: 'Manrope' }, boxWidth: 10 } } },
+          plugins: {
+            legend: { position: 'bottom', labels: { font: { size: 9, family: 'Manrope' }, boxWidth: 10 } },
+            tooltip: { callbacks: {
+              label: (ctx) => `${topJ[ctx.datasetIndex]}: ${ctx.formattedValue}`,   // 범례는 약어, 툴팁은 전체 이름
+              footer: progressFooter(jmProgress, jmPeriodMode, jmLast)
+            } }
+          },
           scales: {
             x: { ticks: { font: { size: 10 } } },
             y: { beginAtZero: true, ticks: { font: { size: 10 } } }
@@ -2456,9 +2732,8 @@
       html += '</tr></thead><tbody>';
       for (const j of topJ) {
         const total = perJournalFreq[j].total;
-        const jDisplay = j.length>30?j.slice(0,28)+'..':j;
-        const jLabel = `${_escapeHtml(jDisplay)} <span class="text-slate-400 font-normal">(${total})</span>`;
-        html += `<tr><td class="px-2 py-1.5 font-semibold text-navy-900 whitespace-nowrap sticky left-0 bg-white">${jLabel}</td>`;
+        const jLabel = `${_escapeHtml(journalLabel(j))} <span class="text-slate-400 font-normal">(${total})</span>`;
+        html += `<tr><td class="px-2 py-1.5 font-semibold text-navy-900 whitespace-nowrap sticky left-0 bg-white" title="${_escapeHtml(j)}">${jLabel}</td>`;
         for (const kw of topKws) {
           const cell = matrix[j][kw];
           const v = heatmapCellMode === 'pct' ? cell.pct : cell.raw;
@@ -2523,9 +2798,9 @@
         .sort((a,b)=>b[1]-a[1])
         .slice(0, bjkTopJournals)
         .map(e => e[0]);
-      // 2) 알파벳 모드면 추린 결과를 저널명 오름차순 재정렬
+      // 2) 알파벳 모드면 추린 결과를 (화면에 보이는) 저널 약어 오름차순 재정렬
       if (bjkSortMode === 'alpha') {
-        topJournals = [...topJournals].sort((a,b) => a.localeCompare(b));
+        topJournals = [...topJournals].sort((a,b) => journalAbbr(a).localeCompare(journalAbbr(b)));
       }
 
       if (topJournals.length === 0) {
@@ -2546,7 +2821,7 @@
           return `
             <div class="border border-slate-200 rounded-lg p-3">
               <div class="flex items-baseline justify-between gap-2 mb-2">
-                <h3 class="text-xs font-bold text-navy-900 truncate" title="${_escapeHtml(j)}">${_escapeHtml(j)}</h3>
+                <h3 class="text-xs font-bold text-navy-900 truncate" title="${_escapeHtml(j)}">${_escapeHtml(journalAbbr(j))}</h3>
                 <span class="text-[10px] text-slate-400 font-semibold whitespace-nowrap">${total} papers</span>
               </div>
               <p class="text-[10px] text-slate-400">No keyword data</p>
@@ -2570,7 +2845,7 @@
         return `
           <div class="border border-slate-200 rounded-lg p-3 hover:border-navy-800 transition-colors">
             <div class="flex items-baseline justify-between gap-2 mb-2 pb-2 border-b border-slate-100">
-              <h3 class="text-xs font-bold text-navy-900 truncate" title="${_escapeHtml(j)}">${_escapeHtml(j)}</h3>
+              <h3 class="text-xs font-bold text-navy-900 truncate" title="${_escapeHtml(j)}">${_escapeHtml(journalAbbr(j))}</h3>
               <span class="text-[10px] text-slate-400 font-semibold whitespace-nowrap">${total} papers</span>
             </div>
             <ul class="space-y-1.5">${bars}</ul>
@@ -2620,19 +2895,19 @@
       mainSearchResults.innerHTML = dateKeys.map(d => {
         const items = groups[d].map(p => {
           const title = _highlightTokens(p.title || '(untitled)', tokens);
-          const journal = _highlightTokens(p.journal || '', tokens);
+          const journal = _highlightTokens(journalAbbr(p.journal), tokens);
           const doi = _highlightTokens(p.doi || '', tokens);
           const tags = parseReason(p.gpt_reason || '');
           const tagHtml = tags.slice(0, 5).map(t => {
             const label = t.sharp ? `${t.broad} / ${t.sharp}` : t.broad;
             return `<span class="inline-block text-[10px] bg-slate-100 text-slate-600 rounded px-1.5 py-0.5">${_highlightTokens(label, tokens)}</span>`;
           }).join(' ');
-          const href = _safeUrl(p.url || (p.doi ? `https://doi.org/${p.doi}` : ''));
+          const href = paperHref(p);
           const linkOpen = href ? `<a href="${_escapeHtml(href)}" target="_blank" rel="noopener" class="block hover:bg-slate-50 px-3 py-2 rounded-md border border-transparent hover:border-slate-200 transition-all">` : `<div class="block px-3 py-2">`;
           const linkClose = href ? '</a>' : '</div>';
           return `${linkOpen}
             <div class="flex items-baseline justify-between gap-3 mb-1">
-              <span class="text-xs font-bold text-navy-800 truncate">${journal || '&nbsp;'}</span>
+              <span class="text-xs font-bold text-navy-800 truncate" title="${_escapeHtml(p.journal || '')}">${journal || '&nbsp;'}</span>
               ${doi ? `<span class="text-[10px] font-mono text-slate-400 truncate">${doi}</span>` : ''}
             </div>
             <div class="text-sm text-slate-800 leading-snug">${title}</div>
@@ -2712,8 +2987,8 @@
       const parts = [];
       if (fields.has('title')) parts.push(p.title || '');
       if (fields.has('keywords')) parts.push(_paperKeywordText(p));
-      if (fields.has('journal')) parts.push(p.journal || '');
-      if (fields.has('doi')) parts.push(p.doi || '');
+      if (fields.has('journal')) parts.push(p.journal || '', journalAbbr(p.journal));   // 전체 이름 + 약어 둘 다 매칭
+      if (fields.has('doi')) parts.push(_paperDoiText(p));
       return parts.join(' | ').toLowerCase();
     }
 
@@ -2790,19 +3065,19 @@
       advancedSearchResults.innerHTML = dateKeys.map(d => {
         const items = groups[d].map(p => {
           const title = _highlightTokens(p.title || '(untitled)', highlight);
-          const journal = _escapeHtml(p.journal || '');
+          const journal = _escapeHtml(journalAbbr(p.journal));
           const doi = _escapeHtml(p.doi || '');
           const tags = parseReason(p.gpt_reason || '');
           const tagHtml = tags.slice(0, 8).map(t => {
             const label = t.sharp ? `${t.broad} / ${t.sharp}` : t.broad;
             return `<span class="inline-block text-[10px] bg-slate-100 text-slate-600 rounded px-1.5 py-0.5">${_highlightTokens(label, highlight)}</span>`;
           }).join(' ');
-          const href = _safeUrl(p.url || (p.doi ? `https://doi.org/${p.doi}` : ''));
+          const href = paperHref(p);
           const linkOpen = href ? `<a href="${_escapeHtml(href)}" target="_blank" rel="noopener" class="block hover:bg-slate-50 px-3 py-2 rounded-md border border-transparent hover:border-slate-200 transition-all">` : `<div class="block px-3 py-2">`;
           const linkClose = href ? '</a>' : '</div>';
           return `${linkOpen}
             <div class="flex items-baseline justify-between gap-3 mb-1">
-              <span class="text-xs font-bold text-navy-800 truncate">${journal || '&nbsp;'}</span>
+              <span class="text-xs font-bold text-navy-800 truncate" title="${_escapeHtml(p.journal || '')}">${journal || '&nbsp;'}</span>
               ${doi ? `<span class="text-[10px] font-mono text-slate-400 truncate">${doi}</span>` : ''}
             </div>
             <div class="text-sm text-slate-800 leading-snug">${title}</div>
@@ -2851,7 +3126,8 @@
       const haystack = [
         (p.title || '').toLowerCase(),
         (p.journal || '').toLowerCase(),
-        (p.doi || '').toLowerCase(),
+        journalAbbr(p.journal).toLowerCase(),   // 약어로도 검색 ("Chem. Eng. J.")
+        _paperDoiText(p).toLowerCase(),
         (p.gpt_reason || '').toLowerCase(),
       ].join(' | ');
       return tokens.every(t => haystack.includes(t));
@@ -2869,15 +3145,16 @@
 
       tbody.innerHTML = display.map(p => {
         const title = _escapeHtml(p.title || '');
-        const journal = _escapeHtml(p.journal || '');
+        const journal = _escapeHtml(journalLabel(p.journal));
+        const journalFull = _escapeHtml(p.journal || '');
         const date = _escapeHtml((p.date || '').slice(0, 10));
-        const url = _safeUrl(p.url);
+        const url = paperHref(p);
         const titleCell = url
           ? `<a href="${_escapeHtml(url)}" target="_blank" rel="noopener" class="text-navy-700 hover:underline">${title}</a>`
           : title;
         return `<tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
           <td class="rp-date px-3 py-2 whitespace-nowrap text-slate-500" data-label="Date">${date}</td>
-          <td class="rp-journal px-3 py-2 whitespace-nowrap font-semibold text-navy-800" data-label="Journal">${journal}</td>
+          <td class="rp-journal px-3 py-2 whitespace-nowrap font-semibold text-navy-800" data-label="Journal" title="${journalFull}">${journal}</td>
           <td class="rp-title px-3 py-2" data-label="Title">${titleCell}</td>
         </tr>`;
       }).join('');
@@ -2896,6 +3173,25 @@
       if (/^(https?:|mailto:|\/|\.\/|\.\.\/|#)/i.test(trimmed)) return trimmed;
       // 그 외 (javascript:, data:, vbscript: 등) 전부 차단
       return '';
+    }
+
+    // ---------- 논문 링크 결정 (모든 목록·검색·리포트가 이 함수 하나만 쓴다) ----------
+    // slim CSV(id,doi) 와 full CSV(url) 행을 모두 받는다. 우선순위: DOI → url(http/https 만) → /api/link/<id> → ''.
+    // '' 이면 호출부가 링크 없이 제목만 렌더한다. /api/link/ 는 상대경로라 파일로 내보내는 곳은 location.origin 을 붙여야 한다.
+    function paperHref(p) {
+      if (!p) return '';
+      const doi = String(p.doi || '').trim();
+      if (doi) return `https://doi.org/${encodeURI(doi)}`;
+      const u = _safeUrl(p.url);
+      if (/^https?:/i.test(u)) return u;
+      const id = String(p.id || '').trim();
+      return id ? `/api/link/${encodeURIComponent(id)}` : '';
+    }
+
+    // DOI 검색용 텍스트: slim 은 doi 컬럼, full 은 url 이 doi.org 링크일 때만 포함(추적 링크가 일반 검색어에 오탐되는 것 방지)
+    function _paperDoiText(p) {
+      const u = p.url && /doi\.org\//i.test(p.url) ? p.url : '';
+      return `${p.doi || ''} ${u}`;
     }
 
     // ---------- 매칭 토큰 하이라이트 헬퍼 (Home Search 카드에서 사용) ----------
@@ -3356,7 +3652,7 @@
             <div>${titleHtml}</div>
             <div class="flex items-center gap-1.5 flex-wrap mt-1 text-[11px] text-slate-500">
               ${badge}
-              <span>${esc(r.journal || '')}</span><span>·</span><span>${esc(r.date || '날짜 없음')}</span>
+              <span title="${esc(r.journal || '')}">${esc(journalAbbr(r.journal))}</span><span>·</span><span>${esc(r.date || '날짜 없음')}</span>
             </div>
             ${reasonHtml}
           </div>
@@ -3739,12 +4035,12 @@
       renderBrowseList();
     };
 
-    function _sortByMode(entries) {
-      // entries: [[name, count], ...]
+    function _sortByMode(entries, keyFn = (n) => n) {
+      // entries: [[name, count], ...] — keyFn: 정렬에 쓸 표시 이름 (저널은 약어)
       if (browseSort === 'alpha') {
-        return entries.slice().sort((a,b) => a[0].localeCompare(b[0], undefined, {sensitivity:'base'}));
+        return entries.slice().sort((a,b) => keyFn(a[0]).localeCompare(keyFn(b[0]), undefined, {sensitivity:'base'}));
       }
-      return entries.slice().sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0]));
+      return entries.slice().sort((a,b) => b[1]-a[1] || keyFn(a[0]).localeCompare(keyFn(b[0])));
     }
 
     function renderBrowseList() {
@@ -3756,12 +4052,13 @@
         for (const p of allPapers) {
           if (p.journal) freq[p.journal] = (freq[p.journal]||0) + 1;
         }
-        const sorted = _sortByMode(Object.entries(freq));
+        const sorted = _sortByMode(Object.entries(freq), journalAbbr);
         countEl.textContent = `${sorted.length}`;
         for (const [j, c] of sorted) {
           const row = document.createElement('div');
           row.className = 'browse-item' + (selectedBrowseJournal === j ? ' active' : '');
-          row.innerHTML = `<span class="truncate" title="${_escapeHtml(j)}">${_escapeHtml(j)}</span><span class="count">${c}</span>`;
+          // 행에는 약어, title(과 autoSelectFirstBrowseItem이 읽는 값)은 전체 이름
+          row.innerHTML = `<span class="truncate" title="${_escapeHtml(j)}">${_escapeHtml(journalAbbr(j))}</span><span class="count">${c}</span>`;
           row.onclick = () => selectBrowseJournal(j);
           container.appendChild(row);
         }
@@ -3889,6 +4186,8 @@
       const selLabel = browseMode === 'journal'
         ? selectedBrowseJournal
         : selectedBrowseTopic;
+      // 저널 상세 헤더: 전체 이름 뒤에 약어를 흐리게 덧붙인다 (약어가 전체 이름과 같으면 생략)
+      const selAbbr = browseMode === 'journal' && journalAbbr(selLabel) !== selLabel ? journalAbbr(selLabel) : '';
       const countLabel = _browseDetailFilter
         ? `${total} / ${totalAll} matched`
         : `${total}`;
@@ -3897,7 +4196,7 @@
         : '';
       const parts = [`<div class="mb-3">
         <div class="flex items-baseline justify-between mb-2">
-          <h3 class="text-sm font-bold text-navy-900">${_escapeHtml(selLabel)} <span class="text-xs font-normal text-slate-400">(${countLabel})</span></h3>
+          <h3 class="text-sm font-bold text-navy-900">${_escapeHtml(selLabel)}${selAbbr ? ` <span class="text-xs font-normal text-slate-400">${_escapeHtml(selAbbr)}</span>` : ''} <span class="text-xs font-normal text-slate-400">(${countLabel})</span></h3>
         </div>
         <div class="flex items-center gap-2">
           <input id="browse-detail-search" type="text" value="${_escapeHtml(_browseDetailFilter)}"
@@ -3912,11 +4211,11 @@
         parts.push('<div>');
         for (const p of rows) {
           const title = _escapeHtml(p.title || '');
-          const url = _safeUrl(p.url);
+          const url = paperHref(p);
           const linkOpen = url ? `<a href="${_escapeHtml(url)}" target="_blank" rel="noopener">` : '';
           const linkClose = url ? '</a>' : '';
           const journalTag = browseMode === 'topic'
-            ? `<span class="journal-tag">${_escapeHtml(p.journal || '')}</span>`
+            ? `<span class="journal-tag" title="${_escapeHtml(p.journal || '')}">${_escapeHtml(journalAbbr(p.journal))}</span>`
             : '';
           parts.push(`<div class="browse-paper-row">${journalTag}${linkOpen}${title}${linkClose}</div>`);
         }
@@ -4101,7 +4400,9 @@
             const title = (p.title || '(no title)').replace(/\|/g, '\\|');
             const journal = p.journal || '';
             const date = (p.date || '').slice(0, 10);
-            const url = p.url || (p.doi ? `https://doi.org/${p.doi}` : '');
+            // 리포트는 파일로 내려받아 따로 열리므로 /api/link/<id> 같은 상대경로는 절대 URL 로 만든다
+            const href = paperHref(p);
+            const url = href.startsWith('/') ? location.origin + href : href;
             const titleCell = url ? `[${title}](${url})` : title;
             md += `- ${date} · *${journal}* · ${titleCell}\n`;
           }

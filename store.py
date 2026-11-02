@@ -20,13 +20,16 @@ from __future__ import annotations
 import contextlib
 import csv
 import datetime as _dt
+import hashlib
 import logging
 import os
+import pathlib
 import re
 import sqlite3
 import threading
 import time
 import unicodedata
+import urllib.parse
 import uuid
 
 import config  # noqa: F401  (.env 로드 목적)
@@ -44,6 +47,8 @@ DEFAULT_STATUS = "대기중"
 FIRST_BUCKET_MONTH = "2026-04"  # 이 달 이전 발행월은 이번 달 버킷으로 폴백(기존 resolve_db_for_month 재현)
 GPT_REASON_MAX = 4000  # 서버 측 상한(클라이언트는 1900자로 자름)
 CSV_COLUMNS = ["title", "journal", "date", "url", "status", "gpt_reason"]  # _save_cache와 동일
+# 공개 슬림 CSV(`?fmt=slim`): 개인별 이메일 추적 리다이렉트 URL(바이트의 ~68%)을 빼고 id·doi 를 넣은 형식.
+SLIM_COLUMNS = ["id", "title", "journal", "date", "doi", "gpt_reason"]
 # 변경 피드(change_seq)를 올리는 추적 열. 이 열이 실제로 바뀔 때만 seq가 증가한다.
 TRACKED = ("title", "journal", "pub_date", "url", "status", "gpt_reason", "deleted_at", "dup_of")
 
@@ -77,13 +82,27 @@ def _today() -> _dt.date:
 
 # ---------- 연결 / 트랜잭션 ----------
 
-def connect(path: str | None = None, *, create: bool = False) -> sqlite3.Connection:
+def connect(path: str | None = None, *, create: bool = False, readonly: bool = False) -> sqlite3.Connection:
     """DB 연결. create=False(기본)에서 파일이 없으면 FileNotFoundError.
 
     빈 DB가 조용히 생기면 정본이 둘로 갈라지므로, 생성은 명시적으로(create=True) 요청한 경우만 한다.
     autocommit 모드(isolation_level=None)이며 트랜잭션은 write_tx/read_tx로 직접 연다.
+    readonly=True 는 `mode=ro` + `query_only` 연결(공개 읽기 경로용): journal_mode 등 DB 설정을 건드리지 않고
+    어떤 쓰기도 SQLite 가 거부한다. create 와 함께 쓸 수 없다.
     """
     path = path or db_path()
+    if readonly:
+        if create:
+            raise ValueError("readonly 연결은 create 와 함께 쓸 수 없습니다.")
+        if not os.path.exists(path):
+            raise FileNotFoundError(path)
+        conn = sqlite3.connect(
+            pathlib.Path(os.path.abspath(path)).as_uri() + "?mode=ro", uri=True, timeout=10, isolation_level=None
+        )
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA busy_timeout=10000")
+        conn.execute("PRAGMA query_only=ON")
+        return conn
     if create:
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     elif not os.path.exists(path):
@@ -710,39 +729,58 @@ def _check_month(month: str) -> str:
     return month
 
 
-def _csv_rows(conn: sqlite3.Connection, month: str) -> tuple[list[list[str]], int, int]:
-    """(행 목록, 읽은 시점 max change_seq, 제외 저널로 드롭한 건수). 한 읽기 스냅샷.
+def slim_csv_path(month: str, cache_dir: str | None = None) -> str:
+    """공개 슬림 CSV 경로. 이름이 `papers_` 로 시작하지 않는 것은 의도적이다
+    (migrate_from_notion 게이트가 `papers_*.csv` 를 월 CSV 로 간주해 훑기 때문)."""
+    return os.path.join(cache_dir or CACHE_DIR, f"slim_papers_{month}.csv")
+
+
+_DOI_RE = re.compile(r"""10\.\d{4,9}/[^\s?&#"'<>]+""")
+
+
+def doi_from_url(url: str | None) -> str:
+    """저장된 url 에서 DOI 를 결정적으로 뽑는다: URL 디코딩 2회 -> `10.NNNN/...` 첫 매치 -> 끝의 `.`/`)` 제거.
+    추적 리다이렉트 링크 등에 DOI 가 없으면 빈 문자열."""
+    decoded = urllib.parse.unquote(urllib.parse.unquote(url or ""))
+    m = _DOI_RE.search(decoded)
+    return m.group(0).rstrip(".)") if m else ""
+
+
+def _csv_rows(conn: sqlite3.Connection, month: str) -> tuple[list[list[str]], list[list[str]], int, int]:
+    """(전체 CSV 행, 슬림 CSV 행, 읽은 시점 max change_seq, 제외 저널로 드롭한 건수). 한 읽기 스냅샷.
 
     정렬은 발행일 오름차순(없는 날짜는 끝), 같으면 id. tombstone은 제외, 이관 중복 행은 포함한다
-    (기존 CSV에도 들어 있던 행들이므로).
+    (기존 CSV에도 들어 있던 행들이므로). 슬림 행은 전체 행과 같은 행·순서에 (id, doi)를 붙이고 url·status 를 뺀 것.
     """
     with read_tx(conn):
         seq = conn.execute(
             "SELECT COALESCE(MAX(change_seq), 0) FROM papers WHERE bucket_month=?", (month,)
         ).fetchone()[0]
         got = conn.execute(
-            "SELECT title, journal, pub_date, url, status, gpt_reason FROM papers "
+            "SELECT id, title, journal, pub_date, url, status, gpt_reason FROM papers "
             "WHERE bucket_month=? AND deleted_at IS NULL ORDER BY pub_date IS NULL, pub_date, id",
             (month,),
         ).fetchall()
-    rows, dropped = [], 0
+    rows, slim_rows, dropped = [], [], 0
     for r in got:
         if is_excluded_journal(r["journal"]):
             dropped += 1
             continue
         rows.append([r["title"], r["journal"], r["pub_date"] or "", r["url"], r["status"], r["gpt_reason"]])
-    return rows, seq, dropped
+        slim_rows.append(
+            [str(r["id"]), r["title"], r["journal"], r["pub_date"] or "", doi_from_url(r["url"]), r["gpt_reason"]]
+        )
+    return rows, slim_rows, seq, dropped
 
 
-def _write_csv_atomic(path: str, rows: list[list[str]]) -> None:
-    """임시 파일에 쓰고 os.replace로 교체(서버의 mtime 메모가 그대로 동작). 형식은 _save_cache와 같다:
-    QUOTE_ALL, utf-8-sig, 헤더 6열, 줄바꿈은 pandas 기본(os.linesep)."""
+def _write_rows_atomic(path: str, columns: list[str], rows: list[list[str]], lineterminator: str) -> None:
+    """임시 파일에 쓰고 os.replace로 교체(서버의 mtime 메모가 그대로 동작). QUOTE_ALL, utf-8-sig(BOM)."""
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     tmp = f"{path}.{os.getpid()}.{threading.get_ident()}.tmp"  # 대시보드 스레드끼리 같은 월을 동시에 export 해도 충돌하지 않게
     try:
         with open(tmp, "w", encoding="utf-8-sig", newline="") as f:
-            writer = csv.writer(f, quoting=csv.QUOTE_ALL, lineterminator=os.linesep)
-            writer.writerow(CSV_COLUMNS)
+            writer = csv.writer(f, quoting=csv.QUOTE_ALL, lineterminator=lineterminator)
+            writer.writerow(columns)
             writer.writerows(rows)
             f.flush()
             os.fsync(f.fileno())
@@ -751,6 +789,16 @@ def _write_csv_atomic(path: str, rows: list[list[str]]) -> None:
         with contextlib.suppress(OSError):
             os.remove(tmp)
         raise
+
+
+def _write_csv_atomic(path: str, rows: list[list[str]]) -> None:
+    """전체 CSV 를 쓴다. 형식은 _save_cache와 같다: QUOTE_ALL, utf-8-sig, 헤더 6열, 줄바꿈은 pandas 기본(os.linesep)."""
+    _write_rows_atomic(path, CSV_COLUMNS, rows, os.linesep)
+
+
+def _write_slim_csv_atomic(path: str, rows: list[list[str]]) -> None:
+    """슬림 CSV 를 쓴다. 서빙 본문이 곧 이 파일의 바이트이고 버전 해시의 입력이므로 줄바꿈을 OS 와 무관하게 `\\n` 으로 고정한다."""
+    _write_rows_atomic(path, SLIM_COLUMNS, rows, "\n")
 
 
 _LOCK_NAME = ".export.lock"
@@ -826,6 +874,8 @@ def export_csv(
 ) -> int:
     """한 bucket을 cache/papers_<month>.csv로 export하고 쓴 행 수를 반환.
 
+    같은 스냅샷에서 공개 슬림 CSV(cache/slim_papers_<month>.csv)도 함께 쓴다(전체 CSV 다음에 쓰므로 슬림의 mtime 이
+    전체보다 작지 않다 - ensure_slim_csv 의 신선도 판정 근거).
     track=True면 읽은 스냅샷의 max(change_seq)를 meta `csv_seq:<month>`에 기록한다(export_dirty 판정용).
     기록은 MAX(기존, 새 값)이라 값이 뒤로 가지 않는다. 읽기·쓰기·기록은 `cache/.export.lock` 으로 직렬화된다.
     검증용 임시 export는 track=False로 호출한다.
@@ -836,11 +886,12 @@ def export_csv(
         conn = connect()
     try:
         with _export_lock(cache_dir):
-            rows, seq, dropped = _csv_rows(conn, month)
+            rows, slim_rows, seq, dropped = _csv_rows(conn, month)
             if dropped:
                 logger.info("제외 저널 %d건 CSV 캐시에서 드롭 (%s)", dropped, month)
             path = csv_path(month, cache_dir)
             _write_csv_atomic(path, rows)
+            _write_slim_csv_atomic(slim_csv_path(month, cache_dir), slim_rows)
             if track:
                 with write_tx(conn):
                     conn.execute(
@@ -864,8 +915,8 @@ def _bucket_max_seqs(conn: sqlite3.Connection) -> dict[str, int]:
 
 
 def export_dirty(conn: sqlite3.Connection | None = None, cache_dir: str | None = None) -> dict[str, int]:
-    """max(change_seq) > csv_seq:<month> 인 bucket(또는 CSV 파일이 없는 bucket)만 export. {월: 행 수}.
-    바뀐 게 없으면 아무것도 하지 않는다(cron 15분 간격 전제)."""
+    """max(change_seq) > csv_seq:<month> 인 bucket(또는 CSV·슬림 CSV 파일이 없는 bucket)만 export. {월: 행 수}.
+    바뀐 게 없으면 아무것도 하지 않는다(cron 15분 간격 전제). 슬림 파일이 없는 배포 직후의 월도 여기서 채워진다."""
     own = conn is None
     if own:
         conn = connect()
@@ -878,7 +929,11 @@ def export_dirty(conn: sqlite3.Connection | None = None, cache_dir: str | None =
             }
         done = {}
         for month in sorted(maxes):
-            if maxes[month] > seen.get(month, 0) or not os.path.exists(csv_path(month, cache_dir)):
+            if (
+                maxes[month] > seen.get(month, 0)
+                or not os.path.exists(csv_path(month, cache_dir))
+                or not os.path.exists(slim_csv_path(month, cache_dir))
+            ):
                 done[month] = export_csv(month, conn, cache_dir)
         return done
     finally:
@@ -898,6 +953,98 @@ def export_all(conn: sqlite3.Connection | None = None, cache_dir: str | None = N
     finally:
         if own:
             conn.close()
+
+
+# ---------- 공개 슬림 CSV: 지연 생성 / 버전 ----------
+
+def _slim_is_fresh(month: str, cache_dir: str | None) -> bool:
+    """슬림 파일이 있고, 전체 CSV 가 있다면 그보다 오래되지 않았다(export 는 전체 -> 슬림 순으로 쓴다)."""
+    try:
+        slim_mtime = os.stat(slim_csv_path(month, cache_dir)).st_mtime_ns
+    except OSError:
+        return False
+    try:
+        return slim_mtime >= os.stat(csv_path(month, cache_dir)).st_mtime_ns
+    except OSError:
+        return True  # 전체 CSV 가 없으면 슬림이 단독으로 선다
+
+
+def ensure_slim_csv(month: str, conn: sqlite3.Connection | None = None, cache_dir: str | None = None) -> bool:
+    """슬림 CSV 가 서빙 가능하도록 보장한다. 없거나 전체 CSV 보다 오래됐으면(배포 직후·수동으로 전체 CSV 를 갈아 끼운 뒤)
+    DB 에서 슬림만 다시 쓴다(`.export.lock` 안에서 재확인하므로 동시 요청·진행 중인 export 와 겹쳐도 한 번만 쓴다).
+    meta(csv_seq)는 건드리지 않는다. DB 를 못 열면 낡았더라도 기존 슬림 파일이 있는 한 True. 서빙할 슬림이 없으면 False."""
+    _check_month(month)
+    if _slim_is_fresh(month, cache_dir):
+        return True
+    path = slim_csv_path(month, cache_dir)
+    own = conn is None
+    if own:
+        try:
+            conn = connect(readonly=True)
+        except (FileNotFoundError, sqlite3.Error):
+            return os.path.exists(path)
+    try:
+        with _export_lock(cache_dir):
+            if _slim_is_fresh(month, cache_dir):
+                return True
+            _write_slim_csv_atomic(path, _csv_rows(conn, month)[1])
+        return True
+    except (sqlite3.Error, OSError):
+        logger.exception("슬림 CSV 지연 생성 실패: %s", month)
+        return os.path.exists(path)
+    finally:
+        if own:
+            conn.close()
+
+
+_slim_version_memo: dict[str, tuple[tuple[int, int, int], str]] = {}
+
+
+def slim_version(month: str, cache_dir: str | None = None) -> str | None:
+    """슬림 CSV 의 버전 = 파일 내용 sha256 앞 12자리(불투명 문자열). 내용이 바뀔 때만 바뀐다.
+
+    csv_seq 만으로는 `refresh_csv.py --all`(제외 저널 목록 변경 등)처럼 seq 는 그대로인데 내용이 바뀌는 재export 를 못 잡고,
+    변경 불가(immutable)로 캐시된 옛 URL 이 1년 남는다. 해시는 (mtime_ns, size, inode)가 같으면 재사용한다.
+    파일이 없으면 None."""
+    path = slim_csv_path(month, cache_dir)
+    try:
+        st = os.stat(path)
+        key = (st.st_mtime_ns, st.st_size, st.st_ino)
+        hit = _slim_version_memo.get(path)
+        if hit is not None and hit[0] == key:
+            return hit[1]
+        with open(path, "rb") as f:
+            ver = hashlib.sha256(f.read()).hexdigest()[:12]
+    except OSError:
+        return None
+    _slim_version_memo[path] = (key, ver)
+    return ver
+
+
+_CSV_FILE_RE = re.compile(r"^papers_(\d{4}-\d{2})\.csv$")
+
+
+def csv_versions(cache_dir: str | None = None) -> dict[str, str]:
+    """{월: 슬림 CSV 버전}, 최신 월 먼저. FIRST_BUCKET_MONTH ~ 이번 달 중 전체 CSV 가 있고(= /api/csv/<월> 이 서빙되는 달)
+    슬림 CSV 도 서빙 가능한 달만 담는다. 슬림이 없는 달은 이 호출에서 지연 생성한다."""
+    directory = cache_dir or CACHE_DIR
+    this_month = _today().strftime("%Y-%m")
+    try:
+        names = os.listdir(directory)
+    except OSError:
+        return {}
+    months = sorted(
+        (m.group(1) for m in map(_CSV_FILE_RE.match, names) if m and FIRST_BUCKET_MONTH <= m.group(1) <= this_month),
+        reverse=True,
+    )
+    out: dict[str, str] = {}
+    for month in months:
+        if not _MONTH_RE.match(month) or not ensure_slim_csv(month, cache_dir=cache_dir):
+            continue
+        ver = slim_version(month, cache_dir)
+        if ver is not None:
+            out[month] = ver
+    return out
 
 
 # ---------- 백업 ----------
