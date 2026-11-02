@@ -195,6 +195,15 @@ def _incremental_sync(service, state: dict, start_history_id: str) -> list[str]:
     return message_ids
 
 
+def is_message_not_found(exc: BaseException) -> bool:
+    """Gmail이 해당 메일을 404(notFound)로 돌려준 영구 실패인지 판정한다.
+
+    사용자가 지운 메일은 몇 번을 다시 시도해도 돌아오지 않으므로, 재시도 대기열에 남기면
+    매 실행이 실패로 끝난다. 네트워크 오류·5xx 같은 일시적 실패는 여기에 해당하지 않는다.
+    """
+    return isinstance(exc, HttpError) and str(getattr(exc.resp, "status", "")) == "404"
+
+
 def get_or_create_label(service, label_name: str = "get-ASAP-processed") -> str:
     """Gmail 라벨 조회 또는 신규 생성 (per D-04)
 

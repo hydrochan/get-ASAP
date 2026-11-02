@@ -7,12 +7,25 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import httplib2
+from googleapiclient.errors import HttpError
+
 import main
 import store
 
 # 가짜로 바꾸기 전의 실제 함수(실제 SQLite와 엮는 통합 테스트용)
 _REAL_STORE = SimpleNamespace(save_papers=store.save_papers, require_db=store.require_db)
 _REAL_REFRESH = main._refresh_cache
+_REAL_LOAD_PUBLISHERS = main._load_publishers
+_REAL_IS_EXCLUDED = main._is_excluded_journal
+
+
+def _http_error(status: int) -> HttpError:
+    """Gmail API가 돌려주는 것과 같은 모양의 HttpError(404면 notFound 본문)."""
+    reason = "notFound" if status == 404 else "backendError"
+    content = ('{"error": {"code": %d, "message": "Requested entity was not found.", '
+               '"errors": [{"reason": "%s"}]}}' % (status, reason)).encode()
+    return HttpError(httplib2.Response({"status": status}), content)
 
 
 @pytest.fixture
@@ -24,8 +37,11 @@ def pipeline(monkeypatch):
         parse_failures=set(), save_failures=set(), label_failures=set(),
         saved_titles=set(), labels=[], paper_counts={}, store_exception=False,
         internal_dates={}, paper_dates={}, saved_dates={},  # 메일 internalDate·파서 날짜 주입, 저장된 날짜 기록
+        get_errors={}, mail_headers={}, paper_journals={},  # 메일 get 오류(HttpError) 주입, 메일별 (From, Subject), 파서 저널
+        saved_journals={},  # 저장된 논문의 저널 기록
     )
     service = MagicMock()
+    h.service = service
 
     def history(**kwargs):
         messages = h.message_ids if kwargs["startHistoryId"] == "100" else []
@@ -36,18 +52,27 @@ def pipeline(monkeypatch):
         })
 
     service.users().history().list.side_effect = history
-    service.users().messages().get.side_effect = lambda **kw: SimpleNamespace(
-        execute=lambda: {"payload": {"body_id": kw["id"], "headers": [
-            {"name": "From", "value": "alerts@example.invalid"},
-            {"name": "Subject", "value": "Synthetic journal"},
-        ]}, **({"internalDate": h.internal_dates[kw["id"]]} if kw["id"] in h.internal_dates else {})},
-    )
+    def get_message(**kw):
+        mid = kw["id"]
+
+        def execute():
+            if mid in h.get_errors:
+                raise h.get_errors[mid]
+            sender, subject = h.mail_headers.get(mid, ("alerts@example.invalid", "Synthetic journal"))
+            return {"payload": {"body_id": mid, "headers": [
+                {"name": "From", "value": sender},
+                {"name": "Subject", "value": subject},
+            ]}, **({"internalDate": h.internal_dates[mid]} if mid in h.internal_dates else {})}
+
+        return SimpleNamespace(execute=execute)
+
+    service.users().messages().get.side_effect = get_message
 
     def parse(mid):
         if mid in h.parse_failures:
             raise ValueError("Synthetic parser error")
         return [SimpleNamespace(
-            title=f"{mid}-{i}", journal="Synthetic journal",
+            title=f"{mid}-{i}", journal=h.paper_journals.get(mid, "Synthetic journal"),
             date=h.paper_dates.get(mid, "2026-09-07"), url="",
         ) for i in range(h.paper_counts.get(mid, 1))]
 
@@ -57,6 +82,7 @@ def pipeline(monkeypatch):
         result = {"saved": 0, "skipped": 0, "failed": 0}
         for paper in papers:
             h.saved_dates[paper.title] = paper.date
+            h.saved_journals[paper.title] = paper.journal
             if paper.title in h.save_failures:
                 result["failed"] += 1
             elif paper.title in h.saved_titles:
@@ -305,6 +331,143 @@ def test_dateless_paper_falls_back_to_today_without_valid_internal_date(pipeline
     monkeypatch.setattr(main, "date", SimpleNamespace(today=lambda: date(2026, 10, 23)))
     assert h.run()["saved"] == 1
     assert h.saved_dates["m1-0"] == "2026-10-23"
+
+
+# ---------- Gmail 404(삭제된 메일): 영구 실패라 대기열에서 빼고 실행 실패로 세지 않는다 ----------
+
+def test_deleted_message_404_is_dropped_from_pending_without_failing_the_run(pipeline, caplog):
+    h = pipeline
+    h.state["pendingMessageIds"] = ["gone"]  # 10-12부터 대기열에 남아 매 실행을 실패로 만든 메일
+    h.get_errors["gone"] = _http_error(404)
+    with caplog.at_level("WARNING", logger="main"):
+        result = h.run()
+    assert result["failed_messages"] == 0 and result["failed"] == 0  # main()의 종료 코드 판정 입력이 모두 0
+    assert h.state["pendingMessageIds"] == []
+    assert h.labels == ["m1", "m2"] and h.saved_titles == {"m1-0", "m2-0"}  # 다른 메일은 정상 처리
+    assert [r.levelname for r in caplog.records if "gone" in r.getMessage()] == ["WARNING"]  # 경고는 딱 한 번
+
+    calls_before = h.service.users().messages().get.call_count
+    h.message_ids = []
+    assert h.run()["failed_messages"] == 0
+    assert h.service.users().messages().get.call_count == calls_before  # 다음 실행은 그 메일을 다시 요청하지 않는다
+
+
+def test_deleted_message_in_dry_run_is_not_a_failure_and_keeps_state(pipeline):
+    h = pipeline
+    h.state["pendingMessageIds"] = ["gone"]
+    h.get_errors["gone"] = _http_error(404)
+    before = copy.deepcopy(h.state)
+    assert h.run(dry_run=True)["failed_messages"] == 0
+    assert h.state == before and h.checkpoints == []
+
+
+def test_other_gmail_errors_stay_pending_and_fail_the_run(pipeline):
+    h = pipeline
+    h.get_errors["m1"] = _http_error(500)  # 일시적 서버 오류는 영구 실패가 아니다
+    assert h.run()["failed_messages"] == 1
+    assert h.state["pendingMessageIds"] == ["m1"]
+    del h.get_errors["m1"]
+    assert h.run()["failed_messages"] == 0 and h.state["pendingMessageIds"] == []
+
+
+def test_is_message_not_found_only_matches_http_404():
+    from gmail_client import is_message_not_found
+
+    assert is_message_not_found(_http_error(404)) is True
+    assert is_message_not_found(_http_error(500)) is False
+    assert is_message_not_found(ValueError("404")) is False
+
+
+# ---------- Nature Methods: 저널 추론이 'Nature'로 삼키지 않아야 제외 저널로 걸러진다 ----------
+
+NATURE_SENDER = "Nature Portfolio eAlerts <ealert@nature.com>"
+
+
+@pytest.mark.parametrize("subject, expected", [
+    ("Nature Methods Contents: Volume 23 Number 10", "Nature Methods"),
+    ("Nature Catalysis Contents: Volume 9 Number 10", "Nature Catalysis"),
+    ("Nature alert for 29th October 2026", "Nature"),
+])
+def test_nature_alert_subject_infers_the_longest_matching_journal(subject, expected):
+    from gmail_client import infer_journal
+
+    assert infer_journal(NATURE_SENDER, subject, _REAL_LOAD_PUBLISHERS()) == expected
+
+
+def test_every_excluded_nature_journal_is_listed_in_publishers():
+    """제외 목록에만 있고 publishers.json엔 없으면 더 짧은 이름('Nature')으로 추론돼 제외가 작동하지 않는다."""
+    nature_journals = {j.lower() for j in _REAL_LOAD_PUBLISHERS()["nature"]["journals"]}
+    excluded_nature = {j for j in main._EXCLUDED_JOURNALS if j.startswith("nature ")}
+    assert excluded_nature and excluded_nature <= nature_journals
+
+
+def test_nature_methods_alert_is_skipped_as_excluded_while_others_are_saved(pipeline, monkeypatch):
+    h = pipeline
+    # fixture는 publishers와 제외 판정을 가짜로 바꿔 둔다 - 여기선 둘 다 실제(publishers.json, 제외 목록)를 쓴다
+    monkeypatch.setattr(main, "_load_publishers", _REAL_LOAD_PUBLISHERS)
+    monkeypatch.setattr(main, "_is_excluded_journal", _REAL_IS_EXCLUDED)
+    synthetic_parse = main.load_parsers()[0].parse
+    monkeypatch.setattr(main, "load_parsers", lambda: [SimpleNamespace(publisher_name="Nature", parse=synthetic_parse)])
+    h.message_ids = ["methods", "catalysis"]
+    h.paper_journals.update({"methods": "", "catalysis": ""})  # Nature 파서처럼 저널 미지정 -> 메일 제목으로 추론
+    h.mail_headers.update({
+        "methods": (NATURE_SENDER, "Nature Methods Contents: Volume 23 Number 10"),
+        "catalysis": (NATURE_SENDER, "Nature Catalysis Contents: Volume 9 Number 10"),
+    })
+    result = h.run()
+    assert result["saved"] == 1
+    assert h.saved_journals == {"catalysis-0": "Nature Catalysis"}  # Methods 논문은 'Nature'로도 저장되지 않는다
+    assert h.labels == ["methods", "catalysis"] and h.state["pendingMessageIds"] == []  # 메일 자체는 처리 완료
+
+
+def _use_crossref_config(monkeypatch, tmp_path, content):
+    """crossref_journals.json 대신 tmp 파일을 쓰게 하고 main 의 한 번 읽기 캐시를 비운다. content=None 이면 없는 파일."""
+    import crossref_source
+
+    path = tmp_path / "crossref_journals.json"
+    if content is not None:
+        path.write_text(content, encoding="utf-8")
+    monkeypatch.setattr(crossref_source, "JOURNALS_PATH", str(path))
+    monkeypatch.setattr(main, "_crossref_skip_cache", None)
+
+
+def test_crossref_journal_email_papers_are_not_saved_while_normal_journals_are(pipeline, monkeypatch, tmp_path, caplog):
+    h = pipeline
+    _use_crossref_config(monkeypatch, tmp_path, (
+        '{"skip_email_for_ingest": true, "journals": ['
+        '{"journal": "Nature Communications", "mode": "ingest"},'
+        '{"journal": "Nature Catalysis", "mode": "shadow"}]}'
+    ))
+    h.message_ids = ["crossref", "normal"]
+    h.paper_journals.update({"crossref": "nature communications ", "normal": "Nature Catalysis"})  # 대소문자·공백 차이도 같은 저널
+    with caplog.at_level("INFO", logger="main"):
+        result = h.run()
+    assert result["saved"] == 1
+    assert h.saved_journals == {"normal-0": "Nature Catalysis"}  # shadow 저널은 그대로 저장
+    assert h.labels == ["crossref", "normal"] and h.state["pendingMessageIds"] == []  # 메일 자체는 처리 완료
+    assert any("Crossref 수집 저널이라 메일 경로 스킵" in r.getMessage() for r in caplog.records)
+
+
+def test_crossref_skip_flag_off_skips_nothing(pipeline, monkeypatch, tmp_path):
+    h = pipeline
+    _use_crossref_config(monkeypatch, tmp_path, (
+        '{"skip_email_for_ingest": false, "journals": [{"journal": "Nature Communications", "mode": "ingest"}]}'
+    ))
+    h.paper_journals["m1"] = "Nature Communications"
+    assert h.run()["saved"] == 2
+
+
+@pytest.mark.parametrize("content", [None, "{not json", '"just a string"', "[]"], ids=["missing", "invalid-json", "string", "list"])
+def test_missing_or_broken_crossref_config_skips_nothing_and_warns(pipeline, monkeypatch, tmp_path, caplog, content):
+    h = pipeline
+    _use_crossref_config(monkeypatch, tmp_path, content)
+    h.paper_journals["m1"] = "Nature Communications"
+    with caplog.at_level("WARNING", logger="main"):
+        result = h.run()
+    assert result["saved"] == 2 and result["failed"] == 0  # 설정이 깨져도 파이프라인은 그대로 저장한다
+    assert h.saved_journals["m1-0"] == "Nature Communications"
+    warnings = [r for r in caplog.records if r.levelname == "WARNING" and "crossref_journals.json" in r.getMessage()]
+    assert len(warnings) == 1  # 논문마다가 아니라 실행당 한 번만 읽고 한 번만 경고
 
 
 # ---------- 실제 SQLite 정본과 엮은 통합 검증 (합성 메일) ----------

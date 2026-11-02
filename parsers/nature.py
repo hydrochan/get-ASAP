@@ -14,7 +14,12 @@ class NatureParser(BaseParser):
 
     Nature 메일 HTML 구조:
     - 섹션 구분: <h2> 태그 (Editorial, News & Views, Articles, ...)
-    - 논문 섹션: Articles, Letters, Reviews, Perspectives, Research
+    - 논문 섹션: Articles, Letters, Reviews, Review Articles, Perspectives, Research
+      (Research는 Nature Catalysis/Energy/Chemical Engineering처럼 평면 구조일 때만 논문 섹션이다.
+       Nature 본지의 Research는 News & Views/Reviews/Articles <h3> 하위 섹션을 품은 컨테이너라
+       직속 항목이 Research Highlights 성격이므로 h3 Articles/Letters/Reviews만 쓴다.)
+    - 제외 섹션: Editorial, News & Views, Research Highlights, Research Briefings, Correspondence,
+      Matters Arising, Amendments & Corrections 등
     - 논문 제목: <td> > <div> > <a> 또는 <td> > <span> > <a>
     - 발신자: ealert@nature.com, alerts@nature.com
     """
@@ -34,9 +39,12 @@ class NatureParser(BaseParser):
 
             # 논문 섹션 찾기: <h2> (일반 저널) 또는 <h3> (본지 Research 내 서브섹션)
             # h2: Articles, Letters, Reviews, Perspectives
-            # h3: Articles (Research 섹션 내 서브헤더)
-            target_h2 = {"articles", "letters", "reviews", "perspectives", "brief communications"}
-            target_h3 = {"articles", "letters"}  # Research 내 서브섹션
+            # h3: Articles, Reviews (Research 섹션 내 서브헤더)
+            target_h2 = {
+                "articles", "letters", "reviews", "review articles", "perspectives", "brief communications",
+            }
+            # Research 내 서브섹션 (리뷰도 논문이라 Reviews/Review Articles 포함, News & Views는 제외)
+            target_h3 = {"articles", "letters", "reviews", "review articles"}
 
             article_sections = []
             # h2 레벨 섹션 (일반 저널 메일)
@@ -44,6 +52,12 @@ class NatureParser(BaseParser):
                 section_name = h2.get_text(strip=True).lower()
                 if section_name in target_h2:
                     article_sections.append(("h2", h2))
+                elif section_name == "research":
+                    # 평면 Research(다음 헤더가 h2 또는 문서 끝)만 논문 섹션. h3 하위 섹션이 있는
+                    # Nature 본지 Research는 컨테이너라 건너뛰고 아래 h3 Articles/Letters가 담당한다.
+                    nxt = h2.find_next(["h2", "h3"])
+                    if nxt is None or nxt.name == "h2":
+                        article_sections.append(("h2", h2))
             # h3 레벨 서브섹션 (본지 Research 내 Articles)
             for h3 in soup.find_all("h3"):
                 section_name = h3.get_text(strip=True).lower()

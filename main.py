@@ -24,6 +24,7 @@ from gmail_client import (
     get_new_messages,
     get_or_create_label,
     infer_journal,
+    is_message_not_found,
     load_state,
     mark_processed,
     save_state,
@@ -158,6 +159,80 @@ def _is_excluded_journal(journal: str) -> bool:
         return False
     normalized = journal.strip().casefold()
     return normalized in _EXCLUDED_JOURNALS or _is_config_excluded_journal(journal)
+
+
+_crossref_skip_cache: frozenset[str] | None = None  # 프로세스당 한 번만 읽는다(None = 아직 안 읽음)
+
+
+def _crossref_skip_journals() -> frozenset[str]:
+    """Crossref 에서 수집하므로 메일 경로로는 저장하지 않을 저널(strip + casefold). 프로세스당 한 번만 읽는다.
+
+    crossref_journals.json 이 없거나 깨졌으면 WARNING 을 남기고 빈 집합(= 아무것도 스킵하지 않음)을 쓴다 -
+    이 설정 때문에 메일 파이프라인이 죽어서는 안 된다. import 도 여기서 해 모듈 로딩 실패까지 같은 방식으로 흡수한다.
+    """
+    global _crossref_skip_cache
+    if _crossref_skip_cache is None:
+        try:
+            import crossref_source
+
+            _crossref_skip_cache = frozenset(
+                name.strip().casefold()
+                for name in crossref_source.email_skip_journals()
+                if isinstance(name, str) and name.strip()
+            )
+        except Exception as e:
+            logger.warning("crossref_journals.json 을 읽지 못해 Crossref 저널 메일 스킵을 적용하지 않음: %s", e)
+            _crossref_skip_cache = frozenset()
+    return _crossref_skip_cache
+
+
+def _finalize_paper(paper, *, sender: str, subject: str, publishers: dict, pub_key: str, mail_date: str):
+    """파서가 뽑은 논문 한 건에 수집 규칙을 적용해 저장할 논문을 돌려준다. 저장하지 않을 논문이면 None.
+
+    규칙 순서: (1) 저널이 비었으면 발신자·제목으로 추론하고 출판사명 fallback이면 비논문 메일로 보고 제외
+    (2) 제외 저널 제외 (3) Crossref 수집 저널 제외(메일 제목의 "CO 2" 띄어쓰기 때문에 제목 키 중복 제거로는
+    못 걸러 경로 자체를 끊는다) (4) 발행일 확정(_effective_pub_date: 없거나 수신일보다 미래면 메일 수신일).
+    run_pipeline과 backfill_nature_research.py가 같은 규칙을 쓰도록 한 곳에 둔다.
+    """
+    pub_name = publishers[pub_key].get("name", "")
+    if not paper.journal:
+        inferred_journal = infer_journal(sender, subject, publishers)
+        if _is_publisher_fallback_journal(
+            inferred_journal,
+            pub_name,
+            publishers[pub_key].get("journals", []),
+        ):
+            logger.warning(
+                "저널 추론 실패로 저장 제외 (publisher=%s): %s",
+                pub_name,
+                paper.title[:80],
+            )
+            return None
+        paper.journal = inferred_journal
+    if _is_excluded_journal(paper.journal):
+        logger.info(
+            "제외 저널 스킵 (journal=%s): %s",
+            paper.journal,
+            paper.title[:80],
+        )
+        return None
+    if (paper.journal or "").strip().casefold() in _crossref_skip_journals():
+        logger.info(
+            "Crossref 수집 저널이라 메일 경로 스킵 (journal=%s): %s",
+            paper.journal,
+            paper.title[:80],
+        )
+        return None
+    effective_date = _effective_pub_date(paper.date, mail_date)
+    if paper.date and effective_date != paper.date:
+        logger.info(
+            "발행일이 메일 수신일보다 미래라 수신일로 대체 (발행일=%s, 수신일=%s): %s",
+            paper.date,
+            mail_date,
+            paper.title[:80],
+        )
+    paper.date = effective_date
+    return paper
 
 
 # ---------- 캐시 CSV 증분 저장 ----------
@@ -323,6 +398,7 @@ def run_pipeline(dry_run: bool = False) -> dict:
     processed_msg_ids = []  # 파싱 완료 ID; 저장 성공 여부는 메일별로 검사
     papers_by_message = {}
     ignored_msg_ids = set()
+    gone_msg_ids = set()  # Gmail에서 삭제돼 404를 받은 메일: 영구 실패라 완료로 취급하고 대기열에서 뺀다
     failed_msg_ids = set()
 
     for msg_id in msg_ids:
@@ -360,45 +436,25 @@ def run_pipeline(dry_run: bool = False) -> dict:
             # 날짜 없는 논문은 메일 수신일(UTC)로 채운다. internalDate가 없거나 깨졌으면 처리일로 폴백.
             # 발행일이 수신일보다 미래인 논문(출판사가 미래 날짜를 기재)도 수신일로 대체한다(_effective_pub_date).
             mail_date = _mail_received_date(msg, date.today().isoformat())
-            valid_papers = []
-            for paper in papers:
-                if not paper.journal:
-                    inferred_journal = infer_journal(sender, subject, publishers)
-                    if _is_publisher_fallback_journal(
-                        inferred_journal,
-                        pub_name,
-                        publishers[pub_key].get("journals", []),
-                    ):
-                        logger.warning(
-                            "저널 추론 실패로 저장 제외 (publisher=%s): %s",
-                            pub_name,
-                            paper.title[:80],
-                        )
-                        continue
-                    paper.journal = inferred_journal
-                if _is_excluded_journal(paper.journal):
-                    logger.info(
-                        "제외 저널 스킵 (journal=%s): %s",
-                        paper.journal,
-                        paper.title[:80],
-                    )
-                    continue
-                effective_date = _effective_pub_date(paper.date, mail_date)
-                if paper.date and effective_date != paper.date:
-                    logger.info(
-                        "발행일이 메일 수신일보다 미래라 수신일로 대체 (발행일=%s, 수신일=%s): %s",
-                        paper.date,
-                        mail_date,
-                        paper.title[:80],
-                    )
-                paper.date = effective_date
-                valid_papers.append(paper)
+            finalized = (
+                _finalize_paper(
+                    paper, sender=sender, subject=subject, publishers=publishers,
+                    pub_key=pub_key, mail_date=mail_date,
+                )
+                for paper in papers
+            )
+            valid_papers = [paper for paper in finalized if paper is not None]
 
             all_papers.extend(valid_papers)
             processed_msg_ids.append(msg_id)
             papers_by_message[msg_id] = valid_papers
 
         except Exception as e:
+            if is_message_not_found(e):
+                # 사용자가 지운 메일(404 notFound)은 다시 시도해도 돌아오지 않는다: 대기열에서 빼고 실패로 세지 않는다.
+                logger.warning("Gmail에서 삭제된 메일(404 notFound)이라 재시도 대기열에서 제외: %s", msg_id)
+                gone_msg_ids.add(msg_id)
+                continue
             # 개별 메일 처리 실패 시 스킵하고 계속 진행 (per must_haves)
             logger.warning("메일 %s 처리 실패, 스킵: %s", msg_id, e)
             failed_msg_ids.add(msg_id)
@@ -424,7 +480,7 @@ def run_pipeline(dry_run: bool = False) -> dict:
         # (발행월별 bucket_month 배정은 store.save_papers가 한다), 저장이 끝난 메일에만 라벨을 붙인다.
         store.require_db()  # DB/스키마가 없으면 빈 DB를 만들지 않고 여기서 실패 -> 체크포인트의 pending이 유지된다
         save_result = {"saved": 0, "skipped": 0, "failed": 0}
-        completed_msg_ids = set(ignored_msg_ids)
+        completed_msg_ids = set(ignored_msg_ids) | gone_msg_ids
         for msg_id in processed_msg_ids:
             # 필터링으로 이 메일의 논문이 모두 제외된 경우(빈 리스트)에도 기존 계약대로 save_papers를 호출한다.
             try:
