@@ -152,6 +152,11 @@ server.py가 `/api/sync/v1/` prefix 요청을 이 모듈로 넘긴다.
 - status를 적용하면 `status_source=paper_autodown`, `status_seq`=새 seq로 바뀐다.
 - status가 그대로여도 **무언가(예: gpt_reason)가 실제로 바뀌고 현재 `status_source`가 `notion_migrated`이면** `status_source=paper_autodown`으로 넘긴다(`status_seq`는 status가 바뀔 때만 바뀐다). 이관 재실행(`upsert_migrated`)이 그 행을 `notion_migrated`로 보고 판정 사유를 덮어쓰지 못하게 하려는 것이다. `human` 출처는 reason만 바뀌는 판정으로는 바꾸지 않는다(status 변경은 위 규칙을 따른다).
 - `gpt_reason`은 서버에서 4000자로 자른다. 클라이언트는 지금처럼 1900자로 자른다.
+- **선택 키 `article_kind`** (`research|review|comment|non_research`, 2026-11 추가): 키가 없거나 null이면 손대지 않는다. 네 값이 아니면 그 항목이 `invalid`다.
+  - 판정 충돌 규칙과 독립이다(`conflict` 항목에도 기록). `status`·`gpt_reason`이 둘 다 null인 `{"ref","article_kind"}`만 있는 항목(백필)도 받는다.
+  - `papers.ai_article_kind`/`article_kind_source`('ai'|'human')에 기록하고, 사람이 정한 값(`human`)은 덮어쓰지 않는다. `change_seq`·`status_seq`를 올리지 않으며 변경 피드 필드에도 없다(서버 내부용).
+  - 결과 어휘는 그대로다. kind 전용 항목은 저장된 값이 바뀌면 `updated`, 아니면 `unchanged`다. status/reason과 같이 오면 둘 중 하나라도 바뀌었을 때 `updated`다.
+  - `non_research`·`comment`는 공개 CSV(전체·슬림)에서 빠진다. 행은 지우지 않는다(자세한 내용은 `docs/review-ui-design.md` §5).
 
 **`POST /api/sync/v1/backup/latest`** `{}`
 → 가장 최근 gzip 백업을 스트리밍한다(`application/gzip`). 응답 헤더 `X-Backup-Name`. 백업이 없으면 404.

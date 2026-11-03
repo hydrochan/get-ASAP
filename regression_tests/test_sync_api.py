@@ -310,6 +310,108 @@ def test_verdicts_validation(api):
         assert api.jcall("/api/sync/v1/verdicts", body).status == 400, body
 
 
+# ---------- /verdicts: article_kind (AI 비논문·논평 표시, 공개 화면에서만 숨김) ----------
+
+def kind_state(db_file, ref):
+    c = store.connect(str(db_file))
+    try:
+        r = c.execute(
+            "SELECT ai_article_kind, article_kind_source, change_seq, status, status_source FROM papers WHERE ref=?", (ref,)
+        ).fetchone()
+        return tuple(r), store.last_seq(c)
+    finally:
+        c.close()
+
+
+def test_verdict_kind_only_item_is_updated_then_unchanged_without_touching_seq_or_feed(api):
+    seed(api.db_file, "Kind only")
+    feed = api.jcall("/api/sync/v1/changes").json
+    ref = feed["rows"][0]["ref"]
+    before, last = kind_state(api.db_file, ref)
+    r = api.jcall("/api/sync/v1/verdicts", {"seen_through": 0, "items": [{"ref": ref, "article_kind": "non_research"}]})
+    assert r.status == 200 and [x["result"] for x in r.json["results"]] == ["updated"]  # status/gpt_reason 이 모두 없어도 받는다
+    after, last2 = kind_state(api.db_file, ref)
+    assert after[:2] == ("non_research", "ai")
+    assert after[2:] == before[2:] and last2 == last == r.json["last_seq"]  # change_seq·status·last_seq 불변
+    again = api.jcall("/api/sync/v1/verdicts", {"seen_through": 0, "items": [{"ref": ref, "article_kind": "non_research"}]})
+    assert [x["result"] for x in again.json["results"]] == ["unchanged"]
+    # 피드에는 아무것도 새로 나가지 않고, 피드 행에 글 종류 열도 없다
+    after_feed = api.jcall("/api/sync/v1/changes", {"after": last}).json
+    assert after_feed["rows"] == [] and all("article_kind" not in k and "ai_article_kind" not in k for k in feed["rows"][0])
+    # 값이 바뀌면 다시 updated
+    r3 = api.jcall("/api/sync/v1/verdicts", {"items": [{"ref": ref, "article_kind": "research"}]})
+    assert [x["result"] for x in r3.json["results"]] == ["updated"] and kind_state(api.db_file, ref)[0][0] == "research"
+
+
+def test_verdict_kind_missing_or_null_is_untouched_and_invalid_kind_rejects_whole_item(api):
+    seed(api.db_file, "Kind keep")
+    ref = api.jcall("/api/sync/v1/changes").json["rows"][0]["ref"]
+    api.jcall("/api/sync/v1/verdicts", {"items": [{"ref": ref, "article_kind": "comment"}]})
+    r = api.jcall("/api/sync/v1/verdicts", {"items": [
+        {"ref": ref, "status": "관련"},                                    # 키 없음 -> 그대로
+        {"ref": ref, "status": "관련", "gpt_reason": "r", "article_kind": None},   # null -> 그대로
+        {"ref": ref, "article_kind": None},
+    ]})
+    assert [x["result"] for x in r.json["results"]] == ["updated", "updated", "unchanged"]
+    assert kind_state(api.db_file, ref)[0][:2] == ("comment", "ai")
+    bad = [{"ref": ref, "status": "무관", "article_kind": k} for k in ("bogus", "Research", "non-research", "", 5, True, ["research"], {})]
+    res = api.jcall("/api/sync/v1/verdicts", {"items": bad})
+    assert [x["result"] for x in res.json["results"]] == ["invalid"] * len(bad)
+    state = kind_state(api.db_file, ref)[0]
+    assert state[:2] == ("comment", "ai") and state[3] == "관련"  # 잘못된 kind 면 같이 온 status 도 적용되지 않는다
+
+
+def test_verdict_kind_is_recorded_even_when_status_conflicts(api):
+    seed(api.db_file, "Human held kind")
+    ref = api.jcall("/api/sync/v1/changes").json["rows"][0]["ref"]
+    c = store.connect(str(api.db_file))
+    c.execute("UPDATE papers SET status='관련', status_source='human', status_seq=50 WHERE ref=?", (ref,))
+    c.close()
+    r = api.jcall("/api/sync/v1/verdicts", {"seen_through": 1, "items": [
+        {"ref": ref, "status": "무관", "gpt_reason": "no", "article_kind": "non_research"}]})
+    assert [x["result"] for x in r.json["results"]] == ["conflict"]
+    state = kind_state(api.db_file, ref)[0]
+    assert state[:2] == ("non_research", "ai")                  # 표시는 판정 충돌과 무관하게 기록된다
+    assert state[3:] == ("관련", "human")                       # 판정은 사람 것이 그대로
+    # 결과 어휘는 paper_autodown 이 파싱하는 5가지 안에 머문다
+    res = api.jcall("/api/sync/v1/verdicts", {"items": [
+        {"ref": ref, "article_kind": "review"}, {"ref": ref, "article_kind": "review"}, {"ref": "nope", "article_kind": "review"},
+        {"ref": ref, "article_kind": "x"}]})
+    assert [x["result"] for x in res.json["results"]] == ["updated", "unchanged", "gone", "invalid"]
+
+
+def test_verdict_kind_does_not_overwrite_a_human_choice(api):
+    seed(api.db_file, "Human kind")
+    ref = api.jcall("/api/sync/v1/changes").json["rows"][0]["ref"]
+    c = store.connect(str(api.db_file))
+    c.execute("UPDATE papers SET ai_article_kind='research', article_kind_source='human' WHERE ref=?", (ref,))
+    c.close()
+    r = api.jcall("/api/sync/v1/verdicts", {"items": [{"ref": ref, "article_kind": "non_research"}]})
+    assert [x["result"] for x in r.json["results"]] == ["unchanged"]
+    assert kind_state(api.db_file, ref)[0][:2] == ("research", "human")
+    # status 와 함께 와도 판정은 적용되고 사람이 정한 kind 는 그대로, 결과는 status 변화만 반영한다
+    r = api.jcall("/api/sync/v1/verdicts", {"items": [{"ref": ref, "status": "관련", "article_kind": "comment"}]})
+    assert [x["result"] for x in r.json["results"]] == ["updated"]
+    assert kind_state(api.db_file, ref)[0][:2] == ("research", "human")
+
+
+def test_verdict_kind_hide_change_marks_month_csv_dirty_but_other_kinds_do_not(api):
+    seed(api.db_file, "Dirty one")
+    ref = api.jcall("/api/sync/v1/changes").json["rows"][0]["ref"]
+    c = store.connect(str(api.db_file))
+    store.export_all(c)  # store.CACHE_DIR 는 db_file 픽스처가 tmp 로 격리해 둔다
+    assert c.execute("SELECT 1 FROM meta WHERE key='csv_seq:2026-09'").fetchone() is not None
+    c.close()
+    api.jcall("/api/sync/v1/verdicts", {"items": [{"ref": ref, "article_kind": "review"}]})  # 숨김 여부 불변
+    c = store.connect(str(api.db_file))
+    assert c.execute("SELECT 1 FROM meta WHERE key='csv_seq:2026-09'").fetchone() is not None
+    c.close()
+    api.jcall("/api/sync/v1/verdicts", {"items": [{"ref": ref, "article_kind": "comment"}]})   # 숨김 -> 메모 삭제
+    c = store.connect(str(api.db_file))
+    assert c.execute("SELECT 1 FROM meta WHERE key='csv_seq:2026-09'").fetchone() is None
+    c.close()
+
+
 # ---------- /backup/latest ----------
 
 def test_backup_latest(api):

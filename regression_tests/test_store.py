@@ -58,7 +58,7 @@ def test_schema_objects_and_pragmas(conn):
     assert cols == [
         "id", "ref", "title", "title_key", "journal", "url", "pub_date", "bucket_month", "status", "gpt_reason",
         "status_source", "status_seq", "created_at", "updated_at", "change_seq", "deleted_at", "dup_of",
-        "notion_last_edited",
+        "notion_last_edited", "ai_article_kind", "article_kind_source",
     ]
     index_sql = {r[0]: r[1] for r in conn.execute("SELECT name, sql FROM sqlite_master WHERE type='index' AND sql IS NOT NULL")}
     assert "WHERE dup_of IS NULL" in index_sql["ux_papers_title_key"]

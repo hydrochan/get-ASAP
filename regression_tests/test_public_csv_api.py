@@ -287,6 +287,118 @@ def test_full_csv_endpoint_is_unchanged(api, conn):
     assert parse(pathlib.Path(store.csv_path("2026-09", str(api.cache))).read_bytes())[0] == FULL_HEADER
 
 
+# ---------- AI 비논문·논평 숨김 (ai_article_kind) ----------
+
+def set_kind(conn, title, kind):
+    ref = conn.execute("SELECT ref FROM papers WHERE title=?", (title,)).fetchone()["ref"]
+    return store.apply_verdicts(conn, [{"ref": ref, "article_kind": kind}], 0)["results"][0]["result"]
+
+
+def titles_in(path):
+    return [r[0] for r in parse(pathlib.Path(path).read_bytes())[1:]]
+
+
+def slim_titles_in(path):
+    return [r[1] for r in parse(pathlib.Path(path).read_bytes())[1:]]
+
+
+KIND_PAPERS = [
+    paper("Real research", date="2026-09-01"),
+    paper("News item", date="2026-09-02"),
+    paper("Comment on X", date="2026-09-03"),
+    paper("A review", date="2026-09-04"),
+    paper("Unmarked", date="2026-09-05"),
+    paper("Marked research", date="2026-09-06"),
+]
+
+
+def seed_kinds(conn):
+    store.save_papers(KIND_PAPERS, conn)
+    assert [set_kind(conn, t, k) for t, k in (
+        ("News item", "non_research"), ("Comment on X", "comment"), ("A review", "review"), ("Marked research", "research"),
+    )] == ["updated"] * 4
+
+
+def test_hidden_kinds_are_dropped_from_full_and_slim_csv_but_rows_stay_in_db(conn, tmp_path, caplog):
+    seed_kinds(conn)
+    cache = str(tmp_path / "out")
+    with caplog.at_level("INFO", logger="store"):
+        assert store.export_csv("2026-09", conn, cache) == 4
+    # 비논문·논평만 빠지고 리뷰·연구·미판정은 그대로(순서 유지)
+    assert titles_in(store.csv_path("2026-09", cache)) == ["Real research", "A review", "Unmarked", "Marked research"]
+    assert slim_titles_in(store.slim_csv_path("2026-09", cache)) == ["Real research", "A review", "Unmarked", "Marked research"]
+    assert "AI 비논문·논평 2건 CSV 캐시에서 숨김 (2026-09)" in caplog.text
+    assert conn.execute("SELECT COUNT(*) FROM papers").fetchone()[0] == 6  # 지우지 않는다
+    assert conn.execute("SELECT COUNT(*) FROM papers WHERE deleted_at IS NOT NULL").fetchone()[0] == 0
+    # 열 형식은 그대로(글 종류 열이 공개 CSV 로 새지 않는다)
+    assert parse(pathlib.Path(store.csv_path("2026-09", cache)).read_bytes())[0] == FULL_HEADER
+    assert parse(pathlib.Path(store.slim_csv_path("2026-09", cache)).read_bytes())[0] == SLIM_HEADER
+
+
+def test_hidden_kinds_do_not_appear_on_public_endpoints(api, conn):
+    seed_kinds(conn)
+    store.export_all(conn, str(api.cache))
+    full = api.get("/api/csv/2026-09")
+    slim = api.get("/api/csv/2026-09?fmt=slim")
+    assert [r[0] for r in parse(full.data)[1:]] == ["Real research", "A review", "Unmarked", "Marked research"]
+    assert [r[1] for r in parse(slim.data)[1:]] == ["Real research", "A review", "Unmarked", "Marked research"]
+    assert b"News item" not in full.data + slim.data and b"Comment on X" not in full.data + slim.data
+    # 슬림 지연 생성 경로(전체 CSV 만 있는 배포 직후)도 같은 필터를 쓴다
+    os.remove(store.slim_csv_path("2026-09", str(api.cache)))
+    assert b"News item" not in api.get("/api/csv/2026-09?fmt=slim").data
+
+
+def test_hiding_and_restoring_regenerate_csv_and_change_version_without_seq_change(api, conn):
+    cache = str(api.cache)
+    store.save_papers(KIND_PAPERS[:3] + [paper("Other month", date="2026-10-05")], conn)
+    store.export_all(conn, cache)
+    seq0 = store.last_seq(conn)
+    v0 = json.loads(api.get("/api/versions").data)["months"]
+    assert store.export_dirty(conn, cache) == {}  # 아무 변화도 없으면 건드리지 않는다
+
+    assert set_kind(conn, "News item", "non_research") == "updated"
+    assert store.last_seq(conn) == seq0  # 피드/seq 불변 - csv_seq 메모 삭제만으로 dirty 가 된다
+    assert store.export_dirty(conn, cache) == {"2026-09": 2}  # 해당 월만, 슬림·전체 모두 다시 씀
+    assert titles_in(store.csv_path("2026-09", cache)) == ["Real research", "Comment on X"]
+    assert slim_titles_in(store.slim_csv_path("2026-09", cache)) == ["Real research", "Comment on X"]
+    v1 = json.loads(api.get("/api/versions").data)["months"]
+    assert v1["2026-09"] != v0["2026-09"] and v1["2026-10"] == v0["2026-10"]  # 슬림 내용 해시가 바뀐다 / 다른 달은 그대로
+    assert store.export_dirty(conn, cache) == {}
+
+    # 숨김 여부가 안 바뀌는 표시(리뷰/연구)는 CSV 를 다시 쓰지 않는다
+    assert set_kind(conn, "Real research", "review") == "updated"
+    assert store.export_dirty(conn, cache) == {}
+
+    # 같은 값 재전송은 unchanged 이고 아무것도 dirty 로 만들지 않는다
+    assert set_kind(conn, "News item", "non_research") == "unchanged"
+    assert store.export_dirty(conn, cache) == {}
+
+    # 복원(AI 가 research 로 바꾸거나 관리자가 복원)하면 다시 나타난다
+    assert set_kind(conn, "News item", "research") == "updated"
+    assert store.export_dirty(conn, cache) == {"2026-09": 3}
+    assert "News item" in titles_in(store.csv_path("2026-09", cache))
+    assert json.loads(api.get("/api/versions").data)["months"]["2026-09"] != v1["2026-09"]
+    assert set_kind(conn, "Comment on X", "comment") == "updated"
+    assert store.export_dirty(conn, cache) == {"2026-09": 2}
+    ref = conn.execute("SELECT ref FROM papers WHERE title='Comment on X'").fetchone()["ref"]
+    store.set_human_article_kind(conn, [{"ref": ref, "kind": "research"}], "pytest-admin")   # 관리자 복원
+    assert store.last_seq(conn) == seq0
+    assert store.export_dirty(conn, cache) == {"2026-09": 3}
+    assert titles_in(store.csv_path("2026-09", cache)) == ["Real research", "News item", "Comment on X"]
+
+
+def test_hidden_row_stays_out_of_the_change_feed_and_admin_review_still_sees_it(conn):
+    store.save_papers([paper("Feed row")], conn)
+    cursor = store.last_seq(conn)
+    set_kind(conn, "Feed row", "non_research")
+    assert store.fetch_changes(conn, cursor)["rows"] == []  # 피드로 되돌아가지 않는다
+    feed_row = store.fetch_changes(conn, 0)["rows"][0]
+    assert feed_row["title"] == "Feed row" and not any("kind" in k for k in feed_row)
+    review = store.list_review_papers(conn, "all")
+    assert [r["title"] for r in review["rows"]] == ["Feed row"]  # 관리자 목록에는 숨긴 행도 나온다
+    assert review["rows"][0]["ai_article_kind"] == "non_research"
+
+
 # ---------- /api/link ----------
 
 def test_link_redirects_to_stored_url(api, conn):

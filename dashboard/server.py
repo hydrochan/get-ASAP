@@ -417,6 +417,8 @@ MAX_FEEDBACK_BODY_LEN = 16384  # 본문 크기 상한(바이트) — 이걸 넘�
 # 판정 200건(항목당 최대 ~75B, 약 15 KB)이 16 KB 경계에 붙으므로 여유를 둔 64 KiB (Nginx 전체 상한 256k 이내).
 REVIEW_PAPERS_PATH = "/api/admin/review/papers"
 REVIEW_STATUS_PATH = "/api/admin/review/status"
+REVIEW_KIND_PATH = "/api/admin/review/kind"  # AI 가 숨긴 행 복원 / 관리자 직접 숨김 (글 종류 사람 지정)
+REVIEW_PATHS = (REVIEW_PAPERS_PATH, REVIEW_STATUS_PATH, REVIEW_KIND_PATH)
 MAX_REVIEW_BODY_LEN = 65536
 MAX_REVIEW_ITEMS = 200
 REVIEW_PAGE_DEFAULT = 100
@@ -746,7 +748,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         return bool(host) and parsed.scheme in ("http", "https") and parsed.netloc.lower() == host
 
     def _handle_review(self, path: str, body: bytes):
-        """`POST /api/admin/review/{papers,status}` - 검토 UI(설계 docs/review-ui-design.md §1). 관리자 전용.
+        """`POST /api/admin/review/{papers,status,kind}` - 검토 UI(설계 docs/review-ui-design.md §1·§5). 관리자 전용.
 
         순서: 세션 401 -> 관리자 403 -> Origin/Referer 403 -> 본문 400 -> DB 503. 모든 응답에 `Cache-Control: private, no-store`
         (Cloudflare가 /api/* 를 캐시하지 못하게). 본문 크기 상한은 do_POST가 읽기 전에 이미 검사했다.
@@ -786,28 +788,33 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
                 status = data.get("status")
                 q = data.get("q")
                 month = data.get("month")
+                kind = data.get("kind")
                 try:
                     limit = sync_api._int_field(data, "limit", REVIEW_PAGE_DEFAULT, minimum=1, maximum=store.REVIEW_MAX_LIMIT)
                     offset = sync_api._int_field(data, "offset", 0, minimum=0)
                     if not (status is None or isinstance(status, str)) or not (q is None or isinstance(q, str)) \
-                            or not (month is None or isinstance(month, str)):
+                            or not (month is None or isinstance(month, str)) or not (kind is None or isinstance(kind, str)):
                         raise ValueError("type")
                     payload = store.list_review_papers(
-                        conn, status or store.REVIEW_DEFAULT_STATUS, month or None, q or None, limit, offset
+                        conn, status or store.REVIEW_DEFAULT_STATUS, month or None, q or None, limit, offset, kind or None
                     )
                 except ValueError:
                     reply({"error": "bad_request"}, 400)
                     return
-            else:  # REVIEW_STATUS_PATH
+            else:  # REVIEW_STATUS_PATH / REVIEW_KIND_PATH
                 items = data.get("items")
                 if not isinstance(items, list) or len(items) > MAX_REVIEW_ITEMS:
                     reply({"error": "bad_request"}, 400)
                     return
-                payload = store.set_human_status(conn, items, user)
+                if path == REVIEW_KIND_PATH:
+                    payload = store.set_human_article_kind(conn, items, user)
+                else:
+                    payload = store.set_human_status(conn, items, user)
                 counts = {}
                 for r in payload["results"]:
                     counts[r["result"]] = counts.get(r["result"], 0) + 1
-                logger.info("[review] %s 판정 %d건 적용: %s", user, len(items), counts)  # 제목 등 내용은 로그에 남기지 않는다
+                what = "글 종류 지정" if path == REVIEW_KIND_PATH else "판정"
+                logger.info("[review] %s %s %d건 적용: %s", user, what, len(items), counts)  # 제목 등 내용은 로그에 남기지 않는다
         except sqlite3.Error:
             logger.exception("review API DB 오류: %s", path)
             reply({"error": "db_unavailable"}, 503)
@@ -1159,13 +1166,13 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             self._send_json({"error": "payload too large"}, 413)
             return
         # 검토 API도 같은 방식: 과대 본문은 버퍼링하기 전에 차단 (이 응답에도 no-store)
-        if path in (REVIEW_PAPERS_PATH, REVIEW_STATUS_PATH) and content_len > MAX_REVIEW_BODY_LEN:
+        if path in REVIEW_PATHS and content_len > MAX_REVIEW_BODY_LEN:
             self._send_json({"error": "payload_too_large"}, 413, {"Cache-Control": "private, no-store"})
             return
         body = self.rfile.read(content_len) if content_len else b""
 
         # 검토 UI API (관리자 전용 - 세션·Origin 검사는 핸들러 안에서)
-        if path in (REVIEW_PAPERS_PATH, REVIEW_STATUS_PATH):
+        if path in REVIEW_PATHS:
             self._handle_review(path, body)
             return
 

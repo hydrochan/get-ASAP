@@ -51,6 +51,13 @@ CSV_COLUMNS = ["title", "journal", "date", "url", "status", "gpt_reason"]  # _sa
 SLIM_COLUMNS = ["id", "title", "journal", "date", "doi", "gpt_reason"]
 # 변경 피드(change_seq)를 올리는 추적 열. 이 열이 실제로 바뀔 때만 seq가 증가한다.
 TRACKED = ("title", "journal", "pub_date", "url", "status", "gpt_reason", "deleted_at", "dup_of")
+# AI 가 제목으로 표시한 글 종류(paper_autodown article_kind). 서버 내부용이라 TRACKED 에 넣지 않는다 -
+# change_seq 를 올리지 않고 변경 피드·공개 CSV 의 열로도 나가지 않는다. `non_research`·`comment` 는 공개 화면에서 숨긴다
+# (행은 지우지 않으므로 검토 탭에서 복원할 수 있다).
+ARTICLE_KINDS = ("research", "review", "comment", "non_research")
+HIDDEN_ARTICLE_KINDS = frozenset({"non_research", "comment"})
+HUMAN_ARTICLE_KINDS = ("research", "non_research")  # 관리자가 지정할 수 있는 값: 복원(research) / 숨김(non_research)
+ARTICLE_KIND_COLUMNS = ("ai_article_kind", "article_kind_source")  # source: 'ai' | 'human'(사람이 정하면 AI 가 덮어쓰지 않는다)
 
 _MONTH_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -165,7 +172,9 @@ _DDL = [
         change_seq INTEGER NOT NULL UNIQUE,
         deleted_at TEXT,
         dup_of INTEGER REFERENCES papers(id),
-        notion_last_edited TEXT
+        notion_last_edited TEXT,
+        ai_article_kind TEXT,
+        article_kind_source TEXT
     )
     """,
     # 중복 키: dup_of가 없는 행끼리만 title_key 유일. tombstone(deleted_at)도 포함하므로 정리한 논문은 재유입되지 않는다.
@@ -197,12 +206,32 @@ def _ensure_history_actor(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE status_history ADD COLUMN actor TEXT")
 
 
+def _missing_article_kind_columns(conn: sqlite3.Connection) -> list[str]:
+    have = {r[1] for r in conn.execute("PRAGMA table_info(papers)")}
+    return [c for c in ARTICLE_KIND_COLUMNS if c not in have]
+
+
+def _ensure_article_kind_columns(conn: sqlite3.Connection) -> None:
+    """papers.ai_article_kind / article_kind_source 열을 보장한다(가산·멱등, NULL 허용). write_tx 안에서 호출한다.
+    운영 DB 는 init_schema 가 다시 불리지 않으므로 이 열을 읽거나 쓰는 경로(apply_verdicts·검토 API)가 직접 부른다."""
+    for col in _missing_article_kind_columns(conn):
+        conn.execute(f"ALTER TABLE papers ADD COLUMN {col} TEXT")
+
+
+def _ensure_article_kind_columns_now(conn: sqlite3.Connection) -> None:
+    """읽기 경로용: 열이 없을 때만 짧은 쓰기 트랜잭션으로 추가한다(이미 있으면 쓰기 없음)."""
+    if _missing_article_kind_columns(conn):
+        with write_tx(conn):
+            _ensure_article_kind_columns(conn)
+
+
 def init_schema(conn: sqlite3.Connection) -> None:
     """스키마 생성(멱등). 더 새로운 schema_version의 DB면 거부한다."""
     with write_tx(conn):
         for stmt in _DDL:
             conn.execute(stmt)
         _ensure_history_actor(conn)
+        _ensure_article_kind_columns(conn)
         conn.execute("INSERT OR IGNORE INTO meta(key, value) VALUES('schema_version', ?)", (str(SCHEMA_VERSION),))
         conn.execute("INSERT OR IGNORE INTO meta(key, value) VALUES('last_seq', '0')")
         conn.execute("INSERT OR IGNORE INTO meta(key, value) VALUES('db_epoch', ?)", (_new_epoch(),))
@@ -552,10 +581,17 @@ def apply_verdicts(conn: sqlite3.Connection, items: list, seen_through: int) -> 
     conflict: status_source='human' AND status_seq > seen_through AND 요청 status != 현재 status
               -> 적용하지 않고 current를 돌려준다(2단계 수동 판정 보호).
     status가 실제로 바뀌면 status_source=paper_autodown, status_seq=새 seq. gpt_reason은 4000자로 자른다.
-    status와 gpt_reason이 모두 null인 항목은 할 일이 없으므로 unchanged다.
+    status와 gpt_reason이 모두 null이고 article_kind도 없는 항목은 할 일이 없으므로 unchanged다.
+
+    선택 키 `article_kind`(ARTICLE_KINDS 중 하나): 없거나 null이면 손대지 않고, 네 값이 아닌 값이면 항목 전체가 invalid.
+    판정 충돌 규칙과 무관하게 기록하고(conflict 항목에도), status·gpt_reason이 둘 다 null인 kind 전용 항목(백필)도 받는다.
+    사람이 정한 값(article_kind_source='human')은 덮어쓰지 않는다. change_seq·status_seq는 올리지 않는다(내부용 표시).
+    결과 어휘는 그대로다: kind 전용 항목은 저장된 값이 바뀌면 updated, 아니면 unchanged. status/reason과 함께 오면
+    둘 중 하나라도 바뀌었을 때 updated.
     """
     results = []
     with write_tx(conn):
+        _ensure_article_kind_columns(conn)
         now = _now()
         for item in items:
             results.append(_apply_one_verdict(conn, item, seen_through, now))
@@ -569,13 +605,20 @@ def _apply_one_verdict(conn: sqlite3.Connection, item, seen_through: int, now: s
         return {"ref": ref if isinstance(ref, str) else None, "result": "invalid"}
     status = item.get("status")
     reason = item.get("gpt_reason")
-    if (status is not None and status not in STATUSES) or (reason is not None and not isinstance(reason, str)):
+    kind = item.get("article_kind")
+    if (
+        (status is not None and status not in STATUSES)
+        or (reason is not None and not isinstance(reason, str))
+        or (kind is not None and kind not in ARTICLE_KINDS)
+    ):
         return {"ref": ref, "result": "invalid"}
     row = conn.execute("SELECT * FROM papers WHERE ref=?", (ref,)).fetchone()
     if row is None or row["deleted_at"] is not None:
         return {"ref": ref, "result": "gone"}
+    # 글 종류 표시는 판정 충돌 규칙과 독립이다(판정이 아니라 표시이므로 conflict 항목에도 기록한다).
+    kind_changed = _record_ai_article_kind(conn, row, kind) if kind is not None else False
     if status is None and reason is None:
-        return {"ref": ref, "result": "unchanged"}
+        return {"ref": ref, "result": "updated" if kind_changed else "unchanged"}
     if (
         status is not None
         and status != row["status"]
@@ -594,7 +637,31 @@ def _apply_one_verdict(conn: sqlite3.Connection, item, seen_through: int, now: s
     # human 은 건드리지 않는다. status_seq 는 status 가 바뀔 때만 _update_paper 가 올린다.
     extra = {"status_source": "paper_autodown"} if row["status_source"] == "notion_migrated" else None
     changed = _update_paper(conn, row, changes, now=now, status_source="paper_autodown", extra=extra)
-    return {"ref": ref, "result": "updated" if changed else "unchanged"}
+    return {"ref": ref, "result": "updated" if (changed or kind_changed) else "unchanged"}
+
+
+def _is_hidden_kind(kind) -> bool:
+    return kind in HIDDEN_ARTICLE_KINDS
+
+
+def _mark_csv_dirty(conn: sqlite3.Connection, month: str) -> None:
+    """공개 CSV 에 보이는 행 집합이 바뀌었는데 change_seq 는 그대로일 때, 그 월을 다음 export_dirty 에서 다시 쓰게 한다.
+    max(change_seq) > csv_seq 판정이 못 잡으므로 csv_seq 메모를 지운다(fix_future_dates 와 같은 방식). write_tx 안에서 호출."""
+    conn.execute("DELETE FROM meta WHERE key=?", (f"csv_seq:{month}",))
+
+
+def _record_ai_article_kind(conn: sqlite3.Connection, row: sqlite3.Row, kind: str) -> bool:
+    """AI 가 표시한 글 종류를 기록한다(write_tx 안). 사람이 정한 값이면 건드리지 않는다. 저장된 값이 바뀌면 True.
+    숨김 여부(HIDDEN_ARTICLE_KINDS)가 바뀌면 그 월 CSV 를 다시 쓰도록 표시한다. change_seq·updated_at 은 건드리지 않는다."""
+    if row["article_kind_source"] == "human":
+        return False
+    old = row["ai_article_kind"]
+    if old == kind and row["article_kind_source"] == "ai":
+        return False
+    conn.execute("UPDATE papers SET ai_article_kind=?, article_kind_source='ai' WHERE id=?", (kind, row["id"]))
+    if _is_hidden_kind(old) != _is_hidden_kind(kind):
+        _mark_csv_dirty(conn, row["bucket_month"])
+    return old != kind
 
 
 # ---------- 검토 UI(관리자): 목록 조회 / 사람 판정 (docs/review-ui-design.md §1) ----------
@@ -618,7 +685,13 @@ def _review_row(r: sqlite3.Row) -> dict:
         "gpt_reason": r["gpt_reason"],
         "created_at": r["created_at"],
         "bucket_month": r["bucket_month"],
+        "ai_article_kind": r["ai_article_kind"],
+        "article_kind_source": r["article_kind_source"],
     }
+
+
+REVIEW_KINDS = ("non_research", "comment", "review", "hidden")  # hidden = 공개 화면에서 숨겨지는 값(non_research 또는 comment)
+_HIDDEN_KINDS_SQL = _sql_in(sorted(HIDDEN_ARTICLE_KINDS))
 
 
 def list_review_papers(
@@ -628,18 +701,24 @@ def list_review_papers(
     q: str | None = None,
     limit: int = 100,
     offset: int = 0,
+    kind: str | None = None,
 ) -> dict:
-    """검토 목록. 한 읽기 스냅샷에서 {rows, total, counts, months}를 돌려준다.
+    """검토 목록. 한 읽기 스냅샷에서 {rows, total, counts, kind_counts, months}를 돌려준다.
 
     - 대상: tombstone(deleted_at)과 dup_of 행을 뺀 정본 행. created_at DESC(같으면 id DESC)로 정렬.
     - status: 라벨 하나 또는 "all". month: bucket_month(YYYY-MM). q: 제목·저널 부분일치(대소문자 무시).
+    - kind: None(조건 없음) 또는 REVIEW_KINDS 중 하나(AI 가 표시한 글 종류). "hidden"은 non_research 또는 comment.
+      이 목록은 공개 CSV 의 숨김 필터를 적용하지 않는다(숨겨진 행이 여기서 보이고 복원된다).
     - q 비교는 중복 키와 같은 정규화(NFKC·대시 통일·공백·casefold)를 양쪽에 적용한다(SQLite LIKE는 비ASCII 대소문자를 못 접는다).
-    - counts: 같은 month·q 조건에서 상태별 건수(여섯 라벨 모두, 0 포함). total: 선택한 status의 건수("all"이면 합계).
+    - counts: 같은 month·q·kind 조건에서 상태별 건수(여섯 라벨 모두, 0 포함). total: 선택한 status의 건수("all"이면 합계).
+    - kind_counts: 같은 month·q 조건(status·kind와 무관)에서 {non_research, comment, review, hidden} 건수 - 칩 표시용.
     - months: month 조건과 무관하게 정본 행이 있는 bucket_month 전체(내림차순) - 월 선택 목록용.
-    잘못된 값(status·month·limit·offset)은 ValueError.
+    잘못된 값(status·month·limit·offset·kind)은 ValueError.
     """
     if status != "all" and status not in STATUSES:
         raise ValueError(f"status: {status!r}")
+    if kind is not None and kind not in REVIEW_KINDS:
+        raise ValueError(f"kind: {kind!r}")
     if month:
         _check_month(month)
     if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= REVIEW_MAX_LIMIT:
@@ -658,7 +737,21 @@ def list_review_papers(
         conn.create_function("_fold", 1, normalize_title, deterministic=True)
         where += " AND (instr(title_key, ?) > 0 OR instr(_fold(journal), ?) > 0)"
         params += [needle, needle]
+    _ensure_article_kind_columns_now(conn)  # 열 추가 전에 만든 운영 DB 를 위한 지연 마이그레이션 (읽기 스냅샷 밖에서)
     with read_tx(conn):
+        kind_counts = {k: 0 for k in REVIEW_KINDS}
+        for k, n in conn.execute(
+            f"SELECT ai_article_kind, COUNT(*) FROM papers WHERE {where} "
+            f"AND ai_article_kind IN ({_sql_in(k for k in REVIEW_KINDS if k != 'hidden')}) GROUP BY ai_article_kind",
+            params,
+        ):
+            kind_counts[k] = n
+        kind_counts["hidden"] = sum(kind_counts[k] for k in HIDDEN_ARTICLE_KINDS)
+        if kind == "hidden":
+            where += f" AND ai_article_kind IN ({_HIDDEN_KINDS_SQL})"
+        elif kind:
+            where += " AND ai_article_kind = ?"
+            params.append(kind)
         counts = {s: 0 for s in STATUSES}
         for st, n in conn.execute(f"SELECT status, COUNT(*) FROM papers WHERE {where} GROUP BY status", params):
             counts[st] = n
@@ -676,7 +769,10 @@ def list_review_papers(
                 f"SELECT DISTINCT bucket_month FROM papers WHERE {base} ORDER BY bucket_month DESC"
             )
         ]
-    return {"rows": [_review_row(r) for r in got], "total": total, "counts": counts, "months": months}
+    return {
+        "rows": [_review_row(r) for r in got], "total": total, "counts": counts, "kind_counts": kind_counts,
+        "months": months,
+    }
 
 
 def set_human_status(conn: sqlite3.Connection, items: list, actor: str) -> dict:
@@ -694,6 +790,7 @@ def set_human_status(conn: sqlite3.Connection, items: list, actor: str) -> dict:
     results = []
     with write_tx(conn):
         _ensure_history_actor(conn)
+        _ensure_article_kind_columns(conn)  # current(검토 목록 행)에 글 종류 열이 들어간다
         now = _now()
         for item in items:
             results.append(_set_one_human_status(conn, item, actor, now))
@@ -713,6 +810,45 @@ def _set_one_human_status(conn: sqlite3.Connection, item, actor: str, now: str) 
     changed = _update_paper(
         conn, row, {"status": status}, now=now, status_source="human", actor=actor, claim_source=True
     )
+    current = _review_row(conn.execute("SELECT * FROM papers WHERE id=?", (row["id"],)).fetchone())
+    return {"ref": ref, "result": "updated" if changed else "unchanged", "current": current}
+
+
+def set_human_article_kind(conn: sqlite3.Connection, items: list, actor: str) -> dict:
+    """관리자의 글 종류 지정 배치(배치 1개 = 트랜잭션 1개). 항목 {ref, kind}, kind는 HUMAN_ARTICLE_KINDS 중 하나:
+    'research'(AI 가 숨긴 행 복원) / 'non_research'(관리자가 직접 숨김).
+
+    항목별 결과: updated / unchanged / gone(모르는 ref·tombstone) / invalid. updated·unchanged에는 current(검토 목록 행)가 붙는다.
+    - 적용하면 article_kind_source는 항상 'human'이 되어, 이후 paper_autodown의 AI 표시가 덮어쓰지 않는다.
+    - 값이나 출처가 바뀌면 updated, 이미 같은 값의 human 지정이면 unchanged(아무것도 쓰지 않는다).
+    - 판정(status)·change_seq는 건드리지 않는다(내부 표시이므로 변경 피드로 나가지 않는다).
+      숨김 여부가 바뀌면 그 월 CSV를 다음 export_dirty에서 다시 쓰도록 표시한다.
+    """
+    if not isinstance(actor, str) or not actor.strip():
+        raise ValueError("actor")
+    results = []
+    with write_tx(conn):
+        _ensure_article_kind_columns(conn)
+        for item in items:
+            results.append(_set_one_human_article_kind(conn, item))
+    return {"results": results}
+
+
+def _set_one_human_article_kind(conn: sqlite3.Connection, item) -> dict:
+    ref = item.get("ref") if isinstance(item, dict) else None
+    if not isinstance(ref, str) or not ref:
+        return {"ref": None, "result": "invalid"}
+    kind = item.get("kind")
+    if kind not in HUMAN_ARTICLE_KINDS:
+        return {"ref": ref, "result": "invalid"}
+    row = conn.execute("SELECT * FROM papers WHERE ref=?", (ref,)).fetchone()
+    if row is None or row["deleted_at"] is not None:
+        return {"ref": ref, "result": "gone"}
+    changed = row["ai_article_kind"] != kind or row["article_kind_source"] != "human"
+    if changed:
+        conn.execute("UPDATE papers SET ai_article_kind=?, article_kind_source='human' WHERE id=?", (kind, row["id"]))
+        if _is_hidden_kind(row["ai_article_kind"]) != _is_hidden_kind(kind):
+            _mark_csv_dirty(conn, row["bucket_month"])
     current = _review_row(conn.execute("SELECT * FROM papers WHERE id=?", (row["id"],)).fetchone())
     return {"ref": ref, "result": "updated" if changed else "unchanged", "current": current}
 
@@ -746,31 +882,37 @@ def doi_from_url(url: str | None) -> str:
     return m.group(0).rstrip(".)") if m else ""
 
 
-def _csv_rows(conn: sqlite3.Connection, month: str) -> tuple[list[list[str]], list[list[str]], int, int]:
-    """(전체 CSV 행, 슬림 CSV 행, 읽은 시점 max change_seq, 제외 저널로 드롭한 건수). 한 읽기 스냅샷.
+def _csv_rows(conn: sqlite3.Connection, month: str) -> tuple[list[list[str]], list[list[str]], int, int, int]:
+    """(전체 CSV 행, 슬림 CSV 행, 읽은 시점 max change_seq, 제외 저널로 드롭한 건수, AI 비논문·논평으로 숨긴 건수). 한 읽기 스냅샷.
 
     정렬은 발행일 오름차순(없는 날짜는 끝), 같으면 id. tombstone은 제외, 이관 중복 행은 포함한다
     (기존 CSV에도 들어 있던 행들이므로). 슬림 행은 전체 행과 같은 행·순서에 (id, doi)를 붙이고 url·status 를 뺀 것.
+    ai_article_kind 가 HIDDEN_ARTICLE_KINDS(non_research·comment)인 행은 공개 CSV(전체·슬림 모두)에서 뺀다 - DB 에는 남는다.
+    글 종류 열이 아직 없는 DB(읽기 전용 연결로 지연 생성되는 슬림 포함)는 숨길 행이 없는 것으로 본다.
     """
     with read_tx(conn):
         seq = conn.execute(
             "SELECT COALESCE(MAX(change_seq), 0) FROM papers WHERE bucket_month=?", (month,)
         ).fetchone()[0]
+        kind_col = "ai_article_kind" if not _missing_article_kind_columns(conn) else "NULL AS ai_article_kind"
         got = conn.execute(
-            "SELECT id, title, journal, pub_date, url, status, gpt_reason FROM papers "
+            f"SELECT id, title, journal, pub_date, url, status, gpt_reason, {kind_col} FROM papers "
             "WHERE bucket_month=? AND deleted_at IS NULL ORDER BY pub_date IS NULL, pub_date, id",
             (month,),
         ).fetchall()
-    rows, slim_rows, dropped = [], [], 0
+    rows, slim_rows, dropped, hidden = [], [], 0, 0
     for r in got:
         if is_excluded_journal(r["journal"]):
             dropped += 1
+            continue
+        if _is_hidden_kind(r["ai_article_kind"]):
+            hidden += 1
             continue
         rows.append([r["title"], r["journal"], r["pub_date"] or "", r["url"], r["status"], r["gpt_reason"]])
         slim_rows.append(
             [str(r["id"]), r["title"], r["journal"], r["pub_date"] or "", doi_from_url(r["url"]), r["gpt_reason"]]
         )
-    return rows, slim_rows, seq, dropped
+    return rows, slim_rows, seq, dropped, hidden
 
 
 def _write_rows_atomic(path: str, columns: list[str], rows: list[list[str]], lineterminator: str) -> None:
@@ -886,9 +1028,11 @@ def export_csv(
         conn = connect()
     try:
         with _export_lock(cache_dir):
-            rows, slim_rows, seq, dropped = _csv_rows(conn, month)
+            rows, slim_rows, seq, dropped, hidden = _csv_rows(conn, month)
             if dropped:
                 logger.info("제외 저널 %d건 CSV 캐시에서 드롭 (%s)", dropped, month)
+            if hidden:
+                logger.info("AI 비논문·논평 %d건 CSV 캐시에서 숨김 (%s)", hidden, month)
             path = csv_path(month, cache_dir)
             _write_csv_atomic(path, rows)
             _write_slim_csv_atomic(slim_csv_path(month, cache_dir), slim_rows)

@@ -82,3 +82,16 @@ Notion 화면에서 하던 수동 검토를 get-ASAP 대시보드 관리자 화�
 - 공개 사용자용 편집
 - Notion 재연동
 - 대시보드 키워드·차트 변경
+
+## 5. AI 비논문·논평 숨김 (2026-11)
+
+paper_autodown이 제목으로 표시한 글 종류(`article_kind`)를 `papers.ai_article_kind`에 저장한다(`research|review|comment|non_research`, 출처 `article_kind_source`='ai'|'human'). **`non_research`(뉴스·정정·편집자 주 등)와 `comment`(Comment on / Reply to)는 공개 대시보드에서 숨긴다.** 리뷰는 보인다.
+
+- **숨김만 하고 지우지 않는다.** `deleted_at`·tombstone·변경 피드가 없으므로 paper_autodown·Zotero는 영향받지 않고, 언제든 복원할 수 있다. `ai_article_kind`는 `TRACKED`가 아니라 `change_seq`를 올리지 않고 피드에도 나가지 않는다.
+- **공개 CSV 필터:** `store._csv_rows`가 전체·슬림 CSV 모두에서 `HIDDEN_ARTICLE_KINDS` 행을 뺀다(월별 건수를 로그에 남긴다). 관리자 검토 API와 동기화 피드는 이 필터를 쓰지 않는다. `/api/csv/<월>`, `?fmt=slim`, `/api/versions`는 이 CSV에서 파생되므로 따로 고칠 곳이 없다.
+- **CSV 재생성:** 숨김 여부가 바뀌면 `change_seq`가 안 오르므로 그 월의 `meta csv_seq:<월>`을 지워 다음 `refresh_csv.py`(15분)의 `export_dirty`가 다시 쓰게 한다. 슬림 내용이 바뀌면 버전 해시도 바뀐다.
+- **사람 지정이 우선:** `article_kind_source='human'`이면 이후 AI 표시가 덮어쓰지 않는다.
+- **`POST /api/admin/review/papers`:** 요청에 `kind?: "non_research"|"comment"|"review"|"hidden"`(hidden = non_research 또는 comment). 응답 행에 `ai_article_kind`·`article_kind_source`, 응답에 `kind_counts:{non_research,comment,review,hidden}`(month·q 조건, status·kind와 무관) 추가. `counts`·`total`은 kind 필터를 따른다.
+- **`POST /api/admin/review/kind`:** 요청 `{items:[{ref, kind}]}`(200개 이하, `kind`는 `research`=복원 또는 `non_research`=숨김). 응답은 `status`와 같은 `{results:[{ref,result:"updated|unchanged|gone|invalid",current:row}]}`. 인증·Origin 검사는 위 공통 규칙 그대로다.
+- **UI:** 행 배지(비논문·논평·리뷰), 상단 "AI 숨김 n" 칩, 숨김 행의 [논문 맞음(복원)] 버튼과 보이는 행의 [숨김] 버튼.
+- **구 DB:** 두 열은 가산·멱등 `ALTER`로 만들며, `init_schema` 외에 `apply_verdicts`·검토 API가 처음 쓸 때 지연 추가한다. 열이 아직 없으면 공개 export는 아무것도 숨기지 않는다.

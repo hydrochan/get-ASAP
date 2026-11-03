@@ -1232,8 +1232,8 @@
     let currentView = 'home';             // 'home' | 'analytics' | 'browse' | 'advanced-search' | 'stats' | 'review'
     // Review 뷰(관리자) 상태 - 로직은 아래 "Review 뷰" 섹션. applyUserVisibility가 먼저 불려도 안전하도록 여기서 선언한다.
     const review = {
-      status: '불확실', month: '', q: '',            // 필터
-      rows: [], total: 0, counts: {}, months: [],      // 서버 응답 (rows는 "더 보기"로 누적)
+      status: '불확실', month: '', q: '', kind: '',   // 필터 (kind: '' | 'hidden' = AI 가 비논문·논평으로 표시해 공개 화면에서 숨긴 행)
+      rows: [], total: 0, counts: {}, kindCounts: {}, months: [],   // 서버 응답 (rows는 "더 보기"로 누적)
       selected: new Set(), busy: new Set(), expanded: new Set(),
       loaded: false, loading: false, error: '',
       seq: 0,   // 목록 요청 번호 - 늦게 도착한 오래된 응답을 버린다
@@ -3564,9 +3564,11 @@
 
     // ---------- Review 뷰 (관리자 전용) ----------
     // 정본 DB의 논문 판정을 사람이 검토·수정한다 (설계: docs/review-ui-design.md).
-    //   POST /api/admin/review/papers  {status, month, q, limit, offset} -> {rows, total, counts, months}
+    //   POST /api/admin/review/papers  {status, month, q, kind, limit, offset} -> {rows, total, counts, kind_counts, months}
     //   POST /api/admin/review/status  {items:[{ref, status}]}           -> {results:[{ref, result, current}]}
+    //   POST /api/admin/review/kind    {items:[{ref, kind}]}             -> {results:[{ref, result, current}]}  (kind: research=복원 / non_research=숨김)
     // 사람이 정한 판정(status_source='human')은 서버의 충돌 규칙이 자동 분류의 덮어쓰기로부터 보호한다.
+    // AI 가 non_research/comment 로 표시한 행은 공개 화면(CSV)에서 빠지고, 여기서 "논문 맞음(복원)"으로 되살린다(사람 지정은 AI 가 덮어쓰지 않음).
     // 서버에서 온 모든 문자열은 esc()(= 공용 _escapeHtml)를 거쳐 렌더링하고, 외부 링크는 http(s)만
     // target=_blank rel="noopener noreferrer"로 연다. 상태는 위쪽 `review` 객체.
     const esc = _escapeHtml;
@@ -3602,8 +3604,12 @@
       const s = String(u == null ? '' : u).trim();
       return /^https?:\/\//i.test(s) ? s : '';
     }
+    const REVIEW_KIND_BADGE = { non_research: '비논문', comment: '논평', review: '리뷰' };   // research/미판정은 배지 없음
+    function reviewIsHidden(r) { return r.ai_article_kind === 'non_research' || r.ai_article_kind === 'comment'; }
     function reviewFind(ref) { return review.rows.find(r => r.ref === ref) || null; }
-    function reviewMatches(r) { return review.status === 'all' || r.status === review.status; }
+    function reviewMatches(r) {
+      return (review.status === 'all' || r.status === review.status) && (review.kind !== 'hidden' || reviewIsHidden(r));
+    }
     function reviewMatchedCount() { return review.rows.reduce((n, r) => n + (reviewMatches(r) ? 1 : 0), 0); }
     // 상태별 건수 (chip 표시). 'all'은 합계. 아직 못 받았으면 null
     function reviewCount(s) {
@@ -3633,6 +3639,19 @@
       const left = !reviewMatches(r);   // 방금 판정을 바꿔 현재 필터에서 벗어난 행 - 흐리게 남겨 둔다
       const badge = `<span class="font-bold px-1.5 py-0.5 rounded ${esc(REVIEW_BADGE[r.status] || 'bg-slate-100 text-slate-600')}">${esc(r.status)}</span>`
         + (human ? ' <span class="font-bold px-1.5 py-0.5 rounded bg-navy-800 text-white" title="사람이 정한 판정 (자동 분류가 덮어쓰지 않음)">수동</span>' : '');
+      // 글 종류 배지 (research/미판정은 없음). 비논문·논평은 공개 화면에서 숨겨진 상태라 눈에 띄게, 리뷰는 중립색으로.
+      const kindLabel = REVIEW_KIND_BADGE[r.ai_article_kind];
+      const hidden = reviewIsHidden(r);
+      const kindBadge = kindLabel
+        ? ` <span class="font-bold px-1.5 py-0.5 rounded ${hidden ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'}"`
+          + ` title="${esc((r.article_kind_source === 'human' ? '관리자가 지정' : 'AI가 제목으로 표시') + (hidden ? ' - 공개 화면에서 숨김' : ''))}">${esc(kindLabel)}</span>`
+        : '';
+      // 숨김 행은 [논문 맞음(복원)], 보이는 행은 작은 [숨김]. 둘 다 사람이 정한 값으로 기록되어 AI 가 덮어쓰지 않는다.
+      const kindBtn = hidden
+        ? `<button type="button" data-act="kind" data-ref="${esc(r.ref)}" data-kind="research" title="논문으로 복원 (공개 화면에는 최대 15분 뒤 반영)"${busy ? ' disabled' : ''}`
+          + ` class="px-2.5 py-1 text-[11px] font-bold border border-rose-300 rounded-md bg-white text-rose-700 hover:bg-rose-50${busy ? ' opacity-50 cursor-wait' : ''}">논문 맞음(복원)</button>`
+        : `<button type="button" data-act="kind" data-ref="${esc(r.ref)}" data-kind="non_research" title="비논문으로 숨김 (공개 화면에서 제외, 최대 15분 뒤 반영)"${busy ? ' disabled' : ''}`
+          + ` class="px-2 py-1 text-[11px] font-semibold border border-slate-200 rounded-md bg-white text-slate-400 hover:text-rose-700 hover:bg-rose-50${busy ? ' opacity-50 cursor-wait' : ''}">숨김</button>`;
       const buttons = REVIEW_LABELS.map(l => {
         const on = r.status === l;
         const locked = on && human;
@@ -3651,13 +3670,13 @@
           <div class="flex-1 min-w-0">
             <div>${titleHtml}</div>
             <div class="flex items-center gap-1.5 flex-wrap mt-1 text-[11px] text-slate-500">
-              ${badge}
+              ${badge}${kindBadge}
               <span title="${esc(r.journal || '')}">${esc(journalAbbr(r.journal))}</span><span>·</span><span>${esc(r.date || '날짜 없음')}</span>
             </div>
             ${reasonHtml}
           </div>
         </div>
-        <div class="flex flex-wrap gap-1 shrink-0 pl-7 sm:pl-0">${buttons}</div>
+        <div class="flex flex-wrap gap-1 shrink-0 pl-7 sm:pl-0">${buttons}${kindBtn}</div>
       </div>`;
     }
 
@@ -3687,7 +3706,12 @@
         chips.innerHTML = REVIEW_CHIPS.map(s => {
           const n = reviewCount(s);
           return `<button type="button" data-status="${esc(s)}" aria-pressed="${review.status === s}" class="journal-chip${review.status === s ? ' active' : ''}">${esc(s === 'all' ? '전체' : s)}${n == null ? '' : ' ' + esc(n.toLocaleString())}</button>`;
-        }).join('');
+        }).join('') + (() => {
+          // AI 숨김 칩: 켜면 상태 '전체' + 숨김 행만, 끄면 기본 상태(불확실)로. 상태 칩과 겹쳐 좁힐 수도 있다.
+          const n = Number((review.kindCounts || {}).hidden);
+          const on = review.kind === 'hidden';
+          return `<button type="button" data-kind-filter="hidden" aria-pressed="${on}" title="AI가 비논문·논평으로 표시해 공개 화면에서 숨긴 논문" class="journal-chip${on ? ' active' : ''}">AI 숨김${Number.isFinite(n) ? ' ' + esc(n.toLocaleString()) : ''}</button>`;
+        })();
       }
       const selected = review.selected.size;
       const countEl = document.getElementById('review-selected-count');
@@ -3732,10 +3756,10 @@
 
     function resetReview() {
       review.seq++; review.gen++;
-      review.rows = []; review.total = 0; review.counts = {}; review.months = [];
+      review.rows = []; review.total = 0; review.counts = {}; review.kindCounts = {}; review.months = [];
       review.loaded = false; review.loading = false; review.error = '';
       review.selected.clear(); review.busy.clear(); review.expanded.clear();
-      review.status = '불확실'; review.month = ''; review.q = '';
+      review.status = '불확실'; review.month = ''; review.q = ''; review.kind = '';
       const list = document.getElementById('review-list');
       if (list) list.innerHTML = '';
       const q = document.getElementById('review-q');
@@ -3765,7 +3789,8 @@
       const offset = append ? reviewMatchedCount() : 0;
       try {
         const { res, data } = await reviewPost('/api/admin/review/papers', {
-          status: review.status, month: review.month || null, q: review.q || null, limit: REVIEW_PAGE, offset,
+          status: review.status, month: review.month || null, q: review.q || null, kind: review.kind || null,
+          limit: REVIEW_PAGE, offset,
         });
         if (my !== review.seq) return;   // 그 사이 더 새로운 요청/초기화가 있었다
         if (!res.ok || !data || !Array.isArray(data.rows)) {
@@ -3776,6 +3801,7 @@
         const have = new Set(review.rows.map(r => r.ref));
         for (const r of data.rows) if (!have.has(r.ref)) review.rows.push(r);
         review.counts = data.counts || {};
+        review.kindCounts = data.kind_counts || {};
         if (Array.isArray(data.months)) review.months = data.months;
         review.total = Number(data.total) || 0;
         review.loaded = true;
@@ -3876,9 +3902,57 @@
       return outcome < 0 ? -1 : applied;
     }
 
+    // 한 행의 글 종류를 사람이 지정한다: 'research' = AI 가 숨긴 행 복원, 'non_research' = 숨김.
+    // 서버 응답으로 확정한다(낙관적 반영 없음). 공개 CSV 에는 15분 주기 export 가 반영한다.
+    async function applyReviewKind(ref, kind) {
+      const r = reviewFind(ref);
+      if (!r || review.busy.has(ref)) return;
+      const gen = review.gen;
+      const wasHidden = reviewIsHidden(r);
+      review.busy.add(ref);
+      renderReviewRow(ref);
+      try {
+        const { res, data } = await reviewPost('/api/admin/review/kind', { items: [{ ref, kind }] });
+        const x = res.ok && data && Array.isArray(data.results) ? data.results.find(y => y.ref === ref) : null;
+        if (!x) {
+          if (!handleAdminAuthError(res)) showToast(`저장하지 못했습니다 (${reviewErr(res, data)})`, 'error');
+        } else if (gen !== review.gen) {
+          // 응답을 기다리는 사이 목록이 바뀌었다 - 새 목록의 건수는 건드리지 않는다
+        } else if ((x.result === 'updated' || x.result === 'unchanged') && x.current) {
+          Object.assign(r, x.current);
+          const nowHidden = reviewIsHidden(r);
+          if (wasHidden !== nowHidden) {
+            const kc = review.kindCounts || (review.kindCounts = {});
+            kc.hidden = Math.max(0, (Number(kc.hidden) || 0) + (nowHidden ? 1 : -1));
+            if (review.kind === 'hidden') reviewBump(r.status, nowHidden ? 1 : -1);   // 이 필터의 상태별 건수는 숨김 행 기준
+            review.total = reviewCount(review.status) || 0;
+          }
+          showToast(nowHidden ? '숨겼습니다 (공개 화면에는 최대 15분 뒤 반영)' : '논문으로 복원했습니다 (공개 화면에는 최대 15분 뒤 반영)', 'success');
+        } else if (x.result === 'gone') {
+          review.rows = review.rows.filter(y => y.ref !== ref);
+          review.selected.delete(ref);
+          showToast('이미 삭제된 논문이라 목록에서 제거했습니다.', 'info');
+        } else {
+          showToast('반영되지 않았습니다.', 'error');
+        }
+      } catch (e) {
+        showToast('네트워크 오류로 저장하지 못했습니다.', 'error');
+      } finally {
+        review.busy.delete(ref);
+        if (gen === review.gen) renderReviewList();
+      }
+    }
+
     (function wireReview() {
       const byId = (id) => document.getElementById(id);
       byId('review-chips')?.addEventListener('click', (e) => {
+        if (e.target.closest('[data-kind-filter]')) {
+          // AI 숨김 칩 토글: 켜면 상태 '전체'로 넓혀 숨김 행을 모두 보고, 끄면 기본 상태(불확실)로 돌아간다
+          review.kind = review.kind === 'hidden' ? '' : 'hidden';
+          review.status = review.kind ? 'all' : '불확실';
+          loadReview(false);
+          return;
+        }
         const b = e.target.closest('[data-status]');
         if (!b || b.getAttribute('data-status') === review.status) return;
         review.status = b.getAttribute('data-status');
@@ -3912,6 +3986,8 @@
         const ref = t.getAttribute('data-ref');
         if (act === 'set' && !t.disabled) {
           applyReviewStatus([ref], t.getAttribute('data-status'));
+        } else if (act === 'kind' && !t.disabled) {
+          applyReviewKind(ref, t.getAttribute('data-kind'));
         } else if (act === 'reason') {
           const open = t.classList.toggle('expanded');
           if (open) review.expanded.add(ref); else review.expanded.delete(ref);

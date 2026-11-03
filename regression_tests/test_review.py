@@ -71,6 +71,7 @@ def test_list_defaults_to_uncertain_and_row_shape(conn):
         "ref": ref, "title": "Uncertain one", "journal": "Synthetic Journal", "date": "2026-09-07",
         "url": "https://example.invalid/p", "status": "불확실", "status_source": "get_asap", "gpt_reason": "why",
         "created_at": "2026-09-10T00:00:00Z", "bucket_month": "2026-09",
+        "ai_article_kind": None, "article_kind_source": None,
     }
 
 
@@ -171,6 +172,163 @@ def test_list_orders_by_created_at_desc_then_id_desc_and_pages_without_gaps_or_o
 def test_list_rejects_bad_arguments(conn, kw):
     with pytest.raises(ValueError):
         store.list_review_papers(conn, **kw)
+
+
+# ======================= 글 종류(AI 비논문·논평 표시) 필터 / 건수 =======================
+
+def set_kind(conn, title, kind, source="ai"):
+    conn.execute("UPDATE papers SET ai_article_kind=?, article_kind_source=? WHERE title=?", (kind, source, title))
+
+
+def seed_kinds(conn):
+    add(conn, "K research", status="관련")
+    add(conn, "K non A", status="불확실")
+    add(conn, "K non B", status="무관", date="2026-08-05")
+    add(conn, "K comment", status="관련")
+    add(conn, "K review", status="불확실")
+    add(conn, "K unmarked", status="불확실")
+    set_kind(conn, "K research", "research")
+    set_kind(conn, "K non A", "non_research")
+    set_kind(conn, "K non B", "non_research")
+    set_kind(conn, "K comment", "comment")
+    set_kind(conn, "K review", "review")
+
+
+def test_review_list_shows_hidden_rows_and_filters_by_kind(conn):
+    seed_kinds(conn)
+    allrows = store.list_review_papers(conn, "all")
+    assert allrows["total"] == 6  # 관리자 목록은 숨김 필터를 적용하지 않는다
+    by_title = {r["title"]: r for r in allrows["rows"]}
+    assert (by_title["K non A"]["ai_article_kind"], by_title["K non A"]["article_kind_source"]) == ("non_research", "ai")
+    assert by_title["K unmarked"]["ai_article_kind"] is None
+
+    def kinds(kind, status="all", **kw):
+        return sorted(titles(store.list_review_papers(conn, status, kind=kind, **kw)))
+
+    assert kinds("non_research") == ["K non A", "K non B"]
+    assert kinds("comment") == ["K comment"]
+    assert kinds("review") == ["K review"]
+    assert kinds("hidden") == ["K comment", "K non A", "K non B"]
+    assert kinds("hidden", "불확실") == ["K non A"]                      # status 와 겹쳐 좁힌다
+    assert kinds("hidden", "all", month="2026-08") == ["K non B"]        # month 와도
+    assert kinds("hidden", "all", q="non a") == ["K non A"]              # q 와도
+    assert kinds(None) == sorted(titles(allrows))
+
+
+def test_review_counts_follow_kind_filter_but_kind_counts_do_not(conn):
+    seed_kinds(conn)
+    base = store.list_review_papers(conn, "all")
+    assert base["kind_counts"] == {"non_research": 2, "comment": 1, "review": 1, "hidden": 3}
+    hidden = store.list_review_papers(conn, "불확실", kind="hidden")
+    assert hidden["counts"] == {"대기중": 0, "관련": 1, "불확실": 1, "다운완료": 0, "무관": 1, "실패": 0}  # 숨김 행 기준
+    assert hidden["total"] == 1
+    assert hidden["kind_counts"] == base["kind_counts"]                 # 칩 건수는 kind·status 필터와 무관
+    # month·q 조건에는 따라간다
+    aug = store.list_review_papers(conn, "all", month="2026-08")
+    assert aug["kind_counts"] == {"non_research": 1, "comment": 0, "review": 0, "hidden": 1}
+    assert store.list_review_papers(conn, "all", q="K review")["kind_counts"]["review"] == 1
+    # tombstone·dup 행은 세지 않는다
+    conn.execute("UPDATE papers SET deleted_at='2026-09-15T00:00:00Z' WHERE title='K non A'")
+    assert store.list_review_papers(conn, "all")["kind_counts"]["hidden"] == 2
+
+
+@pytest.mark.parametrize("kind", ["bogus", "", "research", "flagged", 5, ["hidden"]])
+def test_review_list_rejects_bad_kind(conn, kind):
+    with pytest.raises(ValueError):
+        store.list_review_papers(conn, kind=kind)
+
+
+# ======================= store.set_human_article_kind (복원 / 직접 숨김) =======================
+
+def test_restore_hidden_row_marks_human_dirties_csv_and_leaves_feed_and_seq_alone(conn, tmp_path):
+    ref = add(conn, "Wrongly hidden", status="관련", source="paper_autodown")
+    store.apply_verdicts(conn, [{"ref": ref, "article_kind": "non_research"}], 0)
+    store.export_all(conn, str(tmp_path / "cache"))
+    assert "csv_seq:2026-09" in dict(conn.execute("SELECT key, value FROM meta").fetchall())
+    before = dict(row(conn, "Wrongly hidden"))
+    seq0, cursor = store.last_seq(conn), store.last_seq(conn)
+
+    out = store.set_human_article_kind(conn, [{"ref": ref, "kind": "research"}], ADMIN)["results"][0]
+    assert out["result"] == "updated" and out["ref"] == ref
+    assert (out["current"]["ai_article_kind"], out["current"]["article_kind_source"]) == ("research", "human")
+    assert set(out["current"]) == set(store.list_review_papers(conn, "all")["rows"][0])  # 목록 행과 같은 모양
+    after = dict(row(conn, "Wrongly hidden"))
+    assert {k: v for k, v in after.items() if k not in ("ai_article_kind", "article_kind_source")} == \
+        {k: v for k, v in before.items() if k not in ("ai_article_kind", "article_kind_source")}  # status·change_seq·updated_at 불변
+    assert store.last_seq(conn) == seq0 and store.fetch_changes(conn, cursor)["rows"] == []
+    assert conn.execute("SELECT COUNT(*) FROM status_history").fetchone()[0] == 0
+    assert "csv_seq:2026-09" not in dict(conn.execute("SELECT key, value FROM meta").fetchall())  # 다음 export_dirty 가 다시 쓴다
+    assert store.export_dirty(conn, str(tmp_path / "cache")) == {"2026-09": 1}
+
+    # 같은 지정을 다시 하면 unchanged (아무것도 쓰지 않는다)
+    again = store.set_human_article_kind(conn, [{"ref": ref, "kind": "research"}], ADMIN)["results"][0]
+    assert again["result"] == "unchanged" and dict(row(conn, "Wrongly hidden")) == after
+    assert store.export_dirty(conn, str(tmp_path / "cache")) == {}
+
+
+def test_human_kind_wins_over_later_ai_marks_and_admin_can_hide(conn):
+    ref = add(conn, "Admin hides", status="관련")
+    res = store.set_human_article_kind(conn, [{"ref": ref, "kind": "non_research"}], ADMIN)["results"][0]
+    assert res["result"] == "updated" and res["current"]["article_kind_source"] == "human"
+    assert store.apply_verdicts(conn, [{"ref": ref, "article_kind": "research"}], 0)["results"][0]["result"] == "unchanged"
+    assert (row(conn, "Admin hides")["ai_article_kind"], row(conn, "Admin hides")["article_kind_source"]) == ("non_research", "human")
+    store.set_human_article_kind(conn, [{"ref": ref, "kind": "research"}], ADMIN)
+    assert store.apply_verdicts(conn, [{"ref": ref, "article_kind": "non_research"}], 0)["results"][0]["result"] == "unchanged"
+    assert row(conn, "Admin hides")["ai_article_kind"] == "research"
+
+
+def test_human_kind_already_ai_research_becomes_human_without_csv_dirty(conn, tmp_path):
+    ref = add(conn, "Visible", status="관련")
+    store.apply_verdicts(conn, [{"ref": ref, "article_kind": "research"}], 0)
+    store.export_all(conn, str(tmp_path / "cache"))
+    res = store.set_human_article_kind(conn, [{"ref": ref, "kind": "research"}], ADMIN)["results"][0]
+    assert res["result"] == "updated" and res["current"]["article_kind_source"] == "human"  # 출처만 바뀜
+    assert store.export_dirty(conn, str(tmp_path / "cache")) == {}  # 숨김 여부는 그대로라 CSV 를 다시 쓰지 않는다
+
+
+def test_human_kind_gone_invalid_and_bad_actor(conn):
+    good = add(conn, "Good kind row")
+    dead = add(conn, "Dead kind row", date="2026-08-01")
+    conn.execute("UPDATE papers SET deleted_at='2026-09-15T00:00:00Z' WHERE ref=?", (dead,))
+    items = [
+        {"ref": "no-such"}, {"ref": "no-such", "kind": "research"}, {"ref": dead, "kind": "research"},
+        {"ref": good, "kind": "comment"}, {"ref": good, "kind": "review"}, {"ref": good, "kind": None}, {"ref": good},
+        {"ref": good, "kind": ["research"]}, {"ref": "", "kind": "research"}, {"ref": 7, "kind": "research"}, "x", None,
+        {"ref": good, "kind": "non_research"},
+    ]
+    results = store.set_human_article_kind(conn, items, ADMIN)["results"]
+    assert [r["result"] for r in results] == [
+        "invalid", "gone", "gone", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
+        "invalid", "updated",
+    ]
+    assert row(conn, "Good kind row")["ai_article_kind"] == "non_research" and row(conn, "Dead kind row")["ai_article_kind"] is None
+    assert store.set_human_article_kind(conn, [], ADMIN) == {"results": []}
+    for bad in ("", "  ", None, 5):
+        with pytest.raises(ValueError):
+            store.set_human_article_kind(conn, [], bad)
+
+
+def test_legacy_db_without_kind_columns_is_upgraded_lazily(conn, tmp_path):
+    ref = add(conn, "Legacy kind", status="관련")
+    conn.execute("ALTER TABLE papers DROP COLUMN ai_article_kind")   # 이 기능 이전에 만든 운영 DB 를 흉내 낸다
+    conn.execute("ALTER TABLE papers DROP COLUMN article_kind_source")
+    # 공개 export(읽기 전용 슬림 지연 생성 포함)는 열이 없어도 동작하고 아무것도 숨기지 않는다
+    assert store.export_all(conn, str(tmp_path / "cache")) == {"2026-09": 1}
+    ro = store.connect(str(conn.execute("PRAGMA database_list").fetchone()[2]), readonly=True)
+    try:
+        assert len(store._csv_rows(ro, "2026-09")[1]) == 1
+    finally:
+        ro.close()
+    # 검토 목록은 열을 추가하고 정상 응답한다
+    out = store.list_review_papers(conn, "all")
+    assert out["rows"][0]["ai_article_kind"] is None and out["kind_counts"]["hidden"] == 0
+    assert "ai_article_kind" in [r[1] for r in conn.execute("PRAGMA table_info(papers)")]
+    # apply_verdicts·사람 지정도 마찬가지
+    conn.execute("ALTER TABLE papers DROP COLUMN ai_article_kind")
+    conn.execute("ALTER TABLE papers DROP COLUMN article_kind_source")
+    assert store.apply_verdicts(conn, [{"ref": ref, "article_kind": "comment"}], 0)["results"][0]["result"] == "updated"
+    assert row(conn, "Legacy kind")["ai_article_kind"] == "comment"
+    store.init_schema(conn)  # 멱등
 
 
 # ======================= store.set_human_status =======================
@@ -399,7 +557,8 @@ def web(db_file, monkeypatch):
 
 PAPERS = "/api/admin/review/papers"
 STATUS = "/api/admin/review/status"
-ENDPOINTS = [PAPERS, STATUS]
+KIND = "/api/admin/review/kind"
+ENDPOINTS = [PAPERS, STATUS, KIND]
 NO_STORE = "private, no-store"
 
 
@@ -480,7 +639,8 @@ def test_papers_happy_path_shape_default_status_and_no_store(web, conn):
     assert r.json["total"] == 2
     assert r.json["counts"] == {"대기중": 0, "관련": 1, "불확실": 2, "다운완료": 0, "무관": 0, "실패": 0}
     assert set(r.json["rows"][0]) == {"ref", "title", "journal", "date", "url", "status", "status_source", "gpt_reason",
-                                      "created_at", "bucket_month"}
+                                      "created_at", "bucket_month", "ai_article_kind", "article_kind_source"}
+    assert r.json["kind_counts"] == {"non_research": 0, "comment": 0, "review": 0, "hidden": 0}
     assert r.json["months"] == ["2026-09", "2026-08"]
     # 필터·페이징
     assert [x["title"] for x in web.call(PAPERS, {"status": "all", "limit": 2}).json["rows"]] == ["Gamma paper", "Alpha paper"]
@@ -491,6 +651,60 @@ def test_papers_happy_path_shape_default_status_and_no_store(web, conn):
     # 빈 값은 기본값으로 취급
     assert web.call(PAPERS, {"status": None, "month": None, "q": None, "limit": None, "offset": None}).json["total"] == 2
     assert web.call(PAPERS, raw=b"").status == 200  # 빈 본문 = {}
+
+
+def test_papers_kind_filter_counts_and_hidden_rows_over_http(web, conn):
+    seed_kinds(conn)
+    r = web.call(PAPERS, {"status": "all", "kind": "hidden"})
+    assert r.status == 200 and r.headers["cache-control"] == NO_STORE
+    assert sorted(x["title"] for x in r.json["rows"]) == ["K comment", "K non A", "K non B"]
+    assert r.json["kind_counts"] == {"non_research": 2, "comment": 1, "review": 1, "hidden": 3}
+    assert {x["title"]: x["ai_article_kind"] for x in r.json["rows"]}["K comment"] == "comment"
+    assert [x["title"] for x in web.call(PAPERS, {"status": "all", "kind": "review"}).json["rows"]] == ["K review"]
+    assert web.call(PAPERS, {"status": "all", "kind": None}).json["total"] == 6
+    assert web.call(PAPERS, {"status": "all", "kind": ""}).json["total"] == 6  # 빈 값 = 조건 없음
+
+
+@pytest.mark.parametrize("body", [{"kind": "bogus"}, {"kind": 5}, {"kind": ["hidden"]}, {"kind": "research"}])
+def test_papers_bad_kind_is_400(web, body):
+    r = web.call(PAPERS, body)
+    assert r.status == 400 and r.json == {"error": "bad_request"} and r.headers["cache-control"] == NO_STORE
+
+
+def test_kind_endpoint_restore_and_hide_happy_path_records_human_and_dirties_csv(web, conn, tmp_path):
+    ref = add(conn, "Restore me", status="관련", source="paper_autodown")
+    ref2 = add(conn, "Hide me", status="관련", source="paper_autodown")
+    store.apply_verdicts(conn, [{"ref": ref, "article_kind": "comment"}], 0)
+    cache = str(tmp_path / "cache")
+    store.export_all(conn, cache)
+    seq0 = store.last_seq(conn)
+    body = {"items": [{"ref": ref, "kind": "research"}, {"ref": ref2, "kind": "non_research"}, {"ref": "nope", "kind": "research"},
+                      {"ref": ref, "kind": "comment"}]}
+    r = web.call(KIND, body)
+    assert r.status == 200 and r.headers["cache-control"] == NO_STORE
+    assert [x["result"] for x in r.json["results"]] == ["updated", "updated", "gone", "invalid"]
+    assert r.json["results"][0]["current"]["ai_article_kind"] == "research"
+    assert r.json["results"][0]["current"]["article_kind_source"] == "human"
+    assert r.json["results"][1]["current"]["ai_article_kind"] == "non_research"
+    assert store.last_seq(conn) == seq0  # 피드를 타지 않는다
+    assert store.export_dirty(conn, cache) == {"2026-09": 1}  # 복원 1건 + 숨김 1건 -> 보이는 행은 Restore me 하나
+    again = web.call(KIND, {"items": body["items"][:2]})
+    assert [x["result"] for x in again.json["results"]] == ["unchanged", "unchanged"]
+
+
+@pytest.mark.parametrize("body", [{}, {"items": "x"}, {"items": {"ref": "a"}}, {"items": None}, {"items": [{}] * 201}])
+def test_kind_bad_items_is_400(web, body):
+    r = web.call(KIND, body)
+    assert r.status == 400 and r.json == {"error": "bad_request"}
+
+
+def test_rejected_origin_never_writes_kind(web, conn):
+    ref = add(conn, "Kind untouched", status="관련")
+    r = web.call(KIND, {"items": [{"ref": ref, "kind": "non_research"}]}, origin_header="https://evil.example")
+    assert r.status == 403
+    r = web.call(KIND, {"items": [{"ref": ref, "kind": "non_research"}]}, cookie=web.user)
+    assert r.status == 403
+    assert row(conn, "Kind untouched")["ai_article_kind"] is None
 
 
 @pytest.mark.parametrize("body", [
