@@ -143,6 +143,17 @@ _csv_strip_cache: dict[str, tuple[float, bytes]] = {}
 _csv_strip_cache_lock = threading.Lock()
 
 
+def _etag_matches(if_none_match: str | None, etag: str) -> bool:
+    """If-None-Match 가 이 ETag 와 맞는가. `*`, 쉼표로 나열된 여러 값, 약한 표기(W/"…")를 받는다(If-None-Match 는 약한 비교).
+    Cloudflare 등이 압축하면서 강한 ETag 를 W/ 로 바꿔 돌려보내도 재검증이 304 로 끝나게 한다."""
+    if not if_none_match:
+        return False
+    value = if_none_match.strip()
+    if value == "*":
+        return True
+    return any(tok.strip().removeprefix("W/") == etag for tok in value.split(","))
+
+
 def _init_access_db():
     """접속 로그 DB 초기화 (테이블 없으면 생성)"""
     with _db_lock:
@@ -1138,15 +1149,32 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             ".ttf": "font/ttf",
         }.get(ext, "application/octet-stream")
 
+        with open(file_path, "rb") as f:
+            body = f.read()
+
+        # 대시보드 진입 페이지(index.html)만: 내용 해시 ETag + no-cache(매번 재검증). 안 바뀌었으면 If-None-Match 에 304 로 답해
+        # 재방문이 264KB HTML 을 다시 받지 않는다. 방문 기록은 위(_maybe_record_visit)에서 이미 남겼으므로 304 도 방문으로 센다.
+        etag = None
+        if path == "/index.html":
+            etag = '"' + hashlib.sha256(body).hexdigest()[:32] + '"'
+            if _etag_matches(self.headers.get("If-None-Match"), etag):
+                self.send_response(304)
+                self.send_header("ETag", etag)
+                self.send_header("Cache-Control", "no-cache")
+                self.end_headers()
+                return
+
         self.send_response(200)
         self.send_header("Content-Type", f"{mime}; charset=utf-8")
+        if etag:
+            self.send_header("ETag", etag)
+            self.send_header("Cache-Control", "no-cache")
         # ?v=<해시> 가 붙은 css/js 는 URL 자체가 버전(build_css.py 가 index.html 의 v 를 갱신)이라 1년 immutable.
         # v 가 없으면 기존 동작(캐시 헤더 없음) 그대로.
-        if ext in (".css", ".js") and urllib.parse.parse_qs(parsed.query).get("v"):
+        elif ext in (".css", ".js") and urllib.parse.parse_qs(parsed.query).get("v"):
             self.send_header("Cache-Control", "public, max-age=31536000, immutable")
         self.end_headers()
-        with open(file_path, "rb") as f:
-            self.wfile.write(f.read())
+        self.wfile.write(body)
 
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)

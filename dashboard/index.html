@@ -161,6 +161,10 @@
     .sec-help { margin: 4px 0 0; font-size: 13px; font-weight: 500; color: var(--dash-muted); }
     .lbl { font-size: 12px; font-weight: 700; color: var(--dash-muted); }
     .empty-note { padding: 40px 12px; text-align: center; font-size: 13px; color: var(--dash-muted); }
+    /* 데이터를 단계별로 받는 동안 제목 부제 끝에 붙는 "Loading papers… 2 of 6 months (partial)" — 통째로 줄바꿈된다 */
+    .load-note { display: inline-block; font-weight: 600; color: var(--dash-navy); }
+    /* 불러오기 실패 알림(헤더 바로 아래 한 줄, 화면을 막지 않는다). #load-notice 가 hidden 토글 대상이라 display 는 안쪽 요소에만 둔다 */
+    .load-notice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 8px 8px 8px 14px; border: 1px solid #F3C4C4; border-radius: 10px; background: #FEF2F2; color: #B91C1C; font-size: 13px; font-weight: 600; }
     /* 셀렉트: 헤더 검색창과 같은 테두리·모서리·배경 (전역 select 테두리 !important 보다 클래스가 앞선다) */
     select.sel { appearance: none; -webkit-appearance: none; height: 40px; max-width: 100%; padding: 0 34px 0 12px; border: 1px solid #D3D8E0 !important; border-radius: 10px; background: #F9FAFB url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23586273' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center / 12px 12px; color: var(--dash-ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
     select.sel:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -440,7 +444,15 @@
       </div>
     </header>
 
-    <main id="view-home" class="max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-10 lg:pt-7 lg:pb-12">
+    <!-- 불러오기 실패 알림: 받지 못한 달이 있을 때만. Retry 는 실패한 달만 다시 받는다 -->
+    <div id="load-notice" class="hidden max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8 pt-3">
+      <div class="load-notice" role="alert">
+        <span id="load-notice-text"></span>
+        <button id="load-retry-btn" type="button" class="btn btn-secondary btn-sm">Retry</button>
+      </div>
+    </div>
+
+    <main id="view-home"class="max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-10 lg:pt-7 lg:pb-12">
       <!-- 안쪽 래퍼가 간격(gap)을 맡는다: hidden 카드가 있어도 첫 보이는 요소에 여백이 끼지 않도록 space-y 대신 flex gap -->
       <div class="flex flex-col gap-5 lg:gap-6">
       <!-- 검색 결과: 검색어가 있을 때만 Overview 위에 표시 (검색창은 상단 헤더) -->
@@ -1723,64 +1735,106 @@
       syncLoginScreenFromHash();
     });
 
-    // ---------- 데이터 로드 ----------
-    // 헤더의 새로고침 아이콘 버튼은 글자가 없으므로, 로딩 중에는 아이콘을 돌려 진행 상태를 알린다
-    async function loadData() {
+    // ---------- 데이터 로드 (단계별) ----------
+    // 1단계: 최신 2달(이번 달·지난 달)만 받아 바로 그린다 → 느린 회선에서도 첫 화면이 빠르다.
+    // 2단계: 나머지 달을 병렬로 받고, 도착할 때마다(디바운스) 다시 그린다. 모두 끝날 때까지 제목 부제에 진행 문구가 붙는다.
+    // 달별 행은 loadState.rows(Map)에 두고 allPapers 는 그 Map 에서 매번 새로 만든다 → 다시 그려도 중복이 없고, 달 순서(최신 먼저)는 그대로다.
+    // 받지 못한 달(HTTP 오류·네트워크 오류)은 loadState.failed 에 두고 알림 + Retry 로 그 달만 다시 받는다.
+    const FIRST_STAGE_MONTHS = 2;
+    const RERENDER_DEBOUNCE_MS = 350;
+    const SUBLINE_IDS = ['home-subline', 'analytics-subline', 'browse-subline', 'adv-subline'];
+    let loadSeq = 0;           // 로드 토큰: 새 로드(Period 변경·Refresh)가 시작되면 올라간다. 옛 로드의 늦은 응답·타이머는 버린다
+    let loadState = null;      // 가장 최근 로드 { seq, versions, months, total, rows: Map, failed: Set, pending: Set, active, retrying, rendered, dirty, timer }
+    let everRendered = false;  // 이 페이지에서 한 번이라도 그렸나 (그 전에는 부제 자리에 "Loading papers…" 뿐이라 문구를 통째로 바꾼다)
+
+    // 로딩 상태를 화면에 반영: 헤더 새로고침 아이콘(글자가 없으니 돌려서 알린다) + 각 뷰 제목 부제 끝의 "Loading papers… 2 of 6 months (partial)"
+    // 상태가 바뀔 때마다 부르면 된다. 로딩이 끝났으면 문구를 지운다.
+    function syncLoadStatus() {
+      const ld = loadState;
+      const loading = !!ld && ld.active > 0;
       const btn = document.getElementById('refresh-btn');
       const icon = btn && btn.querySelector('svg');
-      if (btn) btn.setAttribute('aria-busy', 'true');
-      if (icon) icon.classList.add('animate-spin');
-      try {
-        await _loadData();
-      } finally {
-        if (btn) btn.removeAttribute('aria-busy');
-        if (icon) icon.classList.remove('animate-spin');
+      if (btn) { if (loading) btn.setAttribute('aria-busy', 'true'); else btn.removeAttribute('aria-busy'); }
+      if (icon) icon.classList.toggle('animate-spin', loading);
+      const text = !loading ? '' : ld.total ? `Loading papers… ${ld.total - ld.pending.size} of ${ld.total} months` : 'Loading papers…';
+      for (const id of SUBLINE_IDS) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        let note = el.querySelector('.load-note');
+        if (!text) {
+          if (note) { const gap = note.previousSibling; note.remove(); if (gap && gap.nodeType === 3 && gap.data === ' ') gap.remove(); }
+          continue;
+        }
+        if (!everRendered) { el.textContent = text; continue; }
+        if (!note) { note = document.createElement('span'); note.className = 'load-note'; el.append(' ', note); }
+        note.textContent = ld.rendered ? `· ${text} (partial)` : `· ${text}`;   // 이 로드의 데이터가 화면에 올라온 뒤부터 "부분 집계"
       }
     }
-    async function _loadData() {
-      const months = parseInt(document.getElementById('month-range').value);
-      const monthList = getMonthRange(months);
-      // 월별 버전 맵: 그 달 데이터가 바뀌면 값이 바뀌는 불투명 문자열.
-      // 항상 no-store 로 새로 받는다 — 이 값이 slim CSV URL(?v=)에 들어가므로, 데이터가 바뀐 달만
-      // 새 URL(=CDN·브라우저 캐시 미스)이 되고 안 바뀐 달은 immutable 캐시를 그대로 쓴다.
-      // 실패하거나 JSON 이 아니면(구형 서버) null → 아래에서 예전 full CSV 경로로 폴백한다.
-      let versions = null;
+
+    // 실패한 달 알림 (헤더 아래). 실패한 달이 없으면 숨긴다. Retry 중에는 버튼만 잠근다.
+    function updateLoadNotice() {
+      const ld = loadState;
+      const failed = ld ? [...ld.failed].sort() : [];
+      document.getElementById('load-notice').classList.toggle('hidden', failed.length === 0);
+      if (!failed.length) return;
+      const shown = failed.slice(0, 3).join(', ') + (failed.length > 3 ? ` and ${failed.length - 3} more` : '');
+      document.getElementById('load-notice-text').textContent = `Couldn't load ${shown}.`;
+      const retryBtn = document.getElementById('load-retry-btn');
+      retryBtn.disabled = ld.retrying;
+      retryBtn.textContent = ld.retrying ? 'Retrying…' : 'Retry';
+    }
+
+    async function loadData() {
+      if (loadState) clearTimeout(loadState.timer);
+      const ld = loadState = {
+        seq: ++loadSeq, versions: null, months: [], total: 0,
+        rows: new Map(), failed: new Set(), pending: new Set(),
+        active: 1, retrying: false, rendered: false, dirty: false, timer: 0,
+      };
+      updateLoadNotice();
+      syncLoadStatus();
+      try {
+        await _loadData(ld);
+      } finally {
+        ld.active--;
+        syncLoadStatus();   // 더 새 로드가 시작됐으면 loadState 는 그 로드라서 그쪽 상태를 그대로 그린다
+      }
+    }
+
+    // 월별 버전 맵: 그 달 데이터가 바뀌면 값이 바뀌는 불투명 문자열.
+    // 항상 no-store 로 새로 받는다 — 이 값이 slim CSV URL(?v=)에 들어가므로, 데이터가 바뀐 달만
+    // 새 URL(=CDN·브라우저 캐시 미스)이 되고 안 바뀐 달은 immutable 캐시를 그대로 쓴다.
+    // 실패하거나 JSON 이 아니면(구형 서버) null → 예전 full CSV 경로로 폴백한다.
+    async function fetchVersions() {
       try {
         const vr = await fetch('/api/versions', { cache: 'no-store' });
         if (vr.ok) {
           const vj = await vr.json();
-          if (vj && vj.months && typeof vj.months === 'object') versions = vj.months;
+          if (vj && vj.months && typeof vj.months === 'object') return vj.months;
         }
-      } catch { versions = null; }
-      // 월별 CSV를 병렬로 fetch. Promise.all은 입력 배열(monthList) 순서를 그대로
-      // 보존해 반환하므로(완료 순서 아님), 기존 순차 처리와 동일한 병합 순서가 유지된다.
-      // 월 하나의 fetch/parse가 실패해도 나머지 월은 계속 처리되도록 개별 try/catch로 감쌈
-      // (기존 순차 루프의 내결함성과 동일).
-      // slim 행: id,title,journal,date,doi,gpt_reason / full 행: title,journal,date,url,gpt_reason.
-      // 링크는 어느 쪽이든 paperHref(p) 가 결정한다.
-      const perMonth = await Promise.all(monthList.map(async (m) => {
-        try {
-          const csvUrl = versions
-            ? `/api/csv/${m}?fmt=slim&v=${encodeURIComponent(versions[m] || 0)}`
-            : `/api/csv/${m}`;
-          const res = await fetch(csvUrl);
-          if (!res.ok) return [];
-          const text = await res.text();
-          const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
-          return parsed.data;
-        } catch {
-          return [];
-        }
-      }));
-      const frames = [];
-      for (const rows of perMonth) frames.push(...rows);
-      allPapers = frames.filter(r => r.title && r.title.trim());
+      } catch {}
+      return null;
+    }
+
+    // 한 달 CSV → 행 배열. HTTP 오류·네트워크 오류는 throw (호출부가 failed 로 기록).
+    // slim 행: id,title,journal,date,doi,gpt_reason / full 행: title,journal,date,url,gpt_reason.
+    // 링크는 어느 쪽이든 paperHref(p) 가 결정한다.
+    async function fetchMonthRows(m, versions, fresh) {
+      const csvUrl = versions
+        ? `/api/csv/${m}?fmt=slim&v=${encodeURIComponent(versions[m] || 0)}`
+        : `/api/csv/${m}`;
+      const res = await fetch(csvUrl, fresh ? { cache: 'reload' } : undefined);
+      // 버전 맵이 없는 구형 서버 경로에서는 CSV 가 없는 달이 404 다 = 데이터 없음 (실패 아님). 버전 맵이 있으면 목록에 있는 달만 받으므로 404 도 실패다.
+      if (res.status === 404 && !versions) return [];
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      const rows = Papa.parse(text, { header: true, skipEmptyLines: true }).data.filter(r => r.title && r.title.trim());
       // 미래 발행일 보정: 오늘(로컬)보다 늦은 날짜는 오늘로 당기고 _dateClamped 표시.
       // 파이프라인 규칙(main._effective_pub_date: 발행일이 수신일보다 미래면 수신일로 대체)과 같은 취지의 방어선.
-      // KPI·차트·목록·검색이 모두 allPapers를 쓰므로 이 한 곳에서 보정하면 전부 반영된다.
+      // KPI·차트·목록·검색이 모두 allPapers를 쓰므로 받을 때 한 곳에서 보정하면 전부 반영된다.
       // 앞 10자가 실제 달력 날짜인 YYYY-MM-DD일 때만 건드린다(해석 불가 값은 그대로 둔다).
       const todayStr = localDateStr(new Date());
-      for (const p of allPapers) {
+      for (const p of rows) {
         const d = (p.date || '').slice(0, 10);
         if (d <= todayStr || !/^\d{4}-\d{2}-\d{2}$/.test(d)) continue;
         const t = new Date(d + 'T00:00:00Z');
@@ -1788,13 +1842,178 @@
         p.date = todayStr;
         p._dateClamped = true;
       }
-      // 전역 sharp→parent 맵 구축 (parseReason 의 자동 재라우팅에 사용)
-      // 반드시 buildTopicFilter/applyFilter 이전에 호출 — 이후 parseReason 들이 이 맵 참조
-      buildSharpToParent(allPapers);
-      buildJournalFilter();
-      buildTopicFilter();
-      populateBroadFilters();
-      applyFilter();
+      return rows;
+    }
+
+    // 달 목록을 병렬로 받는다. 성공하면 rows 에 넣고(onMonth 호출), 실패하면 failed 에 넣는다.
+    // 한 달이 실패해도 나머지는 계속된다. await 도중 로드가 바뀌었으면(stale) 아무것도 건드리지 않는다.
+    function fetchMonths(ld, months, onMonth, fresh) {
+      for (const m of months) ld.pending.add(m);
+      syncLoadStatus();
+      return Promise.all(months.map(async (m) => {
+        let rows = null;
+        try { rows = await fetchMonthRows(m, ld.versions, fresh); } catch { rows = null; }
+        if (ld.seq !== loadSeq) return;
+        ld.pending.delete(m);
+        if (rows) { ld.rows.set(m, rows); ld.failed.delete(m); } else ld.failed.add(m);
+        syncLoadStatus();
+        updateLoadNotice();
+        if (rows && onMonth) onMonth();
+      }));
+    }
+
+    async function _loadData(ld) {
+      const monthList = getMonthRange(parseInt(document.getElementById('month-range').value));
+      ld.versions = await fetchVersions();
+      if (ld.seq !== loadSeq) return;
+      // 버전 맵이 있으면 CSV 가 있는 달(목록에 든 달)만 받는다
+      ld.months = ld.versions ? monthList.filter(m => m in ld.versions) : monthList;
+      ld.total = ld.months.length;
+      await fetchMonths(ld, ld.months.slice(0, FIRST_STAGE_MONTHS));
+      if (ld.seq !== loadSeq) return;
+      renderLoad(ld);   // 첫 화면
+      await fetchMonths(ld, ld.months.slice(FIRST_STAGE_MONTHS), () => scheduleRender(ld));
+      if (ld.seq !== loadSeq) return;
+      flushRender(ld);
+    }
+
+    // Retry: 실패한 달만 다시 받는다 (브라우저 캐시를 건너뛰고). 끝나면 받은 만큼 다시 그린다.
+    async function retryFailedMonths() {
+      const ld = loadState;
+      if (!ld || ld.retrying || !ld.failed.size) return;
+      ld.retrying = true;
+      ld.active++;
+      updateLoadNotice();
+      try {
+        await fetchMonths(ld, [...ld.failed], () => scheduleRender(ld), true);
+        if (ld.seq === loadSeq) flushRender(ld);
+      } finally {
+        ld.retrying = false;
+        ld.active--;
+        syncLoadStatus();
+        if (ld.seq === loadSeq) updateLoadNotice();
+      }
+    }
+    document.getElementById('load-retry-btn').addEventListener('click', retryFailedMonths);
+
+    // 도착한 달이 연달아 올 때 한 번만 다시 그리도록 모은다
+    function scheduleRender(ld) {
+      ld.dirty = true;
+      clearTimeout(ld.timer);
+      ld.timer = setTimeout(() => renderLoad(ld), RERENDER_DEBOUNCE_MS);
+    }
+    function flushRender(ld) {
+      if (ld.dirty && ld.seq === loadSeq) renderLoad(ld);
+    }
+
+    // 지금까지 받은 달로 화면을 (다시) 그린다: allPapers 를 달 Map 에서 새로 만들고, 같은 파이프라인(sharp→parent 맵 · 필터 칩 · 드롭다운 · applyFilter)을 돈다.
+    // 같은 로드 안의 재렌더(again)에서는 사용자가 건 Analytics 필터를 새 칩에 되살리고 차트 애니메이션을 끈다. 새 로드(Period 변경·Refresh)의 첫 화면은 예전처럼 필터를 초기화한다.
+    function renderLoad(ld) {
+      clearTimeout(ld.timer);
+      ld.timer = 0;
+      ld.dirty = false;
+      if (ld.seq !== loadSeq) return;
+      const again = ld.rendered;
+      const frames = [];
+      for (const m of ld.months) {
+        const rows = ld.rows.get(m);
+        if (rows) frames.push(...rows);
+      }
+      allPapers = frames;
+      const snap = again ? snapshotFilters() : null;
+      ld.rendered = true;
+      everRendered = true;
+      renderKeepingUi(again, () => {
+        // 전역 sharp→parent 맵 구축 (parseReason 의 자동 재라우팅에 사용)
+        // 반드시 buildTopicFilter/applyFilter 이전에 호출 — 이후 parseReason 들이 이 맵 참조
+        buildSharpToParent(allPapers);
+        buildJournalFilter();
+        buildTopicFilter();
+        populateBroadFilters();
+        if (snap) restoreFilters(snap);
+        applyFilter();
+      });
+      restoreHashOnce();   // 첫 화면이 그려진 뒤, URL 해시가 가리키는 뷰·Browse 선택을 한 번 복원
+    }
+
+    // 다시 그리는 동안 사용자가 보던 자리를 지킨다: Browse 목록·상세 스크롤(상세는 renderBrowseDetail 의 맨 위 스크롤 리셋을 막는다),
+    // 아직 반영 안 된 Browse 검색어, 포커스. quiet 이면 차트 애니메이션도 끈다(달이 도착할 때마다 차트가 처음부터 다시 그려지지 않게).
+    function renderKeepingUi(quiet, fn) {
+      const ae = document.activeElement;
+      const aeId = ae && ae.id;
+      const inBrowseList = !!(ae && ae.closest && ae.closest('#browse-list'));
+      let caret = null;
+      const bs = document.getElementById('browse-detail-search');
+      if (bs && ae === bs) {   // 디바운스(120ms) 안에 있어 아직 상태에 안 들어간 입력도 잃지 않는다
+        _browseDetailFilter = bs.value;
+        caret = [bs.selectionStart, bs.selectionEnd];
+      }
+      const listBox = document.getElementById('browse-list').parentElement;
+      const listTop = listBox.scrollTop;
+      const prevTyping = _browseSearchTypingFlag;
+      const prevAnim = Chart.defaults.animation;
+      _browseSearchTypingFlag = true;
+      if (quiet) Chart.defaults.animation = false;
+      try {
+        fn();
+      } finally {
+        _browseSearchTypingFlag = prevTyping;
+        Chart.defaults.animation = prevAnim;
+      }
+      listBox.scrollTop = listTop;
+      const target = aeId ? document.getElementById(aeId)
+        : inBrowseList ? document.querySelector('#browse-list .browse-item.active') : null;
+      if (target && target !== document.activeElement) {
+        target.focus({ preventScroll: true });
+        if (caret && target.setSelectionRange) { try { target.setSelectionRange(caret[0], caret[1]); } catch (_) {} }
+      }
+    }
+
+    // Analytics 필터(저널·topic·sharp) 선택을 칩을 새로 만들기 전에 기록했다가, 새 칩 중 아직 있는 것만 되살린다.
+    // (달이 더 도착하면 칩이 늘어난다: All 모드는 새 칩도 모두 포함, 일부만 고른 모드는 고른 것만 유지)
+    function snapshotFilters() {
+      return {
+        jAll: allJournalsMode, js: [...selectedJournals],
+        bAll: allBroadsMode, bs: [...selectedBroads],
+        sAll: allSharpsMode, ss: [...selectedSharps],
+      };
+    }
+    // 칩 중 keep 에 든 것만 켜고 true, 하나도 없거나 전부면(= All 과 같음) false. onSet 은 고른 값 집합을 받는다
+    function reselectChips(chipSel, attr, keep, onSet) {
+      const chips = [...document.querySelectorAll(chipSel)];
+      const keepSet = new Set(keep);
+      const picked = chips.filter(c => keepSet.has(c.dataset[attr]));
+      if (!picked.length || picked.length === chips.length) return false;
+      const values = new Set(picked.map(c => c.dataset[attr]));
+      chips.forEach(c => c.classList.toggle('active', values.has(c.dataset[attr])));
+      onSet(values);
+      return true;
+    }
+    function restoreFilters(s) {
+      if (!s.jAll) {
+        reselectChips('#journal-chips .journal-chip', 'journal', s.js, (set) => {
+          allJournalsMode = false;
+          selectedJournals = set;
+          document.getElementById('journal-all-chip').classList.remove('active');
+        });
+      }
+      if (!s.bAll) {
+        const ok = reselectChips('#broad-chips .journal-chip', 'broad', s.bs, (set) => {
+          allBroadsMode = false;
+          selectedBroads = set;
+          document.getElementById('broad-all-chip').classList.remove('active');
+        });
+        if (ok) {
+          renderSharpBar();   // 단일 broad 면 sharp 칩을 만들고 sharp 는 All 로 시작한다
+          if (!s.sAll && selectedBroads.size === 1) {
+            reselectChips('#sharp-chips .journal-chip', 'sharp', s.ss, (set) => {
+              allSharpsMode = false;
+              selectedSharps = set;
+              document.getElementById('sharp-all-chip').classList.remove('active');
+            });
+          }
+        }
+      }
     }
 
     function getMonthRange(n) {
@@ -1982,6 +2201,7 @@
       container.innerHTML = '';
       selectedJournals = new Set(sorted.map(e=>e[0]));
       allJournalsMode = true;
+      document.getElementById('journal-all-chip').classList.add('active');   // 필터를 걸어 둔 채 다시 만들어도 All 칩 표시가 모드와 맞게
 
       for (const [j, count] of sorted) {
         const chip = document.createElement('span');
@@ -2120,6 +2340,7 @@
       container.innerHTML = '';
       selectedBroads = new Set(sorted.map(e=>e[0]));
       allBroadsMode = true;
+      document.getElementById('broad-all-chip').classList.add('active');
 
       for (const [b, count] of sorted) {
         const chip = document.createElement('span');
@@ -2269,10 +2490,12 @@
       // Browse 뷰가 활성화된 경우, 데이터 재로드 시에도 동기화 (allPapers 기반)
       if (currentView === 'browse') {
         renderBrowseList();
+        autoSelectFirstBrowseItem();   // 데이터가 오기 전에 Browse 를 열어 둔 경우: 이제 생긴 첫 항목을 고른다 (이미 선택이 있으면 그대로)
         renderBrowseDetail();
       } else if (currentView === 'advanced-search') {
         renderAdvancedSearch(false);
       }
+      syncLoadStatus();   // 위 renderHome/renderViewHeadings 가 부제를 새로 써서 지워진 "Loading papers…" 문구를 로딩 중이면 다시 붙인다
     }
 
     // ---------- Home: 헤더 부제 · Overview 부제 · KPI · 상위 목록 (Period 만 따른다 — Analytics 필터는 무시) ----------
@@ -3640,10 +3863,73 @@
       return `<div class="pl-row">${journal}<div class="pl-main"><span class="pl-title">${titleHtml}</span>${meta ? `<div class="pl-meta">${meta}</div>` : ''}</div></div>`;
     }
 
+    // ---------- URL 해시 상태: 뷰 + Browse 선택 ----------
+    //   (Home = 해시 없음) #analytics · #advanced-search · #browse/journal/<저널 전체 이름, encodeURIComponent> · #browse/topic/<broad>[/<sharp>]
+    // 기간(Period)은 일부러 URL 에 넣지 않는다. #admin-login 은 로그인 화면 전용이라 여기서 읽지도 쓰지도 않는다.
+    // 새 뷰로 갈 때만 history 항목을 쌓고(Back/Forward 로 돌아올 수 있게), 같은 뷰 안에서 선택만 바뀌면 replaceState 로 덮는다.
+    // 복원은 첫 화면이 그려진 뒤 한 번(restoreHashOnce). 그 전에 사용자가 직접 뷰를 바꿨다면 복원하지 않는다.
+    const HASH_VIEWS = ['home', 'analytics', 'browse', 'advanced-search', 'stats', 'review'];
+    let hashReady = false;      // false 인 동안은 해시를 쓰지도 적용하지도 않는다
+    let hashApplying = false;   // 해시를 화면에 적용하는 중에는 되쓰지 않는다
+    const hashParts = (h) => String(h || '').replace(/^#/, '').split('/');
+    const hashView = (h) => { const v = hashParts(h)[0]; return HASH_VIEWS.includes(v) ? v : 'home'; };
+    const safeDecode = (s) => { try { return decodeURIComponent(s); } catch (_) { return s; } };
+
+    function stateToHash() {
+      if (currentView === 'home') return '';
+      if (currentView !== 'browse') return '#' + currentView;
+      const key = browseMode === 'journal' ? selectedBrowseJournal : selectedBrowseTopic;
+      if (!key) return browseMode === 'topic' ? '#browse/topic' : '#browse';
+      return `#browse/${browseMode}/` + (browseMode === 'topic' ? key.split('/').map(encodeURIComponent).join('/') : encodeURIComponent(key));
+    }
+
+    // 현재 상태를 주소창 해시에 맞춘다. 뷰가 바뀐 경우만 pushState, 아니면(선택·정규화) replaceState.
+    function syncHash(forceReplace) {
+      if (!hashReady || hashApplying || location.hash === ADMIN_LOGIN_HASH) return;
+      const want = stateToHash();
+      if (want === location.hash) return;
+      const url = location.pathname + location.search + want;
+      try {
+        if (forceReplace || hashView(location.hash) === currentView) history.replaceState(null, '', url);
+        else history.pushState(null, '', url);
+      } catch (_) {}   // 일부 인앱 브라우저는 History API 가 예외를 던질 수 있다 — 해시는 부가 기능이라 실패해도 화면은 그대로 둔다
+    }
+
+    // 주소창 해시 → 화면 (첫 복원 · Back/Forward · 직접 편집). 알 수 없는 해시는 Home.
+    function applyHash() {
+      const h = location.hash;
+      if (h === ADMIN_LOGIN_HASH) return;
+      const parts = hashParts(h);
+      hashApplying = true;
+      try {
+        if (hashView(h) === 'browse' && (parts[1] === 'journal' || parts[1] === 'topic')) {
+          const key = parts.slice(2).map(safeDecode).join('/');   // 저널명은 한 조각으로 인코딩되지만, 손으로 쓴 주소의 날 '/' 도 받아 준다
+          if (key) {
+            openBrowse(parts[1], key);
+          } else {
+            if (browseMode !== parts[1]) setBrowseMode(parts[1]);
+            setView('browse');
+          }
+        } else {
+          setView(hashView(h));
+        }
+      } finally {
+        hashApplying = false;
+      }
+      syncHash(true);   // 정규화 (잘못된 해시 → 실제 상태, Browse 자동 선택 항목 반영). 항목을 쌓지 않는다
+    }
+    function restoreHashOnce() {
+      if (hashReady) return;
+      hashReady = true;
+      if (location.hash && location.hash !== ADMIN_LOGIN_HASH) applyHash();
+    }
+    window.addEventListener('hashchange', () => { if (hashReady) applyHash(); });
+
     // ---------- Browse 뷰 ----------
     window.setView = function(v) {
       // Stats/Review 접근 권한 체크 (비관리자가 URL/DevTools로 강제 전환해도 차단 - 서버도 별도로 401/403)
       if ((v === 'stats' || v === 'review') && !isAdmin) v = 'home';
+      hashReady = true;   // 사용자가 (복원 전에) 직접 뷰를 골랐다 → 이후 첫 화면이 와도 해시로 덮어쓰지 않는다
       currentView = v;
       // 탭 active 토글 (+ 스크린리더용 aria-current)
       for (const name of ['home', 'analytics', 'browse', 'advanced-search', 'stats', 'review']) {
@@ -3678,6 +3964,7 @@
       } else if (v === 'review') {
         openReview();
       }
+      syncHash();
     };
 
     function setStatsLoading(loading) {
@@ -4536,6 +4823,7 @@
       renderBrowseList();
       autoSelectFirstBrowseItem();
       renderBrowseDetail();
+      syncHash();
     };
 
     // Home·Analytics 의 키워드/저널 이름 → Browse 의 해당 항목으로 바로 이동.
@@ -4685,6 +4973,7 @@
       _browseDetailJournal = '';
       renderBrowseList();
       renderBrowseDetail();
+      syncHash();
     };
 
     window.selectBrowseTopic = function(key) {
@@ -4693,6 +4982,7 @@
       _browseDetailJournal = '';
       renderBrowseList();
       renderBrowseDetail();
+      syncHash();
     };
 
     // Browse 상세 뷰 내부 검색 필터 · 주제 상세의 저널 필터(저널 전체 이름, '' = 전체) — 선택 변경 시 리셋
