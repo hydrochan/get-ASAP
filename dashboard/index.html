@@ -15,14 +15,15 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script>
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: { sans: ['Manrope', 'sans-serif'] },
+          fontFamily: { sans: ['Manrope', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'system-ui', 'sans-serif'] },
           colors: {
-            navy: { 900: '#001B44', 800: '#002F6C', 700: '#003D8F', 600: '#1A56A8' },
+            navy: { 50: '#E8EEF8', 900: '#0F2A55', 800: '#163B73', 700: '#1F4A8C', 600: '#2A5BA8' },
             slate: { 50: '#F8F9FA', 100: '#F3F4F5', 200: '#E5E7EB', 300: '#D1D5DB', 400: '#9CA3AF', 500: '#6B7280' }
           }
         }
@@ -30,10 +31,37 @@
     }
   </script>
   <style>
-    body { background: #F3F4F5; }
-    .card { background: #FDFEFF; border-radius: 8px; box-shadow: 0 1px 3px rgba(15,23,42,0.06); }
-    .kpi-card { border-top: 3px solid #002F6C; }
+    /* ===== 디자인 토큰 (Home "D" 레이아웃: 사이드바 워크스페이스 + 검색 배너) ===== */
+    :root {
+      --dash-canvas: #F4F5F7;
+      --dash-surface: #FFFFFF;
+      --dash-surface-soft: #EEF1F5;
+      --dash-hairline: #E2E5EA;
+      --dash-hairline-soft: #EEF0F3;
+      --dash-ink: #111827;
+      --dash-ink-2: #374151;
+      --dash-muted: #586273;
+      --dash-navy: #163B73;
+      --dash-navy-deep: #0F2A55;
+      --dash-navy-tint: #E8EEF8;
+      --dash-bar-soft: #C3D0E6;
+      --dash-accent: #F2B544;
+      --dash-accent-ink: #1F1A0E;
+    }
+    body {
+      background: var(--dash-canvas);
+      color: var(--dash-ink);
+      font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0;
+    }
+    .card { background: var(--dash-surface); border: 1px solid var(--dash-hairline); border-radius: 14px; }
     .chart-container { position: relative; width: 100%; }
+    /* 섹션 제목: 문장형 대소문자 · 16px · 800 */
+    .sec-title { font-size: 16px; font-weight: 800; line-height: 1.3; color: var(--dash-ink); margin: 0; }
+    .sec-sub { font-size: 13px; font-weight: 500; color: var(--dash-muted); }
+    .link-btn { background: transparent; border: 0; padding: 4px 0; font-size: 13px; font-weight: 600; color: var(--dash-navy); cursor: pointer; white-space: nowrap; }
+    .link-btn:hover { text-decoration: underline; }
     .login-bg { background: linear-gradient(135deg, #001B44 0%, #002F6C 50%, #003D8F 100%); }
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
@@ -43,10 +71,18 @@
     .journal-chip:hover { opacity: 0.8; }
     /* 섹션 구분선 */
     .sec-divider { border-top: 1px solid #E5E7EB; margin: 0.5rem 0; }
-    /* 뷰 탭 (Analytics / Browse) */
-    .view-tab { padding: 10px 16px; font-size: 11px; font-weight: 700; color: #6B7280; border-bottom: 2px solid transparent; cursor: pointer; background: transparent; text-transform: uppercase; letter-spacing: 0.08em; }
-    .view-tab.active { color: #002F6C; border-bottom-color: #002F6C; }
-    .view-tab:hover:not(.active) { color: #002F6C; }
+    /* Browse 하위 탭 (By Journal / By Topic) */
+    .view-tab { padding: 10px 16px; font-size: 13px; font-weight: 700; color: var(--dash-muted); border-bottom: 2px solid transparent; cursor: pointer; background: transparent; }
+    .view-tab.active { color: var(--dash-navy); border-bottom-color: var(--dash-navy); }
+    .view-tab:hover:not(.active) { color: var(--dash-navy); }
+    /* 사이드바 내비게이션 항목 (#tab-*; display 는 Tailwind flex/hidden 유틸이 담당 — hidden 토글이 이기도록) */
+    .side-tab { min-height: 44px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; color: var(--dash-ink-2); font-size: 14px; font-weight: 600; cursor: pointer; text-align: left; white-space: nowrap; flex: none; }
+    .side-tab svg { color: var(--dash-muted); flex: none; }
+    .side-tab:hover:not(.active) { background: #F1F3F6; }
+    .side-tab.active { background: var(--dash-navy-tint); color: var(--dash-navy); font-weight: 700; }
+    .side-tab.active svg { color: var(--dash-navy); }
+    .no-scrollbar { scrollbar-width: none; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
     /* Browse 리스트 항목 */
     .browse-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; gap: 8px; }
     .browse-item:hover { background: #F3F4F5; }
@@ -69,11 +105,70 @@
     /* Review 뷰 (관리자): GPT reason 기본 2줄, 클릭하면 펼침 */
     .review-reason { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
     .review-reason.expanded { display: block; overflow: visible; }
+
+    /* ===== Home: 검색 배너 ===== */
+    .banner-icon-btn { flex: none; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #3D5A8A; border-radius: 10px; background: transparent; color: #fff; cursor: pointer; }
+    .banner-icon-btn:hover { background: #17376B; }
+    .search-field { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 12px 0 18px; border-radius: 12px; background: #fff; }
+    .search-field:focus-within { outline: 2px solid var(--dash-accent); outline-offset: 2px; }
+    .search-field input { flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; font: inherit; font-size: 16px; color: var(--dash-ink); outline: none; }
+    .search-field input::placeholder { color: #7A8494; }
+    .search-field input { text-overflow: ellipsis; }
+    .search-field input::-webkit-search-cancel-button { display: none; }
+    .search-clear { flex: none; height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--dash-muted); font-size: 13px; font-weight: 600; cursor: pointer; }
+    .search-clear:hover { background: #F1F3F6; }
+    .search-submit { height: 56px; padding: 0 28px; border: 0; border-radius: 12px; background: var(--dash-accent); color: var(--dash-accent-ink); font-size: 15px; font-weight: 800; cursor: pointer; }
+    .search-submit:hover { background: #F5BF5E; }
+    /* 필터 칩: 보이는 라벨 + 네이티브 select (알약 모양) */
+    .chip { display: inline-flex; align-items: center; gap: 6px; height: 36px; max-width: 100%; padding: 0 6px 0 14px; border: 1px solid #3D5A8A; border-radius: 999px; background: transparent; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .chip.is-set { background: #17376B; }
+    .chip-k { color: #C9D6EC; font-weight: 500; white-space: nowrap; }
+    .chip select { appearance: none; -webkit-appearance: none; flex: 1 1 auto; height: 100%; min-width: 0; max-width: 11rem; padding: 0 22px 0 0; border: 0 !important; background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23fff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 8px center; color: #fff; font: inherit; text-overflow: ellipsis; cursor: pointer; outline: none; }
+    .chip select option { color: var(--dash-ink); background: #fff; }
+    .chip:focus-within { outline: 2px solid var(--dash-accent); outline-offset: 2px; }
+
+    /* ===== Home: KPI 카드 ===== */
+    .kpi { padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .kpi-label { font-size: 13px; font-weight: 600; color: var(--dash-muted); }
+    .kpi-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+    .kpi-value { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; color: var(--dash-ink); flex: none; }
+    .kpi-sub { font-size: 12px; color: var(--dash-muted); min-height: 16px; }
+    .kpi-visual { flex: 0 1 110px; min-width: 48px; height: 36px; }
+    .kpi-bars { display: flex; align-items: flex-end; gap: 2px; }
+    .kpi-bars > span { flex: 1 1 0; border-radius: 1px; }
+
+    /* ===== Home: Papers per day 카드 ===== */
+    .seg { display: flex; height: 36px; border: 1px solid #D3D8E0; border-radius: 8px; overflow: hidden; }
+    .seg-btn { min-width: 56px; padding: 0 12px; border: 0; border-left: 1px solid var(--dash-hairline); background: #fff; color: var(--dash-ink-2); font-size: 13px; font-weight: 600; cursor: pointer; }
+    .seg-btn:first-child { border-left: 0; }
+    .seg-btn.is-on { background: var(--dash-navy); color: #fff; font-weight: 700; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dash-ink-2); }
+    .legend-bar { display: inline-block; width: 12px; height: 12px; border-radius: 2px; background: var(--dash-bar-soft); }
+    .legend-line { display: inline-block; width: 16px; height: 3px; border-radius: 2px; background: var(--dash-navy); }
+
+    /* ===== Home: Top journals / Top keywords ===== */
+    .tops-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+    @media (min-width: 900px) { .tops-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; } }
+
+    /* ===== Home: Recent papers 표 ===== */
+    .rp-scroll { max-height: 560px; overflow: auto; }
+    .rp-table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 14px; }
+    .rp-table th { position: sticky; top: 0; z-index: 1; background: var(--dash-surface); text-align: left; font-size: 12px; font-weight: 700; color: var(--dash-muted); padding: 10px 12px; border-bottom: 1px solid var(--dash-hairline); }
+    .rp-table td { padding: 12px; border-bottom: 1px solid var(--dash-hairline-soft); vertical-align: top; }
+    .rp-table th:first-child, .rp-table td:first-child { padding-left: 0; }
+    .rp-table th:last-child, .rp-table td:last-child { padding-right: 0; }
+    .rp-table tr:hover td { background: #FAFBFC; }
+    .rp-table td.rp-date { color: var(--dash-muted); white-space: nowrap; }
+    .rp-table td.rp-journal { font-weight: 700; color: var(--dash-ink-2); overflow-wrap: anywhere; }
+    .rp-table td.rp-title { line-height: 1.45; overflow-wrap: anywhere; }
+    .rp-table td.rp-title a { color: var(--dash-navy); }
+    .rp-table td.rp-title a:hover { text-decoration: underline; }
+    .rp-table td.rp-empty { color: var(--dash-muted); text-align: center; padding: 32px 12px; }
+
     /* 모바일 전용 반응형 */
     @media (max-width: 640px) {
-      .view-tab { padding: 10px 12px; font-size: 12px; letter-spacing: 0.04em; }
+      .view-tab { padding: 10px 12px; font-size: 13px; }
       .journal-chip { font-size: 11px; padding: 3px 9px; }
-      .kpi-card p.text-2xl { font-size: 1.25rem; }
       .browse-paper-row { flex-direction: column; gap: 2px; padding: 8px 0; line-height: 1.45; }
       .browse-paper-row .journal-tag { font-size: 11px; }
       .browse-date-header { font-size: 12px; padding: 4px 11px; margin: 16px 0 8px; }
@@ -83,95 +178,30 @@
       #heatmap-table th, #heatmap-table td { padding: 4px 6px !important; font-size: 11px !important; }
       #heatmap-table th.rotate { font-size: 10px !important; }
 
-      /* Recent Papers: 모바일에서 테이블 → 제목 우선 카드 스택
-         (데스크톱은 기존 3열 테이블 그대로) */
-      .recent-papers-scroll { overflow-x: hidden; }
-      .recent-papers-table { display: block; }
-      .recent-papers-table thead { display: none; }
-      .recent-papers-table tbody { display: block; }
-      .recent-papers-table tr {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        padding: 10px 2px;
-      }
-      .recent-papers-table td {
-        display: block;
-        padding: 0 !important;
-        white-space: normal !important;   /* 저널명 잘림/가로 스크롤 방지 → 줄바꿈 허용 */
-        word-break: break-word;
-      }
-      /* 시각 계층: 제목을 맨 위로, 가장 크고 진하게 */
-      .recent-papers-table td.rp-title { order: 1; font-size: 13px; line-height: 1.4; font-weight: 600; }
-      .recent-papers-table td.rp-title a { color: #001B44; }
-      .recent-papers-table td.rp-journal { order: 2; font-size: 11px; color: #003D8F !important; }
-      .recent-papers-table td.rp-date { order: 3; font-size: 10px; color: #9CA3AF !important; }
+      /* Recent papers: 모바일에서는 행을 쌓는다 — "날짜 · 저널" 한 줄 위, 제목 아래 */
+      .rp-table { display: block; }
+      .rp-table thead { display: none; }
+      .rp-table tbody { display: block; }
+      .rp-table tr { display: flex; flex-wrap: wrap; align-items: baseline; padding: 12px 0; border-bottom: 1px solid var(--dash-hairline-soft); }
+      .rp-table td { display: block; padding: 0 !important; border: 0 !important; white-space: normal !important; word-break: break-word; }
+      .rp-table td.rp-date { order: 1; font-size: 12px; }
+      .rp-table td.rp-journal { order: 2; font-size: 12px; }
+      .rp-table td.rp-journal::before { content: "\00b7"; margin: 0 6px; font-weight: 400; color: var(--dash-muted); }
+      .rp-table td.rp-title { order: 3; flex: 0 0 100%; margin-top: 4px; font-size: 14px; line-height: 1.4; }
+      .rp-table td.rp-empty { flex: 0 0 100%; }
+      .kpi { padding: 14px; }
+      .kpi-value { font-size: 26px; }
+      /* 필터 칩: 모바일에서는 2열 격자 + 라벨을 값 위에 쌓아 값(저널명 등)이 잘리지 않게 한다 (터치 높이 ≥ 52px) */
+      .chip { height: auto; min-height: 52px; flex-direction: column; align-items: stretch; justify-content: center; gap: 0; padding: 6px 8px 6px 14px; border-radius: 14px; }
+      .chip-k { font-size: 11px; line-height: 1.2; }
+      .chip select { flex: none; width: 100%; max-width: none; height: 24px; padding-right: 18px; background-position: right 2px center; }
+      .search-submit { padding: 0 20px; }
     }
 
-    /* Dashboard theme refinements: preserve original density while removing critique issues. */
-    :root {
-      --dash-canvas: oklch(96.4% 0.008 255);
-      --dash-surface: oklch(99.3% 0.004 255);
-      --dash-surface-soft: oklch(94.8% 0.010 255);
-      --dash-ink: oklch(22% 0.018 255);
-      --dash-muted: oklch(51% 0.022 255);
-      --dash-hairline: oklch(88.5% 0.014 255);
-      --dash-action: oklch(31% 0.118 255);
-      --dash-action-hover: oklch(37% 0.130 255);
-    }
-    body {
-      background: var(--dash-canvas) !important;
-      color: var(--dash-ink);
-      font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif !important;
-      letter-spacing: 0;
-    }
-    #dashboard > header {
-      background: var(--dash-surface) !important;
-      color: var(--dash-ink);
-      border-bottom: 1px solid var(--dash-hairline) !important;
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-      padding-top: 12px !important;
-      padding-bottom: 12px !important;
-    }
-    #dashboard > header h1 { color: var(--dash-action) !important; }
-    #dashboard > header p { color: var(--dash-muted) !important; }
-    #dashboard > header a,
-    #dashboard > header span { color: var(--dash-muted) !important; }
-    #dashboard > header a:hover { color: var(--dash-action-hover) !important; }
-    #view-tabs {
-      background: var(--dash-surface) !important;
-      border-color: var(--dash-hairline) !important;
-    }
-    #analytics-filters > div,
-    #filters-body > div {
-      background: color-mix(in oklch, var(--dash-surface) 92%, var(--dash-canvas)) !important;
-      border-color: var(--dash-hairline) !important;
-    }
-    .card {
-      background: var(--dash-surface) !important;
-      border: 1px solid var(--dash-hairline) !important;
-      border-radius: 8px !important;
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 28px rgba(15, 23, 42, 0.035) !important;
-    }
-    .kpi-card {
-      border-left: 1px solid var(--dash-hairline) !important;
-      border-top: 3px solid var(--dash-action) !important;
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
-    }
-    .kpi-card p[id],
-    .text-navy-900,
-    .text-navy-800 { color: var(--dash-ink) !important; }
+    /* ===== 앱 전역 정리: 색 띠·그림자·그라디언트 없이 평평한 카드, 입력 포커스 링 통일 ===== */
+    .text-navy-900 { color: var(--dash-ink) !important; }
     .text-slate-400,
     .text-slate-500 { color: var(--dash-muted) !important; }
-    .view-tab {
-      color: var(--dash-muted) !important;
-      letter-spacing: 0.02em !important;
-      font-weight: 600 !important;
-    }
-    .view-tab.active {
-      color: var(--dash-action) !important;
-      border-bottom-color: var(--dash-action) !important;
-    }
     .journal-chip {
       background: var(--dash-surface-soft) !important;
       color: var(--dash-muted) !important;
@@ -180,9 +210,9 @@
     .journal-chip.active,
     .browse-item.active,
     .browse-date-header {
-      background: var(--dash-action) !important;
-      color: oklch(98% 0.006 254) !important;
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08) !important;
+      background: var(--dash-navy) !important;
+      color: #F8FAFC !important;
+      box-shadow: none !important;
     }
     button,
     select,
@@ -190,38 +220,31 @@
       border-color: var(--dash-hairline) !important;
       box-shadow: none !important;
     }
-    #refresh-btn,
-    .bg-navy-800,
-    .bg-navy-900 {
-      background-color: var(--dash-action) !important;
-      background-image: linear-gradient(180deg, var(--dash-action-hover), var(--dash-action)) !important;
-      color: oklch(98% 0.006 254) !important;
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08) !important;
-    }
-    #report-btn,
-    #feedback-btn,
-    #main-search-clear,
+    /* 배너의 아이콘 버튼은 어두운 바탕 위 테두리 색을 유지 (ID 선택자가 위 !important 보다 우선) */
+    #refresh-btn { border-color: #3D5A8A !important; }
+    /* 남아 있는 그라디언트 버튼(로그인·Refresh·다운로드)은 평평한 남색으로 */
+    .from-navy-900 { background-image: none !important; background-color: var(--dash-navy) !important; }
     #advanced-search-clear,
     #advanced-search-load-more,
-    #hm-expand-btn,
-    #expandAllBroads,
-    .border-navy-800 {
+    #hm-expand-btn {
       border-color: var(--dash-hairline) !important;
-      color: var(--dash-action) !important;
+      color: var(--dash-navy) !important;
       background: var(--dash-surface) !important;
     }
-    input:focus,
-    select:focus {
-      border-color: var(--dash-action) !important;
-      box-shadow: 0 0 0 3px oklch(90% 0.045 254) !important;
+    input:focus:not(.bare-input),
+    select:focus:not(.bare-input) {
+      border-color: var(--dash-navy) !important;
+      box-shadow: 0 0 0 3px #D6E0F2 !important;
     }
+    :where(button, a, [tabindex]):focus-visible { outline: 2px solid var(--dash-navy); outline-offset: 2px; }
+    #home-banner :focus-visible { outline-color: var(--dash-accent); }
     footer {
       background: var(--dash-canvas) !important;
       color: var(--dash-muted) !important;
     }
   </style>
 </head>
-<body class="font-sans text-gray-800 min-h-screen">
+<body class="font-sans min-h-screen">
 
   <!-- ========== 토스트 알림 (전역 고정) ========== -->
   <div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 w-[calc(100%-2rem)] max-w-sm pointer-events-none" aria-live="polite" role="status"></div>
@@ -265,98 +288,106 @@
         }
       })();
     </script>
-    <!-- 상단 헤더 -->
-    <header class="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between flex-wrap gap-2 sm:gap-3">
-      <div class="min-w-0">
-        <h1 class="text-lg sm:text-xl font-black text-navy-900 tracking-tight">get-ASAP Analytics</h1>
-        <p class="hidden sm:block text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">Paper Trend Dashboard</p>
-        <p id="visitor-badge" class="flex items-center gap-1 text-[10px] font-semibold text-slate-400 mt-1">
-          <span id="visitor-badge-dot" class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-          <span id="visitor-badge-text">Loading visitor info…</span>
-        </p>
-      </div>
-      <div class="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
-        <div class="w-full flex justify-end -mb-1">
-          <span class="text-[9px] text-slate-300 tracking-wide">
-            Developed by
-            <a href="https://github.com/hydrochan" target="_blank" rel="noopener"
-               class="font-semibold text-slate-400 hover:text-navy-700 transition-colors">Chan Kim</a>
-            ·
-            <a href="https://hydrochan.com" target="_blank" rel="noopener"
-               class="text-slate-400 hover:text-navy-700 transition-colors">hydrochan.com</a>
-          </span>
+    <!-- ========== 앱 셸: ≥1024px 왼쪽 사이드바 / 그 미만은 상단 바(브랜드 + 가로 스크롤 탭) ========== -->
+    <div id="app-shell" class="lg:flex">
+      <aside id="app-sidebar" class="bg-white border-b border-[#E2E5EA] flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 lg:sticky lg:top-0 lg:self-start lg:h-screen lg:w-[220px] lg:flex-none lg:flex-col lg:flex-nowrap lg:items-stretch lg:gap-6 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-4 lg:py-6">
+        <div class="order-1 mr-auto min-w-0 flex flex-col gap-0.5 lg:order-none lg:mr-0 lg:px-2">
+          <p class="text-lg lg:text-xl font-extrabold tracking-tight text-[#111827] leading-tight">get-ASAP</p>
+          <p class="hidden lg:block text-xs text-[#586273]">Paper trend dashboard</p>
         </div>
-        <select id="month-range" class="text-xs font-semibold border border-slate-200 rounded-lg px-2 sm:px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy-800">
-          <option value="1">1 Month</option>
-          <option value="3">3 Months</option>
-          <option value="6" selected>6 Months</option>
-          <option value="12">12 Months</option>
-        </select>
-        <button id="refresh-btn" class="px-3 sm:px-4 py-2 bg-gradient-to-r from-navy-900 to-navy-800 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">
-          Refresh
-        </button>
-        <button id="refresh-all-btn" class="hidden px-3 sm:px-4 py-2 border border-purple-600 text-purple-700 text-xs font-bold rounded-lg hover:bg-purple-600 hover:text-white transition-all" title="관리자 전용: 전체 월 Notion 재조회 (과거 월 CSV 갱신)">
-          🔄 Force Refresh All
-        </button>
-        <button id="report-btn" class="px-3 sm:px-4 py-2 border border-navy-800 text-navy-800 text-xs font-bold rounded-lg hover:bg-navy-800 hover:text-white transition-all">
-          Report
-        </button>
-        <button id="feedback-btn" class="px-3 sm:px-4 py-2 border border-emerald-600 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-600 hover:text-white transition-all" title="Report a bug · Suggest a feature · Share an idea">
-          💬 Feedback
-        </button>
-        <button id="logout-btn" class="hidden text-xs font-semibold text-slate-400 hover:text-red-500 transition-colors">
-          Logout
-        </button>
-      </div>
-    </header>
 
-    <!-- 뷰 탭 (Home / Analytics / Browse / Advanced Search / Stats / Review - 마지막 둘은 관리자 전용) -->
-    <nav id="view-tabs" class="bg-white border-b border-slate-200 px-4 sm:px-6 flex gap-0 overflow-x-auto whitespace-nowrap">
-      <button id="tab-home" class="view-tab active" onclick="setView('home')">Home</button>
-      <button id="tab-analytics" class="view-tab" onclick="setView('analytics')">Analytics</button>
-      <button id="tab-browse" class="view-tab" onclick="setView('browse')">Browse</button>
-      <button id="tab-advanced-search" class="view-tab" onclick="setView('advanced-search')">Advanced Search</button>
-      <button id="tab-stats" class="view-tab hidden" onclick="setView('stats')">Stats</button>
-      <button id="tab-review" class="view-tab hidden" onclick="setView('review')">Review</button>
-    </nav>
+        <!-- 뷰 탭 (Home / Analytics / Browse / Advanced search / Stats / Review — 마지막 둘은 관리자 전용) -->
+        <nav id="view-tabs" aria-label="Sections" class="order-3 w-[calc(100%+2rem)] -mx-4 px-4 overflow-x-auto no-scrollbar flex gap-1 lg:order-none lg:w-auto lg:mx-0 lg:px-0 lg:flex-col lg:overflow-visible">
+          <button id="tab-home" type="button" class="side-tab flex items-center gap-2.5 active" aria-current="page" onclick="setView('home')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>Home
+          </button>
+          <button id="tab-analytics" type="button" class="side-tab flex items-center gap-2.5" onclick="setView('analytics')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>Analytics
+          </button>
+          <button id="tab-browse" type="button" class="side-tab flex items-center gap-2.5" onclick="setView('browse')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h10"/></svg>Browse
+          </button>
+          <button id="tab-advanced-search" type="button" class="side-tab flex items-center gap-2.5" onclick="setView('advanced-search')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="M20 20l-5.5-5.5"/><path d="M8 10h4"/></svg>Advanced search
+          </button>
+          <button id="tab-stats" type="button" class="side-tab flex items-center gap-2.5 hidden" onclick="setView('stats')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>Stats
+          </button>
+          <button id="tab-review" type="button" class="side-tab flex items-center gap-2.5 hidden" onclick="setView('review')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h9"/></svg>Review
+          </button>
+        </nav>
+
+        <!-- 사이드바 하단: 리포트 · 피드백 · (관리자) 전체 재조회/로그아웃 · 방문자 · 제작자 표기 -->
+        <div id="sidebar-bottom" class="contents lg:flex lg:flex-col lg:gap-3 lg:mt-auto lg:px-2">
+          <div class="order-2 flex items-center gap-1 lg:order-none lg:flex-col lg:items-stretch lg:gap-2.5">
+            <button id="report-btn" type="button" class="h-10 px-4 rounded-lg bg-navy-800 text-white text-[13px] font-bold hover:bg-navy-900 transition-colors lg:h-11 lg:w-full lg:text-sm">
+              <span class="lg:hidden">Report</span><span class="hidden lg:inline">Download report</span>
+            </button>
+            <button id="feedback-btn" type="button" class="h-10 px-2 text-[13px] font-semibold text-navy-800 hover:underline lg:h-auto lg:px-0 lg:text-left" title="Report a bug · Suggest a feature · Share an idea">
+              Send feedback
+            </button>
+            <button id="refresh-all-btn" type="button" class="hidden h-9 px-3 rounded-lg border border-slate-200 text-[13px] font-semibold text-[#374151] hover:bg-slate-50 transition-colors lg:w-full" title="관리자 전용: 전체 월 Notion 재조회 (과거 월 CSV 갱신)">
+              🔄 Force Refresh All
+            </button>
+            <button id="logout-btn" type="button" class="hidden h-9 px-2 text-[13px] font-semibold text-[#586273] hover:text-red-600 transition-colors lg:px-0 lg:text-left">
+              Logout
+            </button>
+          </div>
+          <div class="order-4 w-full flex flex-wrap items-center gap-x-3 gap-y-0.5 pb-1 text-[11px] text-[#586273] lg:order-none lg:w-auto lg:pb-0 lg:flex-col lg:items-start lg:gap-1.5">
+            <p id="visitor-badge" class="flex items-center gap-1.5">
+              <span id="visitor-badge-dot" class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              <span id="visitor-badge-text">Loading visitor info…</span>
+            </p>
+            <p>
+              Developed by
+              <a href="https://github.com/hydrochan" target="_blank" rel="noopener" class="font-semibold hover:text-navy-800 hover:underline">Chan Kim</a>
+              ·
+              <a href="https://hydrochan.com" target="_blank" rel="noopener" class="hover:text-navy-800 hover:underline">hydrochan.com</a>
+            </p>
+          </div>
+        </div>
+      </aside>
+
+      <div id="app-main" class="min-w-0 flex-1">
 
     <!-- 필터 바 묶음 (Analytics 탭에서만 노출 · 기본 숨김) -->
-    <div id="analytics-filters" class="hidden">
+    <div id="analytics-filters" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 lg:pt-6">
       <!-- 필터 토글 헤더 (PC/모바일 공통 · 기본 접힘) -->
-      <div id="filters-mobile-toggle" class="bg-white border-b border-slate-100 px-4 sm:px-6 py-2 flex items-center justify-between">
-        <button id="filters-toggle-btn" type="button" class="flex items-center gap-2 text-[11px] font-bold text-navy-800 hover:text-navy-900 transition-colors">
+      <div id="filters-mobile-toggle" class="card px-4 py-2 flex items-center justify-between">
+        <button id="filters-toggle-btn" type="button" class="flex items-center gap-2 min-h-[36px] text-xs font-bold text-navy-800 hover:text-navy-900 transition-colors">
           <span id="filters-toggle-icon" class="text-slate-400">▸</span>
           <span>Filters</span>
-          <span id="filters-mobile-summary" class="text-[10px] font-semibold text-slate-400 ml-1">All journals · All topics</span>
+          <span id="filters-mobile-summary" class="text-xs font-semibold text-slate-400 ml-1">All journals · All topics</span>
         </button>
-        <span id="filter-count-mobile" class="text-[10px] font-semibold text-slate-400"></span>
+        <span id="filter-count-mobile" class="text-xs font-semibold text-slate-400"></span>
       </div>
       <!-- 필터 본문 (클릭 시 펼침, 기본 접힘) -->
-      <div id="filters-body" class="hidden">
+      <div id="filters-body" class="hidden card mt-2 overflow-hidden">
       <!-- 저널 필터 바 -->
-      <div class="bg-white border-b border-slate-100 px-4 sm:px-6 py-3">
+      <div class="px-4 sm:px-5 py-3">
         <div class="flex items-center gap-2 flex-wrap">
-          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Journals:</span>
+          <span class="text-xs font-bold text-slate-400 mr-1">Journals</span>
           <span id="journal-all-chip" class="journal-chip active" onclick="toggleAllJournals()">All</span>
           <div id="journal-chips" class="flex items-center gap-1.5 flex-wrap"></div>
-          <span id="filter-count" class="text-[10px] font-semibold text-slate-400 ml-2"></span>
+          <span id="filter-count" class="text-xs font-semibold text-slate-400 ml-2"></span>
         </div>
       </div>
 
       <!-- Topics (broad) 필터 바 -->
-      <div class="bg-white border-b border-slate-100 px-4 sm:px-6 py-3">
+      <div class="px-4 sm:px-5 py-3 border-t border-slate-100">
         <div class="flex items-center gap-2 flex-wrap">
-          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Topics:</span>
+          <span class="text-xs font-bold text-slate-400 mr-1">Topics</span>
           <span id="broad-all-chip" class="journal-chip active" onclick="toggleAllBroads()">All</span>
           <div id="broad-chips" class="flex items-center gap-1.5 flex-wrap"></div>
-          <span class="hidden sm:inline text-[10px] text-slate-400 ml-2 italic">When All → click to show only that · When filtering → click to add/remove</span>
+          <span class="hidden sm:inline text-xs text-slate-400 ml-2 italic">When All → click to show only that · When filtering → click to add/remove</span>
         </div>
       </div>
 
       <!-- Sharp (sub-topic) 필터 바 — broad 단일 선택 시 노출 -->
-      <div id="sharp-filter-bar" class="bg-slate-50 border-b border-slate-100 px-4 sm:px-6 py-2 hidden">
+      <div id="sharp-filter-bar" class="bg-slate-50 border-t border-slate-100 px-4 sm:px-5 py-2 hidden">
         <div class="flex items-center gap-2 flex-wrap">
-          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1" id="sharp-filter-label">Sub:</span>
+          <span class="text-xs font-bold text-slate-400 mr-1" id="sharp-filter-label">Sub:</span>
           <span id="sharp-all-chip" class="journal-chip active" onclick="toggleAllSharps()">All</span>
           <div id="sharp-chips" class="flex items-center gap-1.5 flex-wrap"></div>
         </div>
@@ -366,110 +397,176 @@
     </div>
     <!-- /analytics-filters -->
 
-    <main id="view-home" class="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6">
-      <!-- KPI 카드 -->
-      <section class="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <!-- 캡션은 div: `.kpi-card p[id]` 규칙(글자색 고정)에 걸리지 않게 하려는 것 -->
-        <div class="card kpi-card p-3 sm:p-5">
-          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Papers</p>
-          <p id="kpi-total" class="text-2xl font-black text-navy-900 mt-1">—</p>
-          <div id="kpi-total-sub" class="text-[10px] font-medium text-slate-400 mt-1"></div>
+    <main id="view-home" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-6 space-y-4 lg:space-y-5">
+      <!-- 검색 배너: 단일 검색창(#main-search-input) + 필터 칩(Period · Journal · Keyword · Sort) -->
+      <section id="home-banner" aria-labelledby="home-title" class="bg-navy-900 text-white rounded-2xl px-5 py-6 sm:px-8 sm:py-7 flex flex-col gap-4">
+        <div class="flex items-start gap-4">
+          <div class="mr-auto min-w-0 flex flex-col gap-1.5">
+            <h1 id="home-title" class="text-2xl sm:text-[28px] font-extrabold tracking-tight leading-tight">Find new papers across <span id="home-journal-count">…</span> journals</h1>
+            <p id="home-subline" class="text-sm text-[#C9D6EC]">Loading papers…</p>
+          </div>
+          <button id="refresh-btn" type="button" class="banner-icon-btn" aria-label="Refresh data" title="Refresh data">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+          </button>
         </div>
-        <div class="card kpi-card p-3 sm:p-5">
-          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Journals</p>
-          <p id="kpi-journals" class="text-2xl font-black text-navy-900 mt-1">—</p>
-          <div id="kpi-journals-sub" class="text-[10px] font-medium text-slate-400 mt-1"></div>
+        <form id="main-search-form" role="search" class="flex gap-2.5">
+          <div class="search-field">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#586273" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="flex-none"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <label for="main-search-input" class="sr-only">Search papers</label>
+            <input id="main-search-input" type="search" class="bare-input" placeholder="Title, journal, keyword or DOI — e.g. perovskite solar" autocomplete="off" enterkeyhint="search">
+            <button id="main-search-clear" type="button" class="search-clear hidden">Clear</button>
+          </div>
+          <button id="main-search-submit" type="submit" class="search-submit flex-none">Search</button>
+        </form>
+        <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" role="group" aria-label="Search filters">
+          <label class="chip is-set"><span class="chip-k">Period:</span>
+            <select id="month-range" class="bare-input">
+              <option value="1">1 month</option>
+              <option value="3">3 months</option>
+              <option value="6" selected>6 months</option>
+              <option value="12">12 months</option>
+            </select>
+          </label>
+          <label class="chip"><span class="chip-k">Journal:</span>
+            <select id="home-filter-journal" class="bare-input" data-default="">
+              <option value="">All</option>
+            </select>
+          </label>
+          <label class="chip"><span class="chip-k">Keyword:</span>
+            <select id="home-filter-keyword" class="bare-input" data-default="">
+              <option value="">All</option>
+            </select>
+          </label>
+          <label class="chip"><span class="chip-k">Sort:</span>
+            <select id="home-filter-sort" class="bare-input" data-default="new">
+              <option value="new" selected>Newest</option>
+              <option value="old">Oldest</option>
+              <option value="journal">Journal A–Z</option>
+            </select>
+          </label>
         </div>
-        <div class="card kpi-card p-3 sm:p-5">
-          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Last 7 Days</p>
-          <p id="kpi-week" class="text-2xl font-black text-navy-900 mt-1">—</p>
-          <div id="kpi-week-sub" class="text-[10px] font-medium text-slate-400 mt-1"></div>
+      </section>
+
+      <!-- 검색 결과: 검색어가 있을 때만 배너 바로 아래에 표시 -->
+      <section id="main-search-card" class="card px-4 py-4 sm:px-6 sm:py-5 hidden">
+        <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h2 class="sec-title">Search results</h2>
+          <span id="main-search-count" class="sec-sub" aria-live="polite"></span>
         </div>
-        <div class="card kpi-card p-3 sm:p-5">
-          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Daily Average</p>
-          <p id="kpi-daily" class="text-2xl font-black text-navy-900 mt-1">—</p>
-          <div id="kpi-daily-sub" class="text-[10px] font-medium text-slate-400 mt-1"></div>
-        </div>
-        <div class="card kpi-card p-3 sm:p-5 col-span-2 md:col-span-1">
-          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Top Keyword</p>
-          <p id="kpi-topkw" class="text-lg leading-8 font-black text-navy-900 mt-1 truncate">—</p>
-          <div id="kpi-topkw-sub" class="text-[10px] font-medium text-slate-400 mt-1"></div>
-        </div>
+        <p class="text-xs text-slate-400 mt-1 mb-3">Matches title, journal, keyword and DOI — every word must match. The Journal, Keyword and Sort filters above apply.</p>
+        <div id="main-search-results" class="space-y-1 max-h-[560px] overflow-y-auto"></div>
       </section>
 
       <!-- 공지·개선사항 (cache/announcements.json 비어있으면 자동 숨김) -->
-      <section id="section-announcements" class="card p-4 sm:p-6 hidden">
-        <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
-          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">📢 Announcements</h2>
-          <button id="ann-toggle" class="text-[10px] font-semibold text-slate-400 hover:text-navy-900" onclick="toggleAnnouncements()">Collapse</button>
+      <section id="section-announcements" class="card px-4 py-3 sm:px-5 hidden">
+        <div class="flex items-center justify-between gap-2">
+          <h2 class="text-sm font-extrabold text-navy-900">Announcements</h2>
+          <button id="ann-toggle" type="button" class="min-h-[32px] px-2 text-xs font-semibold text-slate-400 hover:text-navy-900" onclick="toggleAnnouncements()">Collapse</button>
         </div>
-        <div id="announcements-list" class="space-y-2"></div>
+        <div id="announcements-list" class="mt-1 divide-y divide-[#EEF0F3]"></div>
       </section>
 
-      <!-- 전역 검색 (논문 · 저널 · 키워드 · DOI) -->
-      <section class="card p-4 sm:p-6">
-        <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
-          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">🔍 Search</h2>
-          <span class="text-[10px] font-semibold text-slate-400">Searches title · journal · keyword · DOI · space-separated tokens are AND-matched</span>
+      <!-- KPI 카드 4장 (Period 칩만 따른다) -->
+      <section aria-label="Key numbers" class="grid grid-cols-2 xl:grid-cols-4 gap-3 lg:gap-4">
+        <div class="card kpi">
+          <p id="kpi-total-label" class="kpi-label">Papers</p>
+          <div class="kpi-row">
+            <p id="kpi-total" class="kpi-value">—</p>
+            <svg id="kpi-total-spark" class="kpi-visual" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"><path d="" fill="none" stroke="#163B73" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" style="vector-effect: non-scaling-stroke"/></svg>
+          </div>
+          <div id="kpi-total-sub" class="kpi-sub"></div>
         </div>
-        <div class="flex items-center gap-3 mb-4">
-          <input id="main-search-input" type="text" placeholder="e.g. catalysis hydrogen, perovskite solar, 10.1021/..."
-            class="flex-1 text-sm border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-navy-800" autocomplete="off">
-          <button id="main-search-clear" class="px-3 py-2 text-xs font-bold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50">Clear</button>
-          <span id="main-search-count" class="text-[11px] font-semibold text-slate-400 whitespace-nowrap"></span>
+        <div class="card kpi">
+          <p class="kpi-label">Last 7 days</p>
+          <div class="kpi-row">
+            <p id="kpi-week" class="kpi-value">—</p>
+            <div id="kpi-week-bars" class="kpi-visual kpi-bars" aria-hidden="true"></div>
+          </div>
+          <div id="kpi-week-sub" class="kpi-sub"></div>
         </div>
-        <div id="main-search-results" class="space-y-1 max-h-[560px] overflow-y-auto">
-          <p class="text-xs text-slate-400 text-center py-8">Enter a search term.</p>
+        <div class="card kpi">
+          <p class="kpi-label">Daily average</p>
+          <p id="kpi-daily" class="kpi-value">—</p>
+          <div id="kpi-daily-sub" class="kpi-sub"></div>
+        </div>
+        <div class="card kpi">
+          <p class="kpi-label">Journals</p>
+          <p id="kpi-journals" class="kpi-value">—</p>
+          <div id="kpi-journals-sub" class="kpi-sub"></div>
         </div>
       </section>
 
-      <!-- Paper Count (Home 하단) -->
-      <section class="card p-4 sm:p-6">
-        <div class="flex items-center gap-2 mb-4">
-          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Paper Count</h2>
-          <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
-            <button id="daily-period-day" class="px-2 py-1 bg-navy-800 text-white" onclick="setDailyPeriod('day')">Day</button>
-            <button id="daily-period-week" class="px-2 py-1 text-slate-500 hover:bg-slate-50" onclick="setDailyPeriod('week')">Week</button>
-            <button id="daily-period-month" class="px-2 py-1 text-slate-500 hover:bg-slate-50" onclick="setDailyPeriod('month')">Month</button>
+      <!-- Papers per day (Period 칩만 따른다 · Day 가 기본) -->
+      <section class="card px-4 py-4 sm:px-6 sm:py-5 flex flex-col gap-4">
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <h2 class="sec-title mr-auto"><span id="daily-title">Papers per day</span> <span id="daily-subtitle" class="sec-sub"></span></h2>
+          <div id="chart-daily-legend" class="flex items-center gap-4">
+            <span class="legend-item"><span class="legend-bar" aria-hidden="true"></span>Daily</span>
+            <span class="legend-item"><span class="legend-line" aria-hidden="true"></span>7-day average</span>
+          </div>
+          <div class="seg" role="group" aria-label="Interval">
+            <button id="daily-period-day" type="button" class="seg-btn is-on" aria-pressed="true" onclick="setDailyPeriod('day')">Day</button>
+            <button id="daily-period-week" type="button" class="seg-btn" aria-pressed="false" onclick="setDailyPeriod('week')">Week</button>
+            <button id="daily-period-month" type="button" class="seg-btn" aria-pressed="false" onclick="setDailyPeriod('month')">Month</button>
           </div>
         </div>
-        <div class="chart-container" style="height:250px">
-          <canvas id="chart-daily"></canvas>
+        <div class="chart-container" style="height:260px">
+          <canvas id="chart-daily" role="img" aria-label="Bar chart of papers per day"></canvas>
         </div>
-        <p id="chart-daily-note" class="hidden text-[10px] text-slate-400 mt-2">Dashed / faded = current period, still in progress</p>
+        <p id="chart-daily-note" class="hidden text-xs text-slate-400 -mt-2">Faded bar = current period, still in progress (left out of the 7-day average)</p>
       </section>
 
-      <!-- Recent Papers (Home 하단) -->
-      <section class="card p-4 sm:p-6">
-        <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
-          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Recent Papers</h2>
-          <input id="paper-search" type="text" placeholder="Search (title · journal · keyword · DOI)..."
-            class="text-xs border border-slate-200 rounded-lg px-3 py-2 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-navy-800">
+      <!-- Top journals + Top keywords (Period 칩만 따른다) -->
+      <div class="tops-grid">
+        <section class="card px-4 py-4 sm:px-6 sm:py-5 flex flex-col gap-3.5">
+          <div class="flex items-baseline justify-between gap-3">
+            <h2 class="sec-title">Top journals</h2>
+            <button id="top-journals-all" type="button" class="link-btn" onclick="setView('analytics')">All journals →</button>
+          </div>
+          <ol id="top-journals" class="list-none m-0 p-0 flex flex-col gap-2.5"></ol>
+        </section>
+        <section class="card px-4 py-4 sm:px-6 sm:py-5 flex flex-col gap-3.5">
+          <div class="flex items-baseline justify-between gap-3">
+            <h2 class="sec-title">Top keywords</h2>
+            <button type="button" class="link-btn" onclick="setView('analytics')">Keyword trends →</button>
+          </div>
+          <ol id="top-keywords" class="list-none m-0 p-0 flex flex-col gap-2.5"></ol>
+        </section>
+      </div>
+
+      <!-- Recent papers (Journal · Keyword · Sort 칩의 영향을 받는다) -->
+      <section class="card px-4 pt-4 pb-2 sm:px-6 sm:pt-5">
+        <div class="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
+          <h2 class="sec-title">Recent papers</h2>
+          <span id="recent-meta" class="sec-sub mr-auto"></span>
+          <button type="button" class="link-btn" onclick="setView('browse')">Browse all →</button>
         </div>
-        <div class="recent-papers-scroll overflow-x-auto max-h-[500px] overflow-y-auto">
-          <table class="recent-papers-table w-full text-xs">
-            <thead class="sticky top-0 bg-slate-50">
-              <tr class="text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <th class="px-3 py-2">Date</th>
-                <th class="px-3 py-2">Journal</th>
-                <th class="px-3 py-2">Title</th>
+        <div class="rp-scroll mt-3">
+          <table class="rp-table">
+            <colgroup><col style="width:100px"><col style="width:210px"><col></colgroup>
+            <thead>
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Journal</th>
+                <th scope="col">Title</th>
               </tr>
             </thead>
             <tbody id="paper-tbody"></tbody>
           </table>
         </div>
+        <p id="recent-more" class="hidden py-3 text-xs text-slate-400"></p>
       </section>
     </main>
     <!-- /view-home -->
 
     <!-- Analytics: 차트 · 히트맵 · 관심분석 -->
-    <main id="view-analytics" class="hidden max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6">
+    <main id="view-analytics" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-6 space-y-6">
       <!-- 키워드 트렌드 -->
       <section>
         <div class="card p-4 sm:p-6 flex flex-col">
           <div class="flex items-center justify-between mb-4 flex-wrap gap-y-2">
             <div class="flex items-center gap-2 shrink-0">
-              <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] whitespace-nowrap">Keyword Trends</h2>
+              <h2 class="sec-title whitespace-nowrap">Keyword trends</h2>
               <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
                 <button id="kw-period-week" class="px-2 py-1 bg-navy-800 text-white" onclick="setKwPeriod('week')">Week</button>
                 <button id="kw-period-month" class="px-2 py-1 text-slate-500 hover:bg-slate-50" onclick="setKwPeriod('month')">Month</button>
@@ -500,8 +597,8 @@
       <section class="card p-4 sm:p-6">
         <div class="flex items-center justify-between mb-4">
           <div>
-            <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Top Keywords</h2>
-            <p class="text-[10px] text-slate-400 mt-1">Broad domain ▸ Sharp keyword. Click a domain to expand, ⚲ to filter charts.</p>
+            <h2 class="sec-title">Top keywords</h2>
+            <p class="text-xs text-slate-400 mt-1">Broad domain ▸ Sharp keyword. Click a domain to expand, ⚲ to filter charts.</p>
           </div>
           <div class="flex items-center gap-2">
             <button onclick="expandAllBroads(true)" class="text-[10px] font-bold text-slate-500 hover:text-navy-700 px-2 py-1 border border-slate-200 rounded">Expand all</button>
@@ -515,7 +612,7 @@
       <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="card p-4 sm:p-6">
           <div class="flex items-center gap-2 mb-4">
-            <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] whitespace-nowrap">Journal Frequency</h2>
+            <h2 class="sec-title whitespace-nowrap">Journal frequency</h2>
             <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
               <button id="jf-period-week" class="px-2 py-1 bg-navy-800 text-white" onclick="setJfPeriod('week')">Week</button>
               <button id="jf-period-month" class="px-2 py-1 text-slate-500 hover:bg-slate-50" onclick="setJfPeriod('month')">Month</button>
@@ -527,7 +624,7 @@
         </div>
         <div class="card p-4 sm:p-6">
           <div class="flex items-center gap-2 mb-4">
-            <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] whitespace-nowrap">Frequent Journals Trend</h2>
+            <h2 class="sec-title whitespace-nowrap">Frequent journals trend</h2>
             <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
               <button id="jm-period-week" class="px-2 py-1 bg-navy-800 text-white" onclick="setJmPeriod('week')">Week</button>
               <button id="jm-period-month" class="px-2 py-1 text-slate-500 hover:bg-slate-50" onclick="setJmPeriod('month')">Month</button>
@@ -544,8 +641,8 @@
       <section id="section-by-journal-keywords" class="card p-4 sm:p-6">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
           <div>
-            <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">By Journal Keywords</h2>
-            <p class="text-[10px] text-slate-400 mt-0.5">Each journal's own top keywords — compare a journal's character without high-volume journals skewing the mix</p>
+            <h2 class="sec-title">By journal keywords</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Each journal's own top keywords — compare a journal's character without high-volume journals skewing the mix</p>
           </div>
           <div class="flex items-center gap-2 flex-wrap">
             <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden" title="Keyword view">
@@ -581,7 +678,7 @@
       <!-- 저널 × 키워드 히트맵 -->
       <section id="section-journal-keyword-matrix" class="card p-4 sm:p-6">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">Journal &times; Keyword Matrix</h2>
+          <h2 class="sec-title">Journal &times; keyword matrix</h2>
           <div class="flex items-center gap-2 flex-wrap">
             <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden" title="Keyword view: Broad domain / Sharp sub-keyword">
               <button id="hm-kv-broad" class="px-2.5 py-1 bg-navy-800 text-white" onclick="setHeatmapView('broad')">Broad</button>
@@ -612,7 +709,7 @@
     <!-- /view-analytics -->
 
     <!-- Browse 뷰: 저널별 / 주제별 × 날짜 그룹 -->
-    <main id="view-browse" class="hidden max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+    <main id="view-browse" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-6">
       <div class="flex gap-1 mb-4 border-b border-slate-200">
         <button id="browse-mode-journal" class="view-tab active" onclick="setBrowseMode('journal')">By Journal</button>
         <button id="browse-mode-topic" class="view-tab" onclick="setBrowseMode('topic')">By Topic</button>
@@ -620,7 +717,7 @@
       <div class="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4">
         <aside class="card p-3 max-h-[40vh] md:max-h-[75vh] overflow-y-auto">
           <div class="flex items-center justify-between mb-2 px-1" id="browse-list-header">
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Journals</span>
+            <span class="text-xs font-bold text-slate-400">Journals</span>
             <div class="flex items-center gap-2">
               <div class="flex text-[10px] font-bold border border-slate-200 rounded overflow-hidden">
                 <button id="browse-sort-count" class="px-2 py-0.5 bg-navy-800 text-white" onclick="setBrowseSort('count')" title="Count (descending)">#</button>
@@ -640,12 +737,12 @@
     </main>
 
     <!-- Advanced Search 뷰: 제목/키워드 중심 전체 검색 -->
-    <main id="view-advanced-search" class="hidden max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4">
+    <main id="view-advanced-search" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-6 space-y-4">
       <section class="card p-4 sm:p-6">
         <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
           <div>
-            <h2 class="text-sm font-black text-navy-900 tracking-tight">Advanced Search</h2>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.08em] mt-0.5">Title · Keywords · Operators</p>
+            <h2 class="sec-title">Advanced search</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Title · Keywords · Operators</p>
           </div>
           <span id="advanced-search-count" class="text-[11px] font-semibold text-slate-400 whitespace-nowrap"></span>
         </div>
@@ -658,7 +755,7 @@
         </div>
 
         <div class="flex items-center gap-2 flex-wrap mt-3">
-          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Fields:</span>
+          <span class="text-xs font-bold text-slate-400 mr-1">Fields</span>
           <label class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
             <input type="checkbox" class="advanced-search-field" value="title" checked>
             <span>Title</span>
@@ -692,7 +789,7 @@
     </main>
 
     <!-- Stats 뷰: 접속 통계 (관리자 전용) -->
-    <main id="view-stats" class="hidden max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6">
+    <main id="view-stats" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-6 space-y-6">
       <header class="flex items-center justify-between">
         <div>
           <h2 class="text-xl font-black text-navy-900 tracking-tight">Access Stats</h2>
@@ -725,7 +822,7 @@
 
       <!-- 일별 페이지뷰 -->
       <section class="card p-4 sm:p-6">
-        <h3 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">일별 페이지뷰 (30일)</h3>
+        <h3 class="sec-title mb-4">일별 페이지뷰 (30일)</h3>
         <div class="chart-container" style="height:280px">
           <canvas id="stats-daily-chart"></canvas>
         </div>
@@ -734,7 +831,7 @@
       <!-- 사용자 피드백 -->
       <section class="card p-4 sm:p-6">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em]">📮 User Feedback <span id="stats-feedback-unread" class="ml-2 text-[10px] font-bold text-red-500"></span></h3>
+          <h3 class="sec-title">User feedback <span id="stats-feedback-unread" class="ml-2 text-xs font-bold text-red-500"></span></h3>
           <div class="flex items-center gap-2">
             <label class="text-[10px] font-semibold text-slate-500"><input type="checkbox" id="stats-feedback-unread-only" class="mr-1">미확인만</label>
           </div>
@@ -746,7 +843,7 @@
 
       <!-- 최근 이벤트 -->
       <section class="card p-4 sm:p-6">
-        <h3 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-3">Recent Events</h3>
+        <h3 class="sec-title mb-3">Recent events</h3>
 
         <!-- 필터: 기간 · 타입 · 검색 -->
         <div class="flex items-center gap-2 flex-wrap mb-3">
@@ -796,7 +893,7 @@
     </main>
 
     <!-- Review 뷰: 논문 판정 검토 (관리자 전용) - POST /api/admin/review/{papers,status} -->
-    <main id="view-review" class="hidden max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4">
+    <main id="view-review" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-6 space-y-4">
       <section class="card p-4 sm:p-6">
         <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
           <div>
@@ -838,23 +935,27 @@
       </section>
     </main>
 
-    <footer class="text-center text-[10px] text-slate-400 py-4 leading-relaxed">
+    <footer class="text-center text-[11px] text-slate-400 px-4 py-6 leading-relaxed">
       get-ASAP &copy; 2026 Chan Kim (@hydro_chan). All rights reserved.<br>
       Unauthorized copying, reproduction, or distribution of this site or its source is prohibited.
     </footer>
+      </div>
+      <!-- /app-main -->
+    </div>
+    <!-- /app-shell -->
   </div>
 
   <!-- ========== Report 설정 모달 ========== -->
   <div id="report-modal" class="hidden fixed inset-0 z-50 bg-slate-950/45 flex items-center justify-center p-4">
     <div class="card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-black text-navy-900">📄 Download report</h3>
+        <h3 class="text-lg font-extrabold text-navy-900">Download report</h3>
         <button id="report-close" class="text-slate-400 hover:text-slate-700 text-xl font-bold">&times;</button>
       </div>
       <div class="space-y-5">
         <!-- 기간 -->
         <div>
-          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Period</label>
+          <label for="report-months" class="text-xs font-bold text-slate-500">Period</label>
           <select id="report-months" class="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-800">
             <option value="1">Last 1 month</option>
             <option value="3" selected>Last 3 months</option>
@@ -865,7 +966,7 @@
 
         <!-- 포함 섹션 -->
         <div>
-          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Include</label>
+          <p class="text-xs font-bold text-slate-500">Include</p>
           <div class="mt-2 space-y-2 text-sm">
             <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-summary" checked> <span>Summary (total papers · journals)</span></label>
             <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-topkw" checked> <span>Top 20 Keywords table</span></label>
@@ -877,7 +978,7 @@
         <!-- 키워드 선택 (키워드별 논문 목록 체크 시만 활성) -->
         <div id="report-kw-section" class="opacity-50 pointer-events-none transition-opacity">
           <div class="flex items-baseline justify-between">
-            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Keywords (Broad)</label>
+            <p class="text-xs font-bold text-slate-500">Keywords (broad)</p>
             <div class="flex items-center gap-2 text-[10px]">
               <button type="button" id="report-kw-all" class="text-navy-700 font-bold hover:underline">All</button>
               <button type="button" id="report-kw-none" class="text-slate-400 font-bold hover:underline">None</button>
@@ -907,22 +1008,22 @@
   <div id="feedback-modal" class="hidden fixed inset-0 z-50 bg-slate-950/45 flex items-center justify-center p-4">
     <div class="card p-6 w-full max-w-md">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-black text-navy-900">💬 Send feedback</h3>
+        <h3 class="text-lg font-extrabold text-navy-900">Send feedback</h3>
         <button id="feedback-close" class="text-slate-400 hover:text-slate-700 text-xl font-bold">&times;</button>
       </div>
       <p class="text-xs text-slate-500 mb-4">Bug reports, feature ideas, praise or complaints — anything goes. You can send feedback anonymously without signing in; only the admin can read it.</p>
       <form id="feedback-form" class="space-y-3">
         <input type="text" name="hp" id="feedback-hp" autocomplete="off" tabindex="-1" aria-hidden="true" class="hidden">
         <div>
-          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Category</label>
+          <label for="feedback-category" class="text-xs font-bold text-slate-500">Category</label>
           <select id="feedback-category" class="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-800">
-            <option value="bug">🐞 Bug report</option>
-            <option value="feature" selected>💡 Feature request</option>
-            <option value="other">✏️ Other</option>
+            <option value="bug">Bug report</option>
+            <option value="feature" selected>Feature request</option>
+            <option value="other">Other</option>
           </select>
         </div>
         <div>
-          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Message</label>
+          <label for="feedback-message" class="text-xs font-bold text-slate-500">Message</label>
           <textarea id="feedback-message" rows="5" maxlength="2000" required
             class="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 resize-none"
             placeholder="e.g. Journal ABC seems to be missing / I'd like a custom date range"></textarea>
@@ -965,6 +1066,33 @@
       '#D4A03C','#E8B960','#F0D08A','#059669','#10B981',
       '#EF4444','#8B5CF6','#EC4899','#F59E0B','#6366F1'
     ];
+
+    // 차트 공통 기본값: Manrope + 흐린 본문색 (Chart.js CDN 로딩 실패 시에도 나머지 화면은 동작하도록 방어)
+    if (window.Chart) {
+      Chart.defaults.font.family = '"Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
+      Chart.defaults.color = '#586273';
+    }
+
+    // ---------- Home 표시용 날짜 헬퍼 ('YYYY-MM-DD' 문자열 기준 — 타임존 영향 없음) ----------
+    const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const _DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+    // 'Nov 2' (withYear 면 'Nov 2, 2026'). 형식이 다르면 원문 그대로.
+    function fmtDate(s, withYear) {
+      const m = _DATE_RE.exec(s || '');
+      if (!m) return s || '';
+      return `${MONTH_SHORT[+m[2] - 1] || m[2]} ${+m[3]}${withYear ? ', ' + m[1] : ''}`;
+    }
+    // 'YYYY-MM-DD' 에 n일을 더한 'YYYY-MM-DD' (UTC 자정끼리 계산하므로 DST 무관)
+    function shiftDateStr(s, n) {
+      const t = new Date(Date.parse(s + 'T00:00:00Z') + n * 86400000);
+      return t.toISOString().slice(0, 10);
+    }
+    // 키워드 슬러그 → 표시용 문장 ('heterogeneous-catalysis' → 'Heterogeneous catalysis')
+    function kwLabel(slug) {
+      const s = String(slug || '').replace(/-/g, ' ');
+      return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+    const _collator = new Intl.Collator('en', { sensitivity: 'base', numeric: true });
 
     // ---------- 저널명 약어 (ISO 4) — 표시 전용 ----------
     // p.journal(전체 이름)은 필터·집계·선택 상태의 키라서 절대 바꾸지 않고, 화면에 그릴 때만 journalAbbr()를 거친다.
@@ -1366,7 +1494,12 @@
     };
     window.setDailyPeriod = function(mode) {
       dailyPeriodMode = mode;
-      _updatePeriodButtons('daily-period', mode, ['day','week','month']);
+      for (const m of ['day', 'week', 'month']) {
+        const btn = document.getElementById(`daily-period-${m}`);
+        if (!btn) continue;
+        btn.className = m === mode ? 'seg-btn is-on' : 'seg-btn';
+        btn.setAttribute('aria-pressed', m === mode ? 'true' : 'false');
+      }
       renderDailyChart();
     };
     let charts = {};
@@ -1475,7 +1608,20 @@
     });
 
     // ---------- 데이터 로드 ----------
+    // 배너의 새로고침 아이콘 버튼은 글자가 없으므로, 로딩 중에는 아이콘을 돌려 진행 상태를 알린다
     async function loadData() {
+      const btn = document.getElementById('refresh-btn');
+      const icon = btn && btn.querySelector('svg');
+      if (btn) btn.setAttribute('aria-busy', 'true');
+      if (icon) icon.classList.add('animate-spin');
+      try {
+        await _loadData();
+      } finally {
+        if (btn) btn.removeAttribute('aria-busy');
+        if (icon) icon.classList.remove('animate-spin');
+      }
+    }
+    async function _loadData() {
       const months = parseInt(document.getElementById('month-range').value);
       const monthList = getMonthRange(months);
       // 월별 버전 맵: 그 달 데이터가 바뀌면 값이 바뀌는 불투명 문자열.
@@ -1532,6 +1678,7 @@
       buildJournalFilter();
       buildTopicFilter();
       populateBroadFilters();
+      buildHomeFilters();
       applyFilter();
     }
 
@@ -1624,17 +1771,18 @@
           {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
         ));
 
+        // 슬림 행: 종류 알약 + 날짜 / 제목 + 본문 (색 띠 없이 알약만 종류색, 행 사이는 중립 구분선)
         const html = items.map(it => {
           const t = typeStyle[it.type] || typeStyle.info;
           return `
-            <div class="flex gap-3 p-3 rounded-lg border border-slate-100" style="background:${t.bg}; border-top:3px solid ${t.color};">
-              <div class="flex-shrink-0 flex flex-col items-start gap-1 min-w-[80px]">
-                <span class="text-[9px] font-black tracking-[0.08em] px-1.5 py-0.5 rounded" style="background:${t.color}; color:#F8FAFC;">${t.label}</span>
-                <span class="text-[10px] font-semibold text-slate-500">${esc(it.date)}</span>
+            <div class="flex gap-3 py-2.5">
+              <div class="flex-shrink-0 flex flex-col items-start gap-1 min-w-[72px]">
+                <span class="text-[10px] font-extrabold tracking-[0.06em] px-1.5 py-0.5 rounded" style="background:${t.color}; color:#F8FAFC;">${t.label}</span>
+                <span class="text-xs font-semibold text-slate-500">${esc(it.date)}</span>
               </div>
               <div class="flex-1 min-w-0">
                 <p class="text-sm font-bold text-navy-900 leading-snug">${esc(it.title)}</p>
-                <p class="text-xs text-slate-600 mt-1 leading-relaxed">${esc(it.body)}</p>
+                <p class="text-[13px] text-[#374151] mt-0.5 leading-relaxed">${esc(it.body)}</p>
               </div>
             </div>`;
         }).join('');
@@ -1679,7 +1827,7 @@
         const online = Number.isFinite(data.online) ? data.online : 0;
         const today = Number.isFinite(data.today) ? data.today : 0;
         const total = Number.isFinite(data.total) ? data.total : 0;
-        textEl.textContent = `Visitors: ${online} online · ${today} today · ${total} total`;
+        textEl.textContent = `${online.toLocaleString('en-US')} online · ${today.toLocaleString('en-US')} today · ${total.toLocaleString('en-US')} visits`;
         if (dotEl) dotEl.classList.remove('hidden');
       } catch {
         textEl.textContent = 'Visitor info —';
@@ -1959,7 +2107,7 @@
 
     // ---------- 렌더링 ----------
     function renderAll() {
-      renderKPIs();
+      renderHome();
       renderKeywordChart();
       renderKeywordTable();
       renderJournalChart();
@@ -1968,6 +2116,7 @@
       renderHeatmap();
       renderByJournalKeywords();
       renderPaperTable();
+      if (mainSearchInput.value.trim()) runMainSearch(mainSearchInput.value);   // 데이터가 바뀌면(Period/Refresh) 열려 있는 검색 결과도 새로 그린다
       // Browse 뷰가 활성화된 경우, 데이터 재로드 시에도 동기화 (allPapers 기반)
       if (currentView === 'browse') {
         renderBrowseList();
@@ -1977,23 +2126,51 @@
       }
     }
 
-    // KPI
-    // Home 전용 — 필터 무시. "범위 안" = 범위 시작일 ≤ 날짜 ≤ 오늘 (범위 시작일은 periodFloorKey와 같은 rangeStartDate()).
+    // ---------- Home: 배너 · KPI · 상위 목록 (Period 칩만 따른다 — Journal/Keyword/Sort 칩과 Analytics 필터는 무시) ----------
+    // "범위 안" = 범위 시작일 ≤ 날짜 ≤ 오늘 (범위 시작일은 periodFloorKey와 같은 rangeStartDate()).
     // 범위 이전 날짜(수신월 DB에 섞인 early view 등)는 빼고, 미래 날짜는 loadData에서 이미 오늘로 보정돼 있다.
-    // 모든 카드가 이 한 집합에서 계산되고, 각 카드 아래 캡션이 집계 범위를 밝힌다.
-    function renderKPIs() {
+    // 배너 문구·KPI·Top 목록이 모두 이 한 집합에서 계산된다.
+    function periodPapers() {
+      const today = localDateStr(new Date());
+      const start = localDateStr(rangeStartDate());
+      return allPapers.filter(p => { const d = (p.date || '').slice(0, 10); return d >= start && d <= today; });
+    }
+
+    function renderHome() {
+      const papers = periodPapers();
+      // 저널 빈도 (Analytics "Journal Frequency" 와 같은 집계: 저널명별 건수) — 많은 순, 동률은 약어 순
+      const jFreq = {};
+      for (const p of papers) if (p.journal) jFreq[p.journal] = (jFreq[p.journal] || 0) + 1;
+      const jSorted = Object.entries(jFreq).sort((a, b) => b[1] - a[1] || _collator.compare(journalAbbr(a[0]), journalAbbr(b[0])));
+      renderHomeBanner(papers, jSorted.length);
+      renderKPIs(papers, jSorted);
+      renderTopLists(papers, jSorted);
+    }
+
+    // 배너 제목·부제: "Find new papers across {N} journals" / "{papers} papers in the last {period} · through {date} · updated every 15 minutes"
+    function renderHomeBanner(papers, journalCount) {
+      document.getElementById('home-journal-count').textContent = journalCount.toLocaleString('en-US');
+      let latest = '';
+      for (const p of papers) { const d = p.date.slice(0, 10); if (d > latest) latest = d; }
+      document.getElementById('home-subline').textContent = papers.length
+        ? `${papers.length.toLocaleString('en-US')} papers in the ${rangeCaption().toLowerCase()} · through ${fmtDate(latest, true)} · updated every 15 minutes`
+        : 'No papers loaded for this period · updated every 15 minutes';
+    }
+
+    // KPI 4장: 기간 논문 수(주간 스파크라인) · 최근 7일(14일 막대 + 직전 7일 대비) · 일평균 · 저널 수(+ 1위)
+    function renderKPIs(papers, jSorted) {
       const now = new Date();
       const today = localDateStr(now);
       const start = localDateStr(rangeStartDate());
-      const papers = allPapers.filter(p => { const d = (p.date || '').slice(0, 10); return d >= start && d <= today; });
       const total = papers.length;
-      const journals = new Set(papers.map(p => p.journal).filter(Boolean));
-      const rangeText = rangeCaption();
-      const plural = (n, w) => `${n.toLocaleString('en-US')} ${w}${n === 1 ? '' : 's'}`;
+      const rangeText = rangeCaption().toLowerCase();
       // 두 YYYY-MM-DD 사이 일수(b - a). UTC 자정끼리 빼므로 DST와 무관.
       const dayDiff = (a, b) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000);
-      const countBetween = (from, to) => papers.filter(p => { const d = p.date.slice(0, 10); return d >= from && d <= to; }).length;
       const shiftDays = (n) => localDateStr(new Date(now.getFullYear(), now.getMonth(), now.getDate() + n));
+      // 날짜별 건수 (범위 안)
+      const perDay = {};
+      for (const p of papers) { const d = p.date.slice(0, 10); perDay[d] = (perDay[d] || 0) + 1; }
+      const countBetween = (from, to) => { let n = 0; for (let d = from; d <= to; d = shiftDateStr(d, 1)) n += perDay[d] || 0; return n; };
 
       // 최근 7일(오늘 포함) vs 그 직전 7일
       const curFrom = shiftDays(-6);
@@ -2017,22 +2194,75 @@
       // 일평균 = 범위 안 논문 수 ÷ (범위 시작일 ~ 오늘 일수, 양끝 포함)
       const rangeDays = dayDiff(start, today) + 1;
 
-      const globalFreq = getFreq(papers, 'broad', '');   // paper 단위 중복 제거 — 값이 곧 "그 broad 키워드를 가진 논문 수"
-      const topKw = Object.entries(globalFreq).sort((a,b)=>b[1]-a[1]);
-      const topKwName = topKw.length ? topKw[0][0] : '—';
+      // 주간 스파크라인: 오늘로 끝나는 7일 창을 거꾸로 쌓아 "꽉 찬" 창만 쓴다 (첫/마지막 주가 부분 주라 꺼져 보이는 것을 피한다)
+      const weeks = [];
+      for (let i = Math.floor(rangeDays / 7) - 1; i >= 0; i--) {
+        weeks.push(countBetween(shiftDays(-6 - 7 * i), shiftDays(-7 * i)));
+      }
+      let weekCaption = 'Weekly';
+      if (weeks.length >= 2) {
+        const firstMonth = MONTH_SHORT[+shiftDays(-6 - 7 * (weeks.length - 1)).slice(5, 7) - 1];
+        const lastMonth = MONTH_SHORT[+today.slice(5, 7) - 1];
+        weekCaption = `Weekly, ${firstMonth === lastMonth ? firstMonth : firstMonth + '–' + lastMonth}`;
+      }
+      const sparkPath = document.querySelector('#kpi-total-spark path');
+      if (sparkPath) {
+        let d = '';
+        if (weeks.length >= 2) {
+          const lo = Math.min(...weeks), hi = Math.max(...weeks), span = (hi - lo) || 1;
+          d = weeks.map((v, i) => `${i ? 'L' : 'M'}${(i / (weeks.length - 1) * 100).toFixed(1)} ${(hi === lo ? 15 : 28 - (v - lo) / span * 26).toFixed(1)}`).join(' ');
+        }
+        sparkPath.setAttribute('d', d);
+      }
+
+      // 최근 14일 막대: 앞 7일은 옅게, 뒤 7일(최근)은 진하게
+      const barsEl = document.getElementById('kpi-week-bars');
+      if (barsEl) {
+        const days = [];
+        for (let i = 13; i >= 0; i--) days.push(perDay[shiftDays(-i)] || 0);
+        const max = Math.max(1, ...days);
+        barsEl.innerHTML = days.map((v, i) =>
+          `<span class="${i >= 7 ? 'bg-[#163B73]' : 'bg-[#C3D0E6]'}" style="height:${Math.max(6, Math.round(v / max * 100))}%"></span>`
+        ).join('');
+      }
 
       const set = (id, text) => { document.getElementById(id).textContent = text; };
+      set('kpi-total-label', `Papers · ${rangeText}`);
       set('kpi-total', total.toLocaleString('en-US'));
-      set('kpi-total-sub', rangeText);
-      set('kpi-journals', journals.size.toLocaleString('en-US'));
-      set('kpi-journals-sub', rangeText);
+      set('kpi-total-sub', weekCaption);
       set('kpi-week', weekCount.toLocaleString('en-US'));
       set('kpi-week-sub', weekSub);
       set('kpi-daily', total ? (total / rangeDays).toFixed(1) : '—');
-      set('kpi-daily-sub', rangeText);
-      set('kpi-topkw', topKwName);
-      document.getElementById('kpi-topkw').title = topKwName;
-      set('kpi-topkw-sub', topKw.length ? plural(topKw[0][1], 'paper') : '');
+      set('kpi-daily-sub', 'Papers per day');
+      set('kpi-journals', jSorted.length.toLocaleString('en-US'));
+      const topJ = jSorted[0];
+      set('kpi-journals-sub', topJ ? `Top: ${journalLabel(topJ[0])} (${topJ[1].toLocaleString('en-US')})` : '');
+      document.getElementById('kpi-journals-sub').title = topJ ? topJ[0] : '';
+    }
+
+    // Top journals / Top keywords: 기간 내 상위 8개 HTML 막대 목록 (키워드는 sharp · 소속 broad)
+    function renderTopLists(papers, jSorted) {
+      const row = (name, sub, count, max, fill, title) =>
+        `<li class="flex flex-col gap-1 text-[13px]">
+          <span class="flex justify-between gap-3">
+            <span class="font-semibold min-w-0 truncate" title="${_escapeHtml(title)}">${_escapeHtml(name)}${sub ? ` <span class="font-medium text-[#586273]">· ${_escapeHtml(sub)}</span>` : ''}</span>
+            <span class="text-[#374151] shrink-0">${count.toLocaleString('en-US')}</span>
+          </span>
+          <span class="block h-2 rounded bg-[#EEF1F5] overflow-hidden"><span class="block h-full rounded ${fill}" style="width:${(count / max * 100).toFixed(1)}%"></span></span>
+        </li>`;
+      const empty = '<li class="text-[13px] text-[#586273] py-6 text-center">No data</li>';
+
+      const topJ = jSorted.slice(0, 8);
+      document.getElementById('top-journals').innerHTML = topJ.length
+        ? topJ.map(([j, c]) => row(journalLabel(j), '', c, topJ[0][1], 'bg-[#163B73]', j)).join('')
+        : empty;
+      document.getElementById('top-journals-all').textContent = `All ${jSorted.length.toLocaleString('en-US')} →`;
+
+      const kFreq = getFreq(papers, 'sharp', '');   // paper 단위 중복 제거 — 값이 곧 "그 sharp 키워드를 가진 논문 수"
+      const topK = Object.entries(kFreq).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 8);
+      document.getElementById('top-keywords').innerHTML = topK.length
+        ? topK.map(([k, c]) => row(kwLabel(k), kwLabel(sharpToParent[k] || ''), c, topK[0][1], 'bg-[#4F74B3]', k)).join('')
+        : empty;
     }
 
     // gpt_reason 파싱: "batteries/solid-electrolytes, biology" → [{broad, sharp}, ...]
@@ -2425,26 +2655,94 @@
       const dailyLast = dates.length - 1;
       setProgressNote('chart-daily-note', !!dailyProgress);
 
+      // 카드 머리말: 제목은 모드를 따르고, 범례(Daily / 7-day average)는 Day 모드에서만 보인다
+      const mode = dailyPeriodMode;
+      const isDay = mode === 'day';
+      const unitWord = mode === 'day' ? 'day' : mode === 'week' ? 'week' : 'month';
+      document.getElementById('daily-title').textContent = `Papers per ${unitWord}`;
+      document.getElementById('daily-subtitle').textContent = `· ${rangeCaption().toLowerCase()}`;
+      document.getElementById('chart-daily-legend').classList.toggle('hidden', !isDay);
+      document.getElementById('chart-daily-note').textContent = isDay
+        ? 'Faded bar = today, still in progress (left out of the 7-day average)'
+        : 'Faded bar = current period, still in progress';
+      document.getElementById('chart-daily').setAttribute('aria-label',
+        `Bar chart of papers per ${unitWord}${isDay ? ' with a 7-day average line' : ''}`);
+
+      // 막대: Day 는 옅은 파랑(#C3D0E6, 평균선이 주인공), Week/Month 는 선이 없어 한 톤 진하게. 진행 중인 마지막 막대는 알파 50%.
+      const BAR = isDay ? '#C3D0E6' : '#8FA8D1';
+      const datasets = [{
+        type: 'bar',
+        label: isDay ? 'Daily' : 'Papers',
+        data: dates.map(d => freq[d]),
+        backgroundColor: dates.map((_, i) => dailyProgress && i === dailyLast ? BAR + '80' : BAR),
+        borderRadius: 2,
+        order: 2,
+      }];
+      if (isDay) {
+        // 7일 이동평균: 그 날짜를 포함한 최근 7 "달력일" 합 ÷ 7 (데이터 없는 날은 0). 창이 로드 범위 시작보다 앞서면 값 없음,
+        // 진행 중인 오늘(부분 집계)은 평균이 꺼져 보이지 않도록 제외한다.
+        const floor = periodFloorKey('day');
+        const avg = dates.map((d, i) => {
+          if (dailyProgress && i === dailyLast) return null;
+          if (shiftDateStr(d, -6) < floor) return null;
+          let s = 0;
+          for (let k = 0; k < 7; k++) s += freq[shiftDateStr(d, -k)] || 0;
+          return s / 7;
+        });
+        datasets.push({
+          type: 'line', label: '7-day average', data: avg,
+          borderColor: '#163B73', backgroundColor: '#163B73', borderWidth: 2.5,
+          pointRadius: 0, pointHoverRadius: 4, tension: 0.25, spanGaps: true, order: 1,
+        });
+      }
+
+      // x축 라벨: Day 는 월 1일(과 첫 막대)만 'Aug 5'/'Sep 1' 식으로 — 범위가 짧으면(≤45일) 일정 간격. Week 는 'W31', Month 는 'Aug'(첫 달·1월은 연도 포함)
+      const dayStep = dates.length <= 45 ? Math.max(1, Math.ceil(dates.length / 8)) : 0;
+      const fmtTick = (key, index) => {
+        if (mode === 'day') {
+          if (dayStep ? index % dayStep !== 0 : !(index === 0 || key.slice(8, 10) === '01')) return '';
+          return fmtDate(key);
+        }
+        if (mode === 'week') return key.slice(5);
+        const m = +key.slice(5, 7);
+        return MONTH_SHORT[m - 1] + (index === 0 || m === 1 ? ' ' + key.slice(0, 4) : '');
+      };
+      const fmtTitle = (key) => {
+        if (mode === 'day') {
+          const t = new Date(key + 'T00:00:00Z');
+          return t.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+        }
+        if (mode === 'week') return key;
+        return `${MONTH_SHORT[+key.slice(5, 7) - 1]} ${key.slice(0, 4)}`;
+      };
+
       if (charts.daily) charts.daily.destroy();
       charts.daily = new Chart(document.getElementById('chart-daily'), {
         type: 'bar',
-        data: {
-          labels: dates.map(d => d.slice(5)),
-          datasets: [{
-            data: dates.map(d=>freq[d]),
-            backgroundColor: dates.map((_, i) => dailyProgress && i === dailyLast ? '#1A56A880' : '#1A56A8'),
-            borderRadius: 2
-          }]
-        },
+        data: { labels: dates, datasets },
         options: {
           responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
           plugins: {
             legend: { display: false },
-            tooltip: { callbacks: { footer: progressFooter(dailyProgress, dailyPeriodMode, dailyLast) } }
+            tooltip: {
+              callbacks: {
+                title: (items) => fmtTitle(dates[items[0].dataIndex]),
+                label: (ctx) => `${ctx.dataset.label}: ${ctx.dataset.type === 'line' ? ctx.parsed.y.toFixed(1) : ctx.parsed.y.toLocaleString('en-US')}`,
+                footer: progressFooter(dailyProgress, dailyPeriodMode, dailyLast),
+              }
+            }
           },
           scales: {
-            x: { ticks: { font: { size: 9 }, maxRotation: 45 } },
-            y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+            x: {
+              grid: { display: false },
+              border: { color: '#C9CED6' },
+              ticks: {
+                autoSkip: !isDay, maxRotation: 0, minRotation: 0, align: 'inner', font: { size: 12 },
+                callback(value, index) { return fmtTick(this.getLabelForValue(value), index); },
+              }
+            },
+            y: { beginAtZero: true, border: { display: false }, grid: { color: '#EEF0F3' }, ticks: { precision: 0, font: { size: 11 } } }
           }
         }
       });
@@ -2790,38 +3088,46 @@
     const mainSearchCount = document.getElementById('main-search-count');
     let _mainSearchDebounce = null;
 
+    const mainSearchCard = document.getElementById('main-search-card');
+    const mainSearchClear = document.getElementById('main-search-clear');
+
+    // 검색어가 비어 있으면 결과 카드를 통째로 숨긴다("Enter a search term." 빈 상태는 없다).
+    // 검색 대상 = 로드된 논문 전체에서 Journal/Keyword 칩으로 좁힌 집합, 정렬 = Sort 칩.
     function runMainSearch(q) {
       q = (q || '').trim();
+      mainSearchClear.classList.toggle('hidden', !mainSearchInput.value);
       if (!q) {
-        mainSearchResults.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">Enter a search term.</p>';
+        mainSearchResults.innerHTML = '';
         mainSearchCount.textContent = '';
+        mainSearchCard.classList.add('hidden');
         return;
       }
+      mainSearchCard.classList.remove('hidden');
       const tokens = q.toLowerCase().split(/\s+/).filter(Boolean);
       const matches = [];
-      for (const p of allPapers) {
+      for (const p of homeFilteredPapers()) {
         if (_paperMatchesQuery(p, q)) matches.push(p);
       }
       const total = matches.length;
-      mainSearchCount.textContent = total ? `${total} match${total !== 1 ? 'es' : ''}${total > MAIN_SEARCH_LIMIT ? ` (showing top ${MAIN_SEARCH_LIMIT})` : ''}` : 'No results';
+      mainSearchCount.textContent = total ? `${total.toLocaleString('en-US')} match${total !== 1 ? 'es' : ''}${total > MAIN_SEARCH_LIMIT ? ` (showing top ${MAIN_SEARCH_LIMIT})` : ''}` : 'No results';
 
       if (!total) {
-        mainSearchResults.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">No matching papers.</p>';
+        mainSearchResults.innerHTML = '<p class="text-sm text-slate-400 text-center py-8">No matching papers.</p>';
         return;
       }
-      matches.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-      const show = matches.slice(0, MAIN_SEARCH_LIMIT);
+      const show = homeSortPapers(matches).slice(0, MAIN_SEARCH_LIMIT);
 
-      // 날짜별 그룹
-      const groups = {};
+      // 그룹: Newest/Oldest 는 날짜별, Journal A–Z 는 저널별 (정렬된 순서 그대로 — Map 은 삽입 순서를 유지한다)
+      const byJournal = homeSort === 'journal';
+      const groups = new Map();
       for (const p of show) {
-        const d = (p.date || '').slice(0, 10) || 'No date';
-        (groups[d] ||= []).push(p);
+        const key = byJournal ? (journalAbbr(p.journal) || 'No journal') : ((p.date || '').slice(0, 10) || 'No date');
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(p);
       }
-      const dateKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
 
-      mainSearchResults.innerHTML = dateKeys.map(d => {
-        const items = groups[d].map(p => {
+      mainSearchResults.innerHTML = Array.from(groups, ([d, list]) => {
+        const items = list.map(p => {
           const title = _highlightTokens(p.title || '(untitled)', tokens);
           const journal = _highlightTokens(journalAbbr(p.journal), tokens);
           const doi = _highlightTokens(p.doi || '', tokens);
@@ -2842,21 +3148,32 @@
             ${tagHtml ? `<div class="mt-1 flex flex-wrap gap-1">${tagHtml}</div>` : ''}
           ${linkClose}`;
         }).join('');
-        return `<div class="browse-date-header">${d} <span class="count">${groups[d].length}</span></div>${items}`;
+        return `<div class="browse-date-header">${_escapeHtml(d)} <span class="count">${list.length}</span></div>${items}`;
       }).join('');
     }
 
     mainSearchInput.addEventListener('input', (e) => {
+      mainSearchClear.classList.toggle('hidden', !e.target.value);
       clearTimeout(_mainSearchDebounce);
       _mainSearchDebounce = setTimeout(() => runMainSearch(e.target.value), 120);
     });
     mainSearchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') { mainSearchInput.value = ''; runMainSearch(''); }
     });
-    document.getElementById('main-search-clear').addEventListener('click', () => {
+    mainSearchClear.addEventListener('click', () => {
       mainSearchInput.value = '';
       runMainSearch('');
       mainSearchInput.focus();
+    });
+    // Search 버튼 / Enter: 디바운스를 건너뛰고 바로 실행. 빈 검색어면 입력창에 포커스, 결과가 있으면 결과 카드를 화면에 맞추고 모바일 키보드를 닫는다.
+    document.getElementById('main-search-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      clearTimeout(_mainSearchDebounce);
+      const q = mainSearchInput.value.trim();
+      runMainSearch(q);
+      if (!q) { mainSearchInput.focus(); return; }
+      mainSearchInput.blur();
+      mainSearchCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
 
     // ---------- Advanced Search (별도 탭 전용) ----------
@@ -3061,36 +3378,129 @@
       return tokens.every(t => haystack.includes(t));
     }
 
-    function renderPaperTable(filter='') {
-      // Home 전용 — 필터 무시하고 전체에서 검색
+    // ---------- Home 필터 칩 (Journal · Keyword · Sort) ----------
+    // 검색 결과와 Recent papers 표에만 적용된다. KPI·차트·Top 목록은 Period 칩만 따른다.
+    let homeJournal = '';     // '' = All, 아니면 p.journal 전체 이름
+    let homeKeyword = '';     // '' = All, 아니면 broad 슬러그
+    let homeSort = 'new';     // 'new' | 'old' | 'journal'
+
+    // 기본값이 아닌 칩은 채워서 보여 준다 (Period 칩은 항상 적용 중이라 마크업에서 is-set 고정)
+    function syncHomeChipState() {
+      for (const id of ['home-filter-journal', 'home-filter-keyword', 'home-filter-sort']) {
+        const sel = document.getElementById(id);
+        if (sel) sel.closest('.chip').classList.toggle('is-set', sel.value !== sel.dataset.default);
+      }
+    }
+
+    // 로드된 데이터로 Journal / Keyword 옵션을 다시 만든다. 기존 선택이 새 데이터에도 있으면 유지, 없으면 All 로 되돌린다.
+    function buildHomeFilters() {
+      const jFreq = {};
+      for (const p of allPapers) if (p.journal) jFreq[p.journal] = (jFreq[p.journal] || 0) + 1;
+      const journals = Object.entries(jFreq).sort((a, b) => b[1] - a[1] || _collator.compare(journalAbbr(a[0]), journalAbbr(b[0])));
+      const bFreq = getFreq(allPapers, 'broad', '');
+      const broads = Object.entries(bFreq).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+      if (homeJournal && !(homeJournal in jFreq)) homeJournal = '';
+      if (homeKeyword && !(homeKeyword in bFreq)) homeKeyword = '';
+
+      const fill = (id, rows, current) => {
+        const sel = document.getElementById(id);
+        sel.innerHTML = '<option value="">All</option>';
+        for (const [value, label, count] of rows) {
+          const o = document.createElement('option');
+          o.value = value;
+          o.textContent = `${label} (${count.toLocaleString('en-US')})`;
+          if (id === 'home-filter-journal') o.title = value;   // 옵션 툴팁에는 전체 이름
+          sel.appendChild(o);
+        }
+        sel.value = current;
+      };
+      fill('home-filter-journal', journals.map(([j, c]) => [j, journalLabel(j), c]), homeJournal);
+      fill('home-filter-keyword', broads.map(([b, c]) => [b, kwLabel(b), c]), homeKeyword);
+      syncHomeChipState();
+    }
+
+    // allPapers 를 Journal/Keyword 칩으로 좁힌 집합 (둘 다 All 이면 allPapers 그대로)
+    function homeFilteredPapers() {
+      let out = allPapers;
+      if (homeJournal) out = out.filter(p => p.journal === homeJournal);
+      if (homeKeyword) out = out.filter(p => parseReason(p.gpt_reason || '').some(t => t.broad === homeKeyword));
+      return out;
+    }
+
+    // Sort 칩에 따른 정렬 (원본은 건드리지 않는다). 날짜는 ISO 문자열이라 사전순 비교로 충분.
+    function homeSortPapers(list) {
+      const out = list.slice();
+      const dateOf = (p) => p.date || '';
+      if (homeSort === 'old') return out.sort((a, b) => (dateOf(a) < dateOf(b) ? -1 : dateOf(a) > dateOf(b) ? 1 : 0));
+      if (homeSort === 'journal') {
+        return out.sort((a, b) => _collator.compare(journalAbbr(a.journal), journalAbbr(b.journal))
+          || (dateOf(a) < dateOf(b) ? 1 : dateOf(a) > dateOf(b) ? -1 : 0));
+      }
+      return out.sort((a, b) => (dateOf(a) < dateOf(b) ? 1 : dateOf(a) > dateOf(b) ? -1 : 0));
+    }
+
+    function onHomeFilterChange() {
+      homeJournal = document.getElementById('home-filter-journal').value;
+      homeKeyword = document.getElementById('home-filter-keyword').value;
+      homeSort = document.getElementById('home-filter-sort').value;
+      syncHomeChipState();
+      renderPaperTable();
+      runMainSearch(mainSearchInput.value);
+    }
+    for (const id of ['home-filter-journal', 'home-filter-keyword', 'home-filter-sort']) {
+      document.getElementById(id).addEventListener('change', onHomeFilterChange);
+    }
+    // 칩의 라벨 글자를 눌러도 select 가 열리도록 한다 (네이티브 label 은 포커스만 옮긴다). showPicker 가 없으면 포커스만.
+    document.querySelectorAll('#home-banner .chip').forEach(chip => {
+      chip.addEventListener('click', (e) => {
+        const sel = chip.querySelector('select');
+        if (!sel || e.target === sel || e.target.tagName === 'OPTION') return;
+        e.preventDefault();
+        try { sel.showPicker(); } catch (_) { sel.focus(); }
+      });
+    });
+
+    // Recent papers 표: Journal/Keyword 칩으로 좁히고 Sort 칩으로 정렬, 최대 300행
+    const RECENT_ROW_CAP = 300;
+    function renderPaperTable() {
       const tbody = document.getElementById('paper-tbody');
-      const papers = filter
-        ? allPapers.filter(p => _paperMatchesQuery(p, filter))
-        : allPapers;
+      const base = homeFilteredPapers();
+      const display = homeSortPapers(base).slice(0, RECENT_ROW_CAP);
 
-      const sorted = [...papers].sort((a,b) => (b.date||'').localeCompare(a.date||''));
-      const display = sorted.slice(0, 300);
+      // 카드 부제: "{가장 최근 날짜} · {그날 논문 수} papers" (칩으로 좁힌 집합 기준)
+      let latest = '';
+      for (const p of base) { const d = (p.date || '').slice(0, 10); if (d > latest) latest = d; }
+      let latestCount = 0;
+      if (latest) for (const p of base) if ((p.date || '').slice(0, 10) === latest) latestCount++;
+      const thisYear = String(new Date().getFullYear());
+      document.getElementById('recent-meta').textContent = latest
+        ? `${fmtDate(latest, latest.slice(0, 4) !== thisYear)} · ${latestCount.toLocaleString('en-US')} paper${latestCount === 1 ? '' : 's'}`
+        : '';
+      const more = document.getElementById('recent-more');
+      more.classList.toggle('hidden', base.length <= RECENT_ROW_CAP);
+      more.textContent = `Showing ${RECENT_ROW_CAP.toLocaleString('en-US')} of ${base.length.toLocaleString('en-US')} papers — use Browse all for the full list.`;
 
+      if (!display.length) {
+        tbody.innerHTML = `<tr><td colspan="3" class="rp-empty">${allPapers.length ? 'No papers match the current filters.' : 'No papers loaded yet.'}</td></tr>`;
+        return;
+      }
       tbody.innerHTML = display.map(p => {
         const title = _escapeHtml(p.title || '');
         const journal = _escapeHtml(journalLabel(p.journal));
         const journalFull = _escapeHtml(p.journal || '');
-        const date = _escapeHtml((p.date || '').slice(0, 10));
+        const d = (p.date || '').slice(0, 10);
+        const date = _escapeHtml(fmtDate(d, d.slice(0, 4) !== thisYear));
         const url = paperHref(p);
         const titleCell = url
-          ? `<a href="${_escapeHtml(url)}" target="_blank" rel="noopener" class="text-navy-700 hover:underline">${title}</a>`
+          ? `<a href="${_escapeHtml(url)}" target="_blank" rel="noopener">${title}</a>`
           : title;
-        return `<tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="rp-date px-3 py-2 whitespace-nowrap text-slate-500" data-label="Date">${date}</td>
-          <td class="rp-journal px-3 py-2 whitespace-nowrap font-semibold text-navy-800" data-label="Journal" title="${journalFull}">${journal}</td>
-          <td class="rp-title px-3 py-2" data-label="Title">${titleCell}</td>
+        return `<tr>
+          <td class="rp-date" data-label="Date">${date}</td>
+          <td class="rp-journal" data-label="Journal" title="${journalFull}">${journal}</td>
+          <td class="rp-title" data-label="Title">${titleCell}</td>
         </tr>`;
       }).join('');
     }
-
-    document.getElementById('paper-search').addEventListener('input', (e) => {
-      renderPaperTable(e.target.value);
-    });
 
     // ---------- URL 안전성 검증 ----------
     // href에 'javascript:' 'data:' 'vbscript:' 프리픽스 차단 → click-to-XSS 방지
@@ -3141,15 +3551,16 @@
       // Stats/Review 접근 권한 체크 (비관리자가 URL/DevTools로 강제 전환해도 차단 - 서버도 별도로 401/403)
       if ((v === 'stats' || v === 'review') && !isAdmin) v = 'home';
       currentView = v;
-      // 탭 active 토글
-      document.getElementById('tab-home').classList.toggle('active', v === 'home');
-      document.getElementById('tab-analytics').classList.toggle('active', v === 'analytics');
-      document.getElementById('tab-browse').classList.toggle('active', v === 'browse');
-      document.getElementById('tab-advanced-search').classList.toggle('active', v === 'advanced-search');
-      const statsTab = document.getElementById('tab-stats');
-      if (statsTab) statsTab.classList.toggle('active', v === 'stats');
-      const reviewTabEl = document.getElementById('tab-review');
-      if (reviewTabEl) reviewTabEl.classList.toggle('active', v === 'review');
+      // 탭 active 토글 (+ 스크린리더용 aria-current)
+      for (const name of ['home', 'analytics', 'browse', 'advanced-search', 'stats', 'review']) {
+        const tab = document.getElementById('tab-' + name);
+        if (!tab) continue;
+        const on = v === name;
+        tab.classList.toggle('active', on);
+        if (on) tab.setAttribute('aria-current', 'page'); else tab.removeAttribute('aria-current');
+      }
+      // "Browse all →" · "Keyword trends →" 같은 본문 링크로 이동해도 새 화면이 맨 위에서 시작하도록
+      try { window.scrollTo(0, 0); } catch (_) {}
       // 뷰 본문 표시/숨김
       document.getElementById('view-home').classList.toggle('hidden', v !== 'home');
       document.getElementById('view-analytics').classList.toggle('hidden', v !== 'analytics');
