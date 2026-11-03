@@ -128,6 +128,14 @@
     .top-bar { flex: 1 1 auto; min-width: 0; height: 8px; border-radius: 4px; background: #EEF1F5; overflow: hidden; display: block; }
     .top-bar > span { display: block; height: 100%; border-radius: 4px; }
     .top-count { flex: 0 0 52px; text-align: right; color: var(--dash-ink-2); }
+    /* Frequent journals / keywords 두 카드: 모든 행을 같은 높이로(키워드는 2줄·저널 이름이 짧으면 1줄이어도) 맞추고, 이름 열은 카드 폭에 맞춰 조금 넓힌다 */
+    .tops-grid .top-row { min-height: 46px; }
+    .tops-grid .top-name { flex-basis: clamp(128px, 42%, 240px); }
+    /* 행 전체가 Browse 로 가는 버튼일 때 (Home 의 Frequent 목록 · Analytics 의 sharp 행 · By journal keywords 행).
+       양옆 8px 를 음수 마진으로 빌려 글자 위치는 그대로 두고 hover 배경만 넓힌다 */
+    button.top-link { width: calc(100% + 16px); margin: 0 -8px; padding: 4px 8px; border: 0; border-radius: 8px; background: transparent; text-align: left; cursor: pointer; }
+    button.top-link:hover { background: var(--dash-canvas); }
+    button.top-link:hover .top-name-main { color: var(--dash-navy); }
 
     /* ===== Home: Recent papers 표 ===== */
     .rp-scroll { max-height: 560px; overflow: auto; }
@@ -218,6 +226,9 @@
     .kw-pick { flex: none; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 8px; background: transparent; color: var(--dash-muted); cursor: pointer; }
     .kw-pick:hover { background: #E8EBF0; color: var(--dash-navy); }
     .kw-pick.is-on { background: #D6E0F2; color: var(--dash-navy); }
+    /* broad 행의 이름 글자만 Browse 로 가는 버튼 (행의 나머지 영역은 그대로 펼침/접힘) */
+    .kw-link { display: inline-block; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; white-space: inherit; vertical-align: bottom; text-align: left; cursor: pointer; }
+    .kw-link:hover { color: var(--dash-navy); text-decoration: underline; }
     /* 펼친 sharp 행: 들여쓴 만큼 이름 칸을 줄이고 오른쪽을 띄워 막대 시작점·건수 열이 broad 행과 맞는다 */
     .kw-sub { list-style: none; margin: 2px 0 10px 14px; padding: 4px 48px 4px 14px; border-left: 2px solid var(--dash-hairline-soft); display: flex; flex-direction: column; gap: 10px; }
     .kw-sub .top-row.is-sub .top-name { flex-basis: 184px; }
@@ -242,6 +253,11 @@
     .browse-item.sharp { padding-left: 34px; font-size: 13px; font-weight: 500; }
     .browse-item.sharp.active { font-weight: 700; }
     .browse-item .expand-icon { display: inline-block; width: 14px; font-size: 11px; color: var(--dash-muted); }
+    /* Browse 주제 상세: 제목 아래 검색 칸 + 저널 셀렉트 한 줄 (좁으면 셀렉트가 아래로 내려와 전체 폭) */
+    .browse-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+    .browse-filters .fld { flex: 1 1 260px; }
+    .browse-filters select.sel { flex: 0 1 260px; height: 44px; }
+    @media (max-width: 640px) { .browse-filters select.sel { flex-basis: 100%; } }
 
     /* 논문 목록 (Browse · Advanced search · Home 검색 결과): Recent papers 행 모양 + 날짜 그룹 머리글 */
     .pl-group { display: flex; align-items: baseline; gap: 8px; margin: 0; padding: 22px 0 8px; border-bottom: 1px solid var(--dash-hairline); font-size: 13px; font-weight: 800; color: var(--dash-ink); }
@@ -2365,26 +2381,27 @@
       set('kpi-topkw-sub', topKw ? plural(topKw[1], 'paper') : '');
     }
 
-    // Top journals / Top keywords: 기간 내 상위 8개 HTML 막대 목록 — 이름 열 | 막대 | 건수 (키워드는 sharp 이름 아래에 소속 broad 를 작게)
+    // Top journals / Top keywords: 기간 내 상위 8개 HTML 막대 목록 — 이름 열 | 막대 | 건수
+    // 이름 아래 작은 줄: 키워드는 소속 broad, 저널은 (약어와 다를 때) 전체 이름. 행 전체가 Browse 로 가는 버튼.
     function renderTopLists(papers, jSorted) {
-      const row = (name, sub, count, max, fill, title) =>
-        `<li class="top-row">
+      const row = (name, sub, count, max, fill, title, mode, key) =>
+        `<li><button type="button" class="top-row top-link" data-browse-open="${mode}" data-browse-key="${_escapeHtml(key)}" aria-label="${_escapeHtml(name)}, ${count.toLocaleString('en-US')} paper${count === 1 ? '' : 's'}, view in Browse">
           <span class="top-name" title="${_escapeHtml(title)}"><span class="top-name-main">${_escapeHtml(name)}</span>${sub ? `<span class="top-name-sub">${_escapeHtml(sub)}</span>` : ''}</span>
           <span class="top-bar"><span class="${fill}" style="width:${(count / max * 100).toFixed(1)}%"></span></span>
           <span class="top-count">${count.toLocaleString('en-US')}</span>
-        </li>`;
+        </button></li>`;
       const empty = '<li class="text-[13px] text-[#586273] py-6 text-center">No data</li>';
 
       const topJ = jSorted.slice(0, 8);
       document.getElementById('top-journals').innerHTML = topJ.length
-        ? topJ.map(([j, c]) => row(journalLabel(j), '', c, topJ[0][1], 'bg-[#163B73]', j)).join('')
+        ? topJ.map(([j, c]) => row(journalLabel(j), j !== journalAbbr(j) ? j : '', c, topJ[0][1], 'bg-[#163B73]', j, 'journal', j)).join('')
         : empty;
       document.getElementById('top-journals-all').textContent = `All ${jSorted.length.toLocaleString('en-US')} →`;
 
       const kFreq = getFreq(papers, 'sharp', '');   // paper 단위 중복 제거 — 값이 곧 "그 sharp 키워드를 가진 논문 수"
       const topK = Object.entries(kFreq).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 8);
       document.getElementById('top-keywords').innerHTML = topK.length
-        ? topK.map(([k, c]) => row(kwLabel(k), kwLabel(sharpToParent[k] || ''), c, topK[0][1], 'bg-[#4F74B3]', k)).join('')
+        ? topK.map(([k, c]) => row(kwLabel(k), kwLabel(sharpToParent[k] || ''), c, topK[0][1], 'bg-[#4F74B3]', k, 'topic', topicKeyOf(k))).join('')
         : empty;
     }
 
@@ -2393,6 +2410,12 @@
     // sharpToParent: 전역 sharp → parent broad 맵. buildSharpToParent() 가 한 번 채움.
     // 과거 비정규화 데이터(broad 자리에 sharp slug)가 들어와도 parent 로 재라우팅.
     let sharpToParent = {};
+
+    // Browse 'By topic' 의 선택 키: sharp 는 'parent/sharp' (parent 를 모르면 broad 로 취급되므로 slug 그대로), broad 는 slug 그대로
+    function topicKeyOf(sharp, broad) {
+      const parent = broad || sharpToParent[sharp];
+      return parent ? parent + '/' + sharp : sharp;
+    }
 
     function buildSharpToParent(papers) {
       // 전체 papers 의 broad/sharp 관계를 집계해 sharp -> {parent: count} 빈도 맵 생성
@@ -2678,7 +2701,7 @@
         const chevron = topSharps.length ? (isOpen ? '▾' : '▸') : '';
         let row = `<li>
           <div class="top-row kw-row kw-broad-row${isFilter ? ' is-filter' : ''}" data-broad="${broadAttr}" role="button" tabindex="0" ${topSharps.length ? `aria-expanded="${isOpen}"` : ''}>
-            <span class="top-name" title="${broadAttr}"><span class="top-name-main"><span class="kw-chev" aria-hidden="true">${chevron}</span>${_escapeHtml(kwLabel(broad))}</span>${topSharps.length ? `<span class="top-name-sub">${topSharps.length}${hasMore ? '+' : ''} sharp keywords</span>` : ''}</span>
+            <span class="top-name" title="${broadAttr}"><span class="top-name-main"><span class="kw-chev" aria-hidden="true">${chevron}</span><button type="button" class="kw-link" data-browse-open="topic" data-browse-key="${broadAttr}" aria-label="${_escapeHtml(kwLabel(broad))}: view papers in Browse">${_escapeHtml(kwLabel(broad))}</button></span>${topSharps.length ? `<span class="top-name-sub">${topSharps.length}${hasMore ? '+' : ''} sharp keywords</span>` : ''}</span>
             <span class="top-bar"><span style="width:${(count / maxBroad * 100).toFixed(1)}%;background:${isFilter ? '#163B73' : '#4F74B3'}"></span></span>
             <span class="top-count">${count.toLocaleString('en-US')}</span>
             <button type="button" class="kw-pick kw-pick-broad${isFilter ? ' is-on' : ''}" data-broad="${broadAttr}" aria-pressed="${isFilter}" aria-label="Filter charts by ${_escapeHtml(kwLabel(broad))}" title="Filter charts by this domain">
@@ -2690,11 +2713,11 @@
         if (isOpen && topSharps.length) {
           const maxSharp = topSharps[0][1];
           row += `<ul class="kw-sub">${topSharps.map(([sharp, sc]) =>
-            `<li class="top-row is-sub">
+            `<li><button type="button" class="top-row is-sub top-link" data-browse-open="topic" data-browse-key="${_escapeHtml(topicKeyOf(sharp, broad))}" aria-label="${_escapeHtml(kwLabel(sharp))}, ${sc.toLocaleString('en-US')} paper${sc === 1 ? '' : 's'}, view in Browse">
               <span class="top-name" title="${_escapeHtml(sharp)}"><span class="top-name-main">${_escapeHtml(kwLabel(sharp))}</span></span>
               <span class="top-bar"><span style="width:${(sc / maxSharp * 100).toFixed(1)}%;background:#C3D0E6"></span></span>
               <span class="top-count">${sc.toLocaleString('en-US')}</span>
-            </li>`).join('')}</ul>`;
+            </button></li>`).join('')}</ul>`;
         }
 
         row += `</li>`;
@@ -2710,6 +2733,7 @@
 
     // 키워드 트리 클릭 위임 (XSS 방지: onclick 인라인 대신 data-broad 속성 + addEventListener)
     document.getElementById('kw-tree').addEventListener('click', (e) => {
+      if (e.target.closest('[data-browse-open]')) return;   // 이름 버튼·sharp 행은 아래 문서 단위 위임(openBrowse)이 처리 — 행 펼침/접힘과 겹치지 않게
       const pickBtn = e.target.closest('.kw-pick-broad');
       if (pickBtn) {
         e.stopPropagation();
@@ -2723,7 +2747,7 @@
     document.getElementById('kw-tree').addEventListener('keydown', (e) => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
       const row = e.target.closest && e.target.closest('.kw-broad-row');
-      if (!row || e.target.closest('.kw-pick-broad')) return;
+      if (!row || e.target.closest('.kw-pick-broad, .kw-link')) return;
       e.preventDefault();
       const broad = row.dataset.broad;
       window.toggleBroad(broad);
@@ -3221,11 +3245,13 @@
         const maxFreq = top[0][1];
         const bars = top.map(([kw, n]) => {
           const pct = total > 0 ? (n / total * 100) : 0;
-          return `<li class="top-row is-card">
+          // sharp 보기에서 broad 를 골랐으면 그 broad 의 sharp 이므로 부모가 확정, 아니면 전역 sharpToParent 로 찾는다
+          const key = bjkView === 'sharp' ? topicKeyOf(kw, bjkBroadFilter) : kw;
+          return `<li><button type="button" class="top-row is-card top-link" data-browse-open="topic" data-browse-key="${_escapeHtml(key)}" aria-label="${_escapeHtml(kwLabel(kw))}, ${n.toLocaleString('en-US')} paper${n === 1 ? '' : 's'} in ${_escapeHtml(journalAbbr(j))}, view in Browse">
               <span class="top-name" title="${_escapeHtml(kw)}"><span class="top-name-main">${_escapeHtml(kwLabel(kw))}</span></span>
               <span class="top-bar"><span style="width:${(n / maxFreq * 100).toFixed(1)}%;background:#4F74B3"></span></span>
               <span class="top-count">${n.toLocaleString('en-US')}<span class="top-pct">${pct.toFixed(0)}%</span></span>
-            </li>`;
+            </button></li>`;
         }).join('');
 
         return `<div class="bjk-card">${head}<ol class="bl">${bars}</ol></div>`;
@@ -4496,18 +4522,50 @@
       }
     }
 
+    // 'By journal' / 'By topic' 분절 컨트롤과 목록 머리글을 모드에 맞춘다 (목록·상세는 호출한 쪽이 그린다)
+    function syncBrowseModeUi(m) {
+      setSegOn(m === 'journal' ? 'browse-mode-journal' : 'browse-mode-topic', ['browse-mode-journal', 'browse-mode-topic']);
+      document.getElementById('browse-list-header').querySelector('span').textContent = m === 'journal' ? 'Journals' : 'Topics';
+    }
+
     window.setBrowseMode = function(m) {
       browseMode = m;
       selectedBrowseJournal = null;
       selectedBrowseTopic = null;
       browseExpandedBroads = new Set();
-      _browseDetailFilter = '';  // 모드 전환 시 상세 검색 리셋
-      setSegOn(m === 'journal' ? 'browse-mode-journal' : 'browse-mode-topic', ['browse-mode-journal', 'browse-mode-topic']);
-      document.getElementById('browse-list-header').querySelector('span').textContent = m === 'journal' ? 'Journals' : 'Topics';
+      _browseDetailFilter = '';  // 모드 전환 시 상세 검색·저널 필터 리셋
+      _browseDetailJournal = '';
+      syncBrowseModeUi(m);
       renderBrowseList();
       autoSelectFirstBrowseItem();
       renderBrowseDetail();
     };
+
+    // Home·Analytics 의 키워드/저널 이름 → Browse 의 해당 항목으로 바로 이동.
+    //  mode 'topic' + key 'broad' 또는 'broad/sharp' (sharp 면 부모 broad 를 펼친다), mode 'journal' + key 저널 전체 이름
+    //  상태를 먼저 정해 두고 setView 가 목록·상세를 한 번만 그리게 한다 (autoSelectFirstBrowseItem 은 이미 선택이 있어 건드리지 않는다)
+    window.openBrowse = function(mode, key) {
+      browseMode = mode;
+      selectedBrowseJournal = mode === 'journal' ? key : null;
+      selectedBrowseTopic = mode === 'topic' ? key : null;
+      browseExpandedBroads = new Set(mode === 'topic' && key.includes('/') ? [key.split('/')[0]] : []);
+      _browseDetailFilter = '';
+      _browseDetailJournal = '';
+      syncBrowseModeUi(mode);
+      setView('browse');
+      // 왼쪽 목록(스크롤되는 aside)에서 선택 항목을 가운데로 보이게 하고, 숨겨진 화면에 있던 포커스를 그 항목으로 옮긴다
+      const cur = document.querySelector('#browse-list .browse-item.active');
+      const box = document.getElementById('browse-list').parentElement;
+      if (cur && box) {
+        box.scrollTop += cur.getBoundingClientRect().top - box.getBoundingClientRect().top - (box.clientHeight - cur.offsetHeight) / 2;
+        cur.focus({ preventScroll: true });
+      }
+    };
+    // 이름 버튼: <button data-browse-open="topic|journal" data-browse-key="..."> (Home 막대 목록 · Analytics 키워드 · By journal keywords)
+    document.addEventListener('click', (e) => {
+      const el = e.target.closest && e.target.closest('[data-browse-open]');
+      if (el) window.openBrowse(el.dataset.browseOpen, el.dataset.browseKey);
+    });
 
     window.setBrowseSort = function(mode) {
       browseSort = mode;
@@ -4627,6 +4685,7 @@
     window.selectBrowseJournal = function(j) {
       selectedBrowseJournal = j;
       _browseDetailFilter = '';  // 선택 변경 시 상세 검색 리셋
+      _browseDetailJournal = '';
       renderBrowseList();
       renderBrowseDetail();
     };
@@ -4634,12 +4693,14 @@
     window.selectBrowseTopic = function(key) {
       selectedBrowseTopic = key;
       _browseDetailFilter = '';
+      _browseDetailJournal = '';
       renderBrowseList();
       renderBrowseDetail();
     };
 
-    // Browse 상세 뷰 내부 검색 필터 (선택 변경 시 리셋)
+    // Browse 상세 뷰 내부 검색 필터 · 주제 상세의 저널 필터(저널 전체 이름, '' = 전체) — 선택 변경 시 리셋
     let _browseDetailFilter = '';
+    let _browseDetailJournal = '';
 
     function renderBrowseDetail() {
       const container = document.getElementById('browse-detail');
@@ -4664,7 +4725,17 @@
       }
 
       const totalAll = papers.length;
-      // 상세 검색 필터 적용
+      // 주제 상세: 저널 셀렉트 옵션 = 이 주제의 논문이 실린 저널, 건수 내림차순. 건수는 검색어와 무관한 주제 전체 기준
+      const journalCounts = new Map();
+      if (browseMode === 'topic') {
+        for (const p of papers) if (p.journal) journalCounts.set(p.journal, (journalCounts.get(p.journal) || 0) + 1);
+        if (_browseDetailJournal && !journalCounts.has(_browseDetailJournal)) _browseDetailJournal = '';
+      }
+      const journalOpts = [...journalCounts].sort((a, b) => b[1] - a[1] || journalAbbr(a[0]).localeCompare(journalAbbr(b[0])));
+      // 저널 필터 + 상세 검색 필터 적용 (둘은 AND)
+      if (_browseDetailJournal) {
+        papers = papers.filter(p => p.journal === _browseDetailJournal);
+      }
       if (_browseDetailFilter) {
         papers = papers.filter(p => _paperMatchesQuery(p, _browseDetailFilter));
       }
@@ -4687,11 +4758,18 @@
         : selectedBrowseTopic.split('/').map(kwLabel).join(' / ');
       // 저널 상세 헤더: 전체 이름 뒤에 약어를 흐리게 덧붙인다 (약어가 전체 이름과 같으면 생략)
       const selAbbr = browseMode === 'journal' && journalAbbr(selLabel) !== selLabel ? journalAbbr(selLabel) : '';
-      const countLabel = _browseDetailFilter
+      const countLabel = (_browseDetailFilter || _browseDetailJournal)
         ? `${total.toLocaleString('en-US')} of ${totalAll.toLocaleString('en-US')} match`
         : `${total.toLocaleString('en-US')} paper${total === 1 ? '' : 's'}`;
       const clearBtn = _browseDetailFilter
         ? `<button id="browse-detail-search-clear" type="button" class="search-clear" title="Clear search">Clear</button>`
+        : '';
+      const journalSelect = browseMode === 'topic'
+        ? `<label for="browse-detail-journal" class="sr-only">Filter by journal</label>
+          <select id="browse-detail-journal" class="sel">
+            <option value="">All journals (${totalAll.toLocaleString('en-US')})</option>
+            ${journalOpts.map(([j, n]) => `<option value="${_escapeHtml(j)}" title="${_escapeHtml(j)}"${j === _browseDetailJournal ? ' selected' : ''}>${_escapeHtml(journalAbbr(j))} (${n.toLocaleString('en-US')})</option>`).join('')}
+          </select>`
         : '';
       const parts = [`<div class="flex flex-col gap-3 mb-2">
         <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -4699,12 +4777,15 @@
           ${selAbbr ? `<span class="sec-sub">${_escapeHtml(selAbbr)}</span>` : ''}
           <span class="sec-sub ml-auto">${countLabel}</span>
         </div>
-        <div class="fld">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#586273" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="flex-none"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-          <label for="browse-detail-search" class="sr-only">Search within this ${browseMode === 'journal' ? 'journal' : 'topic'}</label>
-          <input id="browse-detail-search" type="text" class="bare-input" value="${_escapeHtml(_browseDetailFilter)}"
-            placeholder="Search within this ${browseMode === 'journal' ? 'journal' : 'topic'} (title, keyword or DOI)" autocomplete="off">
-          ${clearBtn}
+        <div class="browse-filters">
+          <div class="fld">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#586273" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="flex-none"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <label for="browse-detail-search" class="sr-only">Search within this ${browseMode === 'journal' ? 'journal' : 'topic'}</label>
+            <input id="browse-detail-search" type="text" class="bare-input" value="${_escapeHtml(_browseDetailFilter)}"
+              placeholder="Search within this ${browseMode === 'journal' ? 'journal' : 'topic'} (title, keyword or DOI)" autocomplete="off">
+            ${clearBtn}
+          </div>
+          ${journalSelect}
         </div>
       </div>`];
 
@@ -4751,6 +4832,16 @@
             renderBrowseDetail();
             _browseSearchTypingFlag = false;
           }
+        });
+      }
+      // 저널 셀렉트: 값은 _browseDetailJournal 에서 다시 그려지므로 검색 입력 중 재렌더에도 유지된다. 바꾸면 다시 그리고 포커스를 되돌린다.
+      const journalEl = document.getElementById('browse-detail-journal');
+      if (journalEl) {
+        journalEl.addEventListener('change', (e) => {
+          _browseDetailJournal = e.target.value;
+          renderBrowseDetail();
+          const after = document.getElementById('browse-detail-journal');
+          if (after) after.focus();
         });
       }
       const clearEl = document.getElementById('browse-detail-search-clear');
