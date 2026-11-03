@@ -286,6 +286,10 @@ def test_non_research_titles_are_rejected(title):
     (item("10.1/x", "Loss-engineered reconfigurable polaritons"), "Loss-engineered reconfigurable polaritons", "short-title"),
     (item("10.1/x", "Back cover"), "Back cover", "filters"),
     (item("10.1/x", "Front Cover: Alpha beta"), "Front Cover: Alpha beta", "filters"),
+    # 라벨 접두 규칙(정규식 포함)에 걸린 짧은 제목은 'short-title' 이 아니라 'filters'
+    (item("10.1/x", "Response to Comment"), "Response to Comment", "filters"),
+    (item("10.1/x", "Preface: Alpha beta"), "Preface: Alpha beta", "filters"),
+    (item("10.1/x", "Response to “Comment on Alpha beta”"), "Response to “Comment on Alpha beta”", "filters"),
 ])
 def test_skip_reason_labels(it, title, reason):
     assert cs.skip_reason(it, title) == reason

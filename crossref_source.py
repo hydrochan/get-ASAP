@@ -31,7 +31,7 @@ import urllib.request
 
 import store
 from models import PaperMetadata
-from parsers.filters import SKIP_PREFIXES, SKIP_SUBSTRINGS, SKIP_TITLES, is_valid_paper_title
+from parsers.filters import SKIP_SUBSTRINGS, SKIP_TITLES, has_skip_label, is_valid_paper_title
 
 logger = logging.getLogger(__name__)
 
@@ -286,7 +286,7 @@ def skip_reason(item: dict, title: str) -> str | None:
     low = (title or "").strip().casefold()
     only_short = (
         len(low.split()) < 4 and len(low) >= 10 and low not in SKIP_TITLES
-        and not low.startswith(SKIP_PREFIXES) and not any(s in low for s in SKIP_SUBSTRINGS)
+        and not has_skip_label(low) and not any(s in low for s in SKIP_SUBSTRINGS)
     )
     return "short-title" if only_short else "filters"
 
