@@ -6,7 +6,7 @@
   or distribution of this file or any part of this project, via any medium, is
   strictly prohibited. See the LICENSE file for terms.
 -->
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -63,10 +63,6 @@
     .browse-paper-row a { color: #001B44; flex: 1 1 auto; }
     .browse-paper-row a:hover { color: #002F6C; text-decoration: underline; }
     .browse-paper-row .journal-tag { font-size: 12px; font-weight: 600; color: #003D8F; white-space: nowrap; }
-    /* 키워드 태그(pill) 클라우드 */
-    .wc-tag { display: inline-flex; align-items: center; border-radius: 9999px; line-height: 1; padding: 0.35em 0.7em; font-weight: 700; letter-spacing: -0.01em; cursor: pointer; border: 0; transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease; }
-    .wc-tag:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(15,23,42,0.14); }
-    .wc-tag-active { box-shadow: 0 0 0 2px #1A56A8 inset; }
     /* 토스트 알림 */
     @keyframes toastIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
     .toast-enter { animation: toastIn 0.18s ease-out; }
@@ -305,8 +301,8 @@
         <button id="report-btn" class="px-3 sm:px-4 py-2 border border-navy-800 text-navy-800 text-xs font-bold rounded-lg hover:bg-navy-800 hover:text-white transition-all">
           Report
         </button>
-        <button id="feedback-btn" class="px-3 sm:px-4 py-2 border border-emerald-600 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-600 hover:text-white transition-all" title="버그 제보 · 기능 제안 · 기타 의견">
-          💬 피드백
+        <button id="feedback-btn" class="px-3 sm:px-4 py-2 border border-emerald-600 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-600 hover:text-white transition-all" title="Report a bug · Suggest a feature · Share an idea">
+          💬 Feedback
         </button>
         <button id="logout-btn" class="hidden text-xs font-semibold text-slate-400 hover:text-red-500 transition-colors">
           Logout
@@ -372,7 +368,7 @@
 
     <main id="view-home" class="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6">
       <!-- KPI 카드 -->
-      <section class="grid grid-cols-2 md:grid-cols-6 gap-4">
+      <section class="grid grid-cols-2 md:grid-cols-5 gap-4">
         <!-- 캡션은 div: `.kpi-card p[id]` 규칙(글자색 고정)에 걸리지 않게 하려는 것 -->
         <div class="card kpi-card p-3 sm:p-5">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Papers</p>
@@ -385,11 +381,6 @@
           <div id="kpi-journals-sub" class="text-[10px] font-medium text-slate-400 mt-1"></div>
         </div>
         <div class="card kpi-card p-3 sm:p-5">
-          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]"><span id="kpi-month-label">Month to date</span></p>
-          <p id="kpi-month" class="text-2xl font-black text-navy-900 mt-1">—</p>
-          <div id="kpi-month-sub" class="text-[10px] font-medium text-slate-400 mt-1"></div>
-        </div>
-        <div class="card kpi-card p-3 sm:p-5">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Last 7 Days</p>
           <p id="kpi-week" class="text-2xl font-black text-navy-900 mt-1">—</p>
           <div id="kpi-week-sub" class="text-[10px] font-medium text-slate-400 mt-1"></div>
@@ -399,7 +390,7 @@
           <p id="kpi-daily" class="text-2xl font-black text-navy-900 mt-1">—</p>
           <div id="kpi-daily-sub" class="text-[10px] font-medium text-slate-400 mt-1"></div>
         </div>
-        <div class="card kpi-card p-3 sm:p-5">
+        <div class="card kpi-card p-3 sm:p-5 col-span-2 md:col-span-1">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Top Keyword</p>
           <p id="kpi-topkw" class="text-lg leading-8 font-black text-navy-900 mt-1 truncate">—</p>
           <div id="kpi-topkw-sub" class="text-[10px] font-medium text-slate-400 mt-1"></div>
@@ -473,9 +464,9 @@
 
     <!-- Analytics: 차트 · 히트맵 · 관심분석 -->
     <main id="view-analytics" class="hidden max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6">
-      <!-- 키워드 트렌드 + 워드클라우드 -->
-      <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="card p-4 sm:p-6 lg:col-span-2 flex flex-col">
+      <!-- 키워드 트렌드 -->
+      <section>
+        <div class="card p-4 sm:p-6 flex flex-col">
           <div class="flex items-center justify-between mb-4 flex-wrap gap-y-2">
             <div class="flex items-center gap-2 shrink-0">
               <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] whitespace-nowrap">Keyword Trends</h2>
@@ -502,11 +493,6 @@
             <canvas id="chart-keyword"></canvas>
           </div>
           <p id="chart-keyword-note" class="hidden text-[10px] text-slate-400 mt-2">Dashed / faded = current period, still in progress</p>
-        </div>
-        <!-- 키워드 태그 클라우드 -->
-        <div class="card p-4 sm:p-6 flex flex-col">
-          <h2 class="text-xs font-bold text-navy-900 uppercase tracking-[0.05em] mb-4">Keyword Cloud</h2>
-          <div id="wordcloud-tags" class="flex flex-wrap items-center justify-center gap-2 flex-1" style="min-height:320px; align-content:center"></div>
         </div>
       </section>
 
@@ -862,44 +848,44 @@
   <div id="report-modal" class="hidden fixed inset-0 z-50 bg-slate-950/45 flex items-center justify-center p-4">
     <div class="card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-black text-navy-900">📄 리포트 다운로드 설정</h3>
+        <h3 class="text-lg font-black text-navy-900">📄 Download report</h3>
         <button id="report-close" class="text-slate-400 hover:text-slate-700 text-xl font-bold">&times;</button>
       </div>
       <div class="space-y-5">
         <!-- 기간 -->
         <div>
-          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">기간</label>
+          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Period</label>
           <select id="report-months" class="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-800">
-            <option value="1">최근 1개월</option>
-            <option value="3" selected>최근 3개월</option>
-            <option value="6">최근 6개월</option>
-            <option value="12">최근 12개월</option>
+            <option value="1">Last 1 month</option>
+            <option value="3" selected>Last 3 months</option>
+            <option value="6">Last 6 months</option>
+            <option value="12">Last 12 months</option>
           </select>
         </div>
 
         <!-- 포함 섹션 -->
         <div>
-          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">포함 섹션</label>
+          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Include</label>
           <div class="mt-2 space-y-2 text-sm">
-            <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-summary" checked> <span>요약 (총 논문수 · 저널수)</span></label>
-            <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-topkw" checked> <span>Top 20 Keywords 표</span></label>
+            <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-summary" checked> <span>Summary (total papers · journals)</span></label>
+            <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-topkw" checked> <span>Top 20 Keywords table</span></label>
             <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-journals" checked> <span>Journal Frequency (Top 15)</span></label>
-            <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-papers-by-kw"> <span>키워드별 논문 목록 (아래에서 선택)</span></label>
+            <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-papers-by-kw"> <span>Papers by keyword (choose below)</span></label>
           </div>
         </div>
 
         <!-- 키워드 선택 (키워드별 논문 목록 체크 시만 활성) -->
         <div id="report-kw-section" class="opacity-50 pointer-events-none transition-opacity">
           <div class="flex items-baseline justify-between">
-            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">분석할 키워드 (Broad)</label>
+            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Keywords (Broad)</label>
             <div class="flex items-center gap-2 text-[10px]">
-              <button type="button" id="report-kw-all" class="text-navy-700 font-bold hover:underline">전체</button>
-              <button type="button" id="report-kw-none" class="text-slate-400 font-bold hover:underline">전체해제</button>
+              <button type="button" id="report-kw-all" class="text-navy-700 font-bold hover:underline">All</button>
+              <button type="button" id="report-kw-none" class="text-slate-400 font-bold hover:underline">None</button>
             </div>
           </div>
           <div id="report-kw-chips" class="mt-2 flex flex-wrap gap-1.5 max-h-40 overflow-y-auto border border-slate-100 rounded-lg p-2 bg-slate-50"></div>
           <div class="mt-2 flex items-center gap-2">
-            <label class="text-[10px] font-semibold text-slate-500">키워드당 최대 논문 수:</label>
+            <label class="text-[10px] font-semibold text-slate-500">Max papers per keyword:</label>
             <select id="report-papers-per-kw" class="text-xs border border-slate-200 rounded px-2 py-1">
               <option value="10">10</option>
               <option value="20" selected>20</option>
@@ -910,8 +896,8 @@
         </div>
 
         <div class="flex gap-2 pt-2 border-t border-slate-100">
-          <button type="button" id="report-cancel" class="flex-1 py-2 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50">취소</button>
-          <button type="button" id="report-generate" class="flex-1 py-2 bg-gradient-to-r from-navy-900 to-navy-800 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">다운로드</button>
+          <button type="button" id="report-cancel" class="flex-1 py-2 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50">Cancel</button>
+          <button type="button" id="report-generate" class="flex-1 py-2 bg-gradient-to-r from-navy-900 to-navy-800 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">Download</button>
         </div>
       </div>
     </div>
@@ -921,30 +907,30 @@
   <div id="feedback-modal" class="hidden fixed inset-0 z-50 bg-slate-950/45 flex items-center justify-center p-4">
     <div class="card p-6 w-full max-w-md">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-black text-navy-900">💬 피드백 보내기</h3>
+        <h3 class="text-lg font-black text-navy-900">💬 Send feedback</h3>
         <button id="feedback-close" class="text-slate-400 hover:text-slate-700 text-xl font-bold">&times;</button>
       </div>
-      <p class="text-xs text-slate-500 mb-4">버그, 기능 제안, 칭찬/불만 등 자유롭게 남겨주세요. 로그인 없이 익명으로도 남길 수 있으며, 관리자만 조회합니다.</p>
+      <p class="text-xs text-slate-500 mb-4">Bug reports, feature ideas, praise or complaints — anything goes. You can send feedback anonymously without signing in; only the admin can read it.</p>
       <form id="feedback-form" class="space-y-3">
         <input type="text" name="hp" id="feedback-hp" autocomplete="off" tabindex="-1" aria-hidden="true" class="hidden">
         <div>
-          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">카테고리</label>
+          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Category</label>
           <select id="feedback-category" class="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-800">
-            <option value="bug">🐞 버그 제보</option>
-            <option value="feature" selected>💡 기능 제안</option>
-            <option value="other">✏️ 기타 의견</option>
+            <option value="bug">🐞 Bug report</option>
+            <option value="feature" selected>💡 Feature request</option>
+            <option value="other">✏️ Other</option>
           </select>
         </div>
         <div>
-          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">내용</label>
+          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Message</label>
           <textarea id="feedback-message" rows="5" maxlength="2000" required
             class="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 resize-none"
-            placeholder="예) 저널 ABC가 누락된 것 같습니다 / 날짜 범위를 커스텀으로 설정하고 싶어요"></textarea>
+            placeholder="e.g. Journal ABC seems to be missing / I'd like a custom date range"></textarea>
           <p class="text-[10px] text-slate-400 text-right mt-1"><span id="feedback-charcount">0</span> / 2000</p>
         </div>
         <div class="flex gap-2 pt-2">
-          <button type="button" id="feedback-cancel" class="flex-1 py-2 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50">취소</button>
-          <button type="submit" id="feedback-submit" class="flex-1 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">보내기</button>
+          <button type="button" id="feedback-cancel" class="flex-1 py-2 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50">Cancel</button>
+          <button type="submit" id="feedback-submit" class="flex-1 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">Send</button>
         </div>
         <p id="feedback-status" class="text-xs text-center font-semibold hidden"></p>
       </form>
@@ -1096,7 +1082,7 @@
       el.innerHTML = `
         <span class="mt-0.5">${st.icon}</span>
         <span class="flex-1 leading-relaxed whitespace-pre-line">${_escapeHtmlToast(message)}</span>
-        <button type="button" aria-label="닫기" class="text-current opacity-50 hover:opacity-100 font-bold leading-none">&times;</button>
+        <button type="button" aria-label="Close" class="text-current opacity-50 hover:opacity-100 font-bold leading-none">&times;</button>
       `;
       el.querySelector('button').addEventListener('click', () => dismissToast(id));
       container.appendChild(el);
@@ -1562,7 +1548,7 @@
     document.getElementById('month-range').addEventListener('change', loadData);
     // Refresh: loadData 가 매번 /api/versions 를 no-store 로 다시 받으므로, 바뀐 달은 새 v 로 새로 받는다(CDN 캐시 우회).
     document.getElementById('refresh-btn').addEventListener('click', () => loadData());
-    document.getElementById('kw-top-n').addEventListener('change', () => { renderKeywordChart(); renderWordCloud(); });
+    document.getElementById('kw-top-n').addEventListener('change', () => { renderKeywordChart(); });
 
     // 관리자 전용: 전체 월 Notion 강제 재조회
     document.getElementById('refresh-all-btn').addEventListener('click', async () => {
@@ -1975,7 +1961,6 @@
     function renderAll() {
       renderKPIs();
       renderKeywordChart();
-      renderWordCloud();
       renderKeywordTable();
       renderJournalChart();
       renderJournalMonthlyChart();
@@ -2004,17 +1989,11 @@
       const total = papers.length;
       const journals = new Set(papers.map(p => p.journal).filter(Boolean));
       const rangeText = rangeCaption();
-      const plural = (n, w) => `${n.toLocaleString()} ${w}${n === 1 ? '' : 's'}`;
+      const plural = (n, w) => `${n.toLocaleString('en-US')} ${w}${n === 1 ? '' : 's'}`;
       // 두 YYYY-MM-DD 사이 일수(b - a). UTC 자정끼리 빼므로 DST와 무관.
       const dayDiff = (a, b) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000);
       const countBetween = (from, to) => papers.filter(p => { const d = p.date.slice(0, 10); return d >= from && d <= to; }).length;
       const shiftDays = (n) => localDateStr(new Date(now.getFullYear(), now.getMonth(), now.getDate() + n));
-
-      // 이번 달 누적 (월 1일 ~ 오늘). 범위 시작일은 항상 이번 달 1일 이전이라 로드 범위에 완전히 포함된다.
-      const monthName = now.toLocaleString('en-US', { month: 'short' });
-      const monthStart = today.slice(0, 8) + '01';
-      const monthDays = now.getDate();
-      const monthCount = countBetween(monthStart, today);
 
       // 최근 7일(오늘 포함) vs 그 직전 7일
       const curFrom = shiftDays(-6);
@@ -2032,7 +2011,7 @@
         weekSub = '— vs prior 7 days';
       } else {
         const pct = Math.round((weekCount - prevCount) / prevCount * 100);
-        weekSub = `${pct > 0 ? '▲ ' : pct < 0 ? '▼ ' : ''}${Math.abs(pct).toLocaleString()}% vs prior 7 days`;
+        weekSub = `${pct > 0 ? '▲ ' : pct < 0 ? '▼ ' : ''}${Math.abs(pct).toLocaleString('en-US')}% vs prior 7 days`;
       }
 
       // 일평균 = 범위 안 논문 수 ÷ (범위 시작일 ~ 오늘 일수, 양끝 포함)
@@ -2043,14 +2022,11 @@
       const topKwName = topKw.length ? topKw[0][0] : '—';
 
       const set = (id, text) => { document.getElementById(id).textContent = text; };
-      set('kpi-total', total.toLocaleString());
+      set('kpi-total', total.toLocaleString('en-US'));
       set('kpi-total-sub', rangeText);
-      set('kpi-journals', journals.size.toLocaleString());
+      set('kpi-journals', journals.size.toLocaleString('en-US'));
       set('kpi-journals-sub', rangeText);
-      set('kpi-month-label', `${monthName} to date`);
-      set('kpi-month', monthCount.toLocaleString());
-      set('kpi-month-sub', `${monthName} 1${monthDays > 1 ? '–' + monthDays : ''} · ${plural(monthDays, 'day')}`);
-      set('kpi-week', weekCount.toLocaleString());
+      set('kpi-week', weekCount.toLocaleString('en-US'));
       set('kpi-week-sub', weekSub);
       set('kpi-daily', total ? (total / rangeDays).toFixed(1) : '—');
       set('kpi-daily-sub', rangeText);
@@ -2094,7 +2070,7 @@
 
     // 유효한 키워드 슬러그만 허용: 영문 소문자/숫자 + 하이픈 구분 (예: functional-materials).
     // → Notion GPT Reason 에 섞여 들어온 한글 메모·자유서술(공백·괄호·콜론·중괄호 등)을 걸러
-    //   워드클라우드·트렌드·Top Keywords·도메인 필터·히트맵에서 노출되지 않게 한다.
+    //   트렌드·Top Keywords·도메인 필터·히트맵에서 노출되지 않게 한다.
     function isValidKeywordSlug(s) {
       return typeof s === 'string' && s.length <= 40 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(s);
     }
@@ -2153,7 +2129,7 @@
       return getFreq(papers, keywordView, keywordView === 'sharp' ? broadFilter : '');
     }
 
-    // Broad/Sharp 뷰 전환 (키워드 트렌드·워드클라우드·Top 테이블용)
+    // Broad/Sharp 뷰 전환 (키워드 트렌드·Top 테이블용)
     window.setKeywordView = function(view) {
       keywordView = view;
       const b1 = document.getElementById('kv-broad');
@@ -2163,7 +2139,6 @@
       // broad 드롭다운은 sharp view에서만 활성
       document.getElementById('broad-filter').disabled = (view !== 'sharp');
       renderKeywordChart();
-      renderWordCloud();
       renderKeywordTable();
     };
 
@@ -2171,7 +2146,6 @@
     document.getElementById('broad-filter').addEventListener('change', (e) => {
       broadFilter = e.target.value;
       renderKeywordChart();
-      renderWordCloud();
       renderKeywordTable();
     });
 
@@ -2269,51 +2243,6 @@
       });
     }
 
-    // 워드클라우드
-    // 정돈된 태그(pill) 클라우드 — 빈도=크기, 시퀀셜 navy 톤으로 강약, 클릭 시 차트 필터.
-    function renderWordCloud() {
-      const container = document.getElementById('wordcloud-tags');
-      if (!container) return;
-      const freq = currentFreq(filteredPapers);   // 키워드 슬러그 필터 반영됨
-      const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0, 24);
-      if (!sorted.length) {
-        container.innerHTML = '<span class="text-xs text-slate-400">No keywords to display</span>';
-        return;
-      }
-
-      const maxFreq = sorted[0][1];
-      const html = sorted.map(([word, count]) => {
-        const t = maxFreq ? count / maxFreq : 0;              // 0..1 정규화
-        const size = (11 + Math.sqrt(t) * 7).toFixed(1);      // 약 11~18px (좁은 컬럼에서 촘촘하게)
-        const active = broadFilter && broadFilter === word;
-        // 상위(t≥0.6)는 채움 navy + 흰 글자, 그 외는 연한 navy 틴트 + navy 글자
-        let style;
-        if (t >= 0.6) {
-          style = `font-size:${size}px;background:#002F6C;color:#F8FAFC`;
-        } else {
-          const light = 96 - Math.round(t * 26);              // 96%→~70% (틴트 농도)
-          style = `font-size:${size}px;background:hsl(214 45% ${light}%);color:#001B44`;
-        }
-        return `<button type="button" class="wc-tag${active ? ' wc-tag-active' : ''}" data-kw="${_escapeHtml(word)}" style="${style}" title="${count} papers">${_escapeHtml(word)}</button>`;
-      }).join('');
-      container.innerHTML = html;
-    }
-
-    // 태그 클릭 → 차트 필터 (기존 pickBroad 재사용). broad 뷰는 그대로,
-    // sharp 뷰는 해당 sharp 의 상위 broad 로 라우팅.
-    document.getElementById('wordcloud-tags').addEventListener('click', (e) => {
-      const tag = e.target.closest('.wc-tag');
-      if (!tag) return;
-      const kw = tag.dataset.kw || '';
-      if (!kw || typeof window.pickBroad !== 'function') return;
-      if (keywordView === 'sharp') {
-        const parent = sharpToParent[kw];
-        if (parent) window.pickBroad(parent);
-      } else {
-        window.pickBroad(kw);
-      }
-    });
-
     // Top 키워드 트리 (Broad ▸ Sharp 계층)
     function renderKeywordTable() {
       const broadFreq = getFreq(filteredPapers, 'broad', '');
@@ -2405,7 +2334,7 @@
       renderKeywordTable();
     };
 
-    // ⚲ 아이콘 → 차트/워드클라우드를 해당 broad로 필터
+    // ⚲ 아이콘 → 차트를 해당 broad로 필터
     window.pickBroad = function(broad) {
       broadFilter = (broadFilter === broad) ? '' : broad;
       document.getElementById('broad-filter').value = broadFilter;
@@ -2413,7 +2342,6 @@
         setKeywordView('sharp');
       } else {
         renderKeywordChart();
-        renderWordCloud();
         renderKeywordTable();
       }
     };
@@ -4034,7 +3962,7 @@
       if (!message) return;
       const submitBtn = document.getElementById('feedback-submit');
       submitBtn.disabled = true;
-      submitBtn.textContent = '전송 중…';
+      submitBtn.textContent = 'Sending…';
       try {
         // 익명 게스트도 제출 가능한 공개 엔드포인트 — handleAdminAuthError(관리자 세션 만료 처리)는 여기에 적용하지 않고 상태코드별로 직접 처리
         const res = await fetch('/api/feedback', {
@@ -4043,28 +3971,28 @@
           body: JSON.stringify({ category, message, hp }),
         });
         if (res.ok) {
-          fbStatus.textContent = '✓ 소중한 피드백 감사합니다!';
+          fbStatus.textContent = '✓ Thanks for your feedback!';
           fbStatus.className = 'text-xs text-center font-semibold text-emerald-600';
           fbStatus.classList.remove('hidden');
           setTimeout(closeFeedback, 1400);
         } else if (res.status === 429) {
-          fbStatus.textContent = '요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요.';
+          fbStatus.textContent = 'Too many requests. Please try again in a moment.';
           fbStatus.className = 'text-xs text-center font-semibold text-red-500';
           fbStatus.classList.remove('hidden');
         } else if (res.status === 400) {
-          fbStatus.textContent = '내용을 확인해 주세요.';
+          fbStatus.textContent = 'Please check your message.';
           fbStatus.className = 'text-xs text-center font-semibold text-red-500';
           fbStatus.classList.remove('hidden');
         } else {
-          throw new Error('전송 실패');
+          throw new Error('Send failed');
         }
       } catch (err) {
-        fbStatus.textContent = '✗ 전송에 실패했습니다. 잠시 후 다시 시도해주세요.';
+        fbStatus.textContent = '✗ Couldn\'t send. Please try again in a moment.';
         fbStatus.className = 'text-xs text-center font-semibold text-red-500';
         fbStatus.classList.remove('hidden');
       } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = '보내기';
+        submitBtn.textContent = 'Send';
       }
     });
 
@@ -4461,7 +4389,7 @@
 
       if (opts.papersByKw && opts.selectedKw.length > 0) {
         md += `## Papers by Keyword\n\n`;
-        md += `_선택된 키워드별 논문 목록. 키워드당 최대 ${opts.papersPerKw}건._\n\n`;
+        md += `_Papers for the selected keywords, up to ${opts.papersPerKw} per keyword._\n\n`;
         for (const kw of opts.selectedKw) {
           const kwPapers = scoped.filter(p => {
             for (const { broad } of parseReason(p.gpt_reason || '')) {
