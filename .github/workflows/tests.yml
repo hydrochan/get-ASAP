@@ -1,0 +1,45 @@
+# 회귀 테스트(regression_tests) 전체를 GitHub Actions 에서 돌린다.
+# 로컬 PC 는 AhnLab V3 실시간 검사 때문에 전체 스위트가 느려, 로컬에서는 방금 고친 코드와 관련된 테스트 파일만 돌리고
+# 전체는 여기서 확인한다(작업 브랜치를 push 하면 실행된다).
+#
+# - ubuntu-latest 한 대만 쓴다(Windows·macOS 러너는 무료 분이 배수로 차감된다). 의존성은 pip 캐시를 쓴다.
+# - 같은 브랜치에 새 push 가 오면 이전 실행을 취소한다(분 절약). 문서만 바뀐 push 는 건너뛴다.
+# - regression_tests 는 합성 데이터만 쓴다(tmp_path DB, 실제 .env·data/asap.db·cache·네트워크 미사용).
+#   gitignore 된 tests/(실제 수신 메일 fixture)는 공개 저장소에 없으므로 CI 대상이 아니다 - 로컬에서만 돌린다.
+#
+# 건너뛰는 테스트 목록(로컬 데이터 또는 Windows 전용 동작에 의존해 CI 에서 skip 표시한 것):
+#   - 없음. 현재 skip 은 테스트 안의 import 가드뿐이다(test_crossref_source.py 의 main import 불가 시 pytest.skip,
+#     test_store.py 의 notion_client_mod importorskip). 로컬 데이터·Windows 전용 테스트가 생기면
+#     @pytest.mark.skipif(os.environ.get("CI"), reason=...) 로 표시하고 여기에 이름을 적는다.
+name: tests
+
+on:
+  push:
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"  # README·deploy.sh 가 권장하는 버전
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt
+      - run: python -m pytest regression_tests -q

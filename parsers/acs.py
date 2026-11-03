@@ -4,7 +4,7 @@ import logging
 import re
 from bs4 import BeautifulSoup
 from models import PaperMetadata
-from parsers.base import BaseParser
+from parsers.base import BaseParser, title_text
 from parsers.filters import is_valid_paper_title
 
 logger = logging.getLogger(__name__)
@@ -228,16 +228,14 @@ class ACSParser(BaseParser):
 
     @staticmethod
     def _clean_text(tag) -> str:
-        text = tag.get_text(separator=" ", strip=True)
-        return re.sub(r'\s+', ' ', text).strip()
+        return title_text(tag)
 
     @staticmethod
     def _clean_text_no_sep(tag) -> str:
         """separator 없이 텍스트를 뽑고 공백만 정규화 (위/아래첨자 붙여쓰기 보존용).
 
         예: 'C(sp<sup>3</sup>)-H' -> 'C(sp3)-H'.
-        기존 _clean_text(separator=" ")를 쓰면 'C(sp 3 )-H'로 깨지므로 신형 포맷
-        (Silverchair 템플릿) 제목 전용으로 별도 둔다 — 구형 포맷은 절대 이걸 쓰지 않는다.
+        신형 포맷(Silverchair 템플릿) 제목·DOI·저널명 추출에 쓴다. 구형 포맷의 제목은 _clean_text(title_text)가 맡는다.
         """
         text = tag.get_text(strip=False)
         return re.sub(r'\s+', ' ', text).strip()

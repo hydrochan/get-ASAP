@@ -152,6 +152,13 @@ def _sql_in(values) -> str:
     return ", ".join("'" + v + "'" for v in values)
 
 
+# title_key 에서 공백을 모두 뺀 값("co 2" -> "co2")에 거는 부분 인덱스. 위·아래첨자가 쪼개져 저장된 옛 제목("CO 2")과
+# 고쳐진 파서의 제목("CO2")을 같은 논문으로 잡는 데 쓴다. 인덱스 식·조회 식은 이 표기 그대로여야 한다.
+_TITLE_SQUASH_EXPR = "replace(title_key,' ','')"
+_TITLE_SQUASH_INDEX_SQL = (
+    f"CREATE INDEX IF NOT EXISTS ix_papers_title_squash ON papers({_TITLE_SQUASH_EXPR}) WHERE dup_of IS NULL"
+)
+
 _DDL = [
     f"""
     CREATE TABLE IF NOT EXISTS papers (
@@ -179,6 +186,8 @@ _DDL = [
     """,
     # 중복 키: dup_of가 없는 행끼리만 title_key 유일. tombstone(deleted_at)도 포함하므로 정리한 논문은 재유입되지 않는다.
     "CREATE UNIQUE INDEX IF NOT EXISTS ux_papers_title_key ON papers(title_key) WHERE dup_of IS NULL",
+    # 공백 무시 중복 조회용(_insert_paper): 쿼리의 식이 이 인덱스 식과 글자 그대로 같아야 인덱스를 탄다.
+    _TITLE_SQUASH_INDEX_SQL,
     # bucket별 export·dirty 판정용 (change_seq 단독 조회는 UNIQUE 제약의 자동 인덱스가 맡는다)
     "CREATE INDEX IF NOT EXISTS ix_papers_bucket ON papers(bucket_month, change_seq)",
     """
@@ -204,6 +213,13 @@ def _ensure_history_actor(conn: sqlite3.Connection) -> None:
     write_tx 안에서 호출한다(BEGIN IMMEDIATE가 동시 ALTER를 직렬화). 사람 판정이 아닌 기존 경로는 이 열을 쓰지 않는다."""
     if "actor" not in [r[1] for r in conn.execute("PRAGMA table_info(status_history)")]:
         conn.execute("ALTER TABLE status_history ADD COLUMN actor TEXT")
+
+
+def _ensure_title_squash_index(conn: sqlite3.Connection) -> None:
+    """공백 무시 중복 조회 인덱스를 보장한다(멱등). write_tx 안에서 호출한다.
+    운영 DB 는 init_schema 가 다시 불리지 않으므로 이 인덱스를 쓰는 저장 경로(save_papers)가 직접 부른다."""
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type='index' AND name='ix_papers_title_squash'").fetchone() is None:
+        conn.execute(_TITLE_SQUASH_INDEX_SQL)
 
 
 def _missing_article_kind_columns(conn: sqlite3.Connection) -> list[str]:
@@ -341,11 +357,18 @@ def _bump(conn: sqlite3.Connection) -> int:
 def _insert_paper(conn: sqlite3.Connection, rec: dict, *, allow_dup: bool = False) -> int | None:
     """행 삽입 + seq 부여. title_key가 이미 점유(tombstone 포함)되어 있으면:
     allow_dup=False -> None 반환(스킵, seq 소비 없음) / allow_dup=True -> dup_of에 기존 행을 달아 삽입(이관용).
+
+    allow_dup=False 에서는 공백만 다른 키("CO2" vs 옛 파서가 쪼갠 "CO 2")도 같은 논문으로 보고 스킵한다
+    (범위는 정확 키와 같다: 전 기간·dup_of IS NULL·tombstone 포함). allow_dup=True(이관) 동작은 그대로다.
     """
     title_key = normalize_title(rec["title"])
     owner = conn.execute(
         "SELECT id FROM papers WHERE title_key=? AND dup_of IS NULL", (title_key,)
     ).fetchone()
+    if owner is None and not allow_dup:
+        owner = conn.execute(
+            f"SELECT id FROM papers WHERE {_TITLE_SQUASH_EXPR}=? AND dup_of IS NULL", (title_key.replace(" ", ""),)
+        ).fetchone()
     if owner is not None and not allow_dup:
         return None
     seq = _bump(conn)
@@ -442,6 +465,7 @@ def save_papers(papers, conn: sqlite3.Connection | None = None, today: _dt.date 
         conn = connect()
     try:
         with write_tx(conn):
+            _ensure_title_squash_index(conn)
             now = _now()
             for paper in papers:
                 title = paper.title or ""

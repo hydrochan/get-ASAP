@@ -209,8 +209,12 @@ def test_get_json_gives_up_after_max_retries_and_does_not_retry_404(monkeypatch)
     ("imaging\n <i>in vivo</i>", "imaging in vivo"),
     ("CO<sub>2</sub> reduction", "CO2 reduction"),
     ("CF\n <jats:sub>3</jats:sub>\n -substituted", "CF3-substituted"),
-    ("Fe <MML:SUP>3+</MML:SUP> ions", "Fe3+ ions"),
+    ("Fe<MML:SUP>3+</MML:SUP> ions", "Fe3+ ions"),
     ("CO<sub>2</sub> Reduction - a review", "CO2 Reduction - a review"),
+    # <sup> 앞 공백은 보존한다(<sub> 앞 공백만 지운다): 예전엔 "Tracking13C" 로 붙었다
+    ("Tracking <sup>13</sup>C in operando", "Tracking 13C in operando"),
+    ("Fe <MML:SUP>3+</MML:SUP> ions", "Fe 3+ ions"),
+    ("CO <jats:sub>2</jats:sub> capture", "CO2 capture"),
 ])
 def test_clean_title(raw, expected):
     assert cs.clean_title(raw) == expected

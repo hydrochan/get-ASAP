@@ -3,7 +3,7 @@ import logging
 import re
 from bs4 import BeautifulSoup
 from models import PaperMetadata
-from parsers.base import BaseParser
+from parsers.base import BaseParser, title_text
 from parsers.filters import is_valid_paper_title
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ class WileyParser(BaseParser):
 
             for a_tag in soup.select("a.issue-item__title"):
                 h5 = a_tag.select_one("h5")
-                raw_title = h5.get_text(separator=" ", strip=True) if h5 else a_tag.get_text(separator=" ", strip=True)
+                raw_title = title_text(h5 if h5 else a_tag)
 
                 title = _JOURNAL_SUFFIX_RE.sub("", raw_title).strip()
                 title = re.sub(r'\s+', ' ', title).strip()

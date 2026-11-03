@@ -129,3 +129,12 @@ def test_nature_communications_h3_titles_are_unchanged():
 def test_mail_without_paper_sections_returns_nothing():
     assert titles(mail(section("h2", "Editorial", [NOT_RESEARCH["Editorial"]]))) == []
     assert titles("") == []
+
+
+def test_subscripts_in_titles_are_joined_in_h2_section_h3_section_and_ncomms_h3():
+    """CO<sub>2</sub> 가 "CO 2" 로 쪼개지지 않는다(h2 섹션, h3 하위 섹션, Nature Communications h3 제목 세 경로)."""
+    split = "Electroreduction of CO<sub>2</sub> over Cu<sup>δ+</sup> sites with <i>in situ</i> control"
+    joined = "Electroreduction of CO2 over Cuδ+ sites with in situ control"
+    assert titles(mail(section("h2", "Articles", [split]))) == [joined]
+    assert titles(mail("<h2>Research</h2>", section("h3", "Articles", [split]))) == [joined]
+    assert titles(mail("<h2>Chemical sciences ›</h2>", f"<h3>{split}</h3>")) == [joined]

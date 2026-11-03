@@ -221,6 +221,66 @@ def test_tombstone_blocks_reinsert(conn):
     assert conn.execute("SELECT COUNT(*) FROM papers").fetchone()[0] == 1
 
 
+@pytest.mark.parametrize("stored, incoming", [
+    ("Electroreduction of CO 2 to ethylene", "Electroreduction of CO2 to ethylene"),  # 옛 파서가 쪼갠 행 + 고친 파서의 제목
+    ("Electroreduction of CO2 to ethylene", "Electroreduction of CO 2 to ethylene"),  # 반대 방향
+    ("Zn 2+ battery for grid storage", "ZN2+  Battery for Grid Storage"),  # 대소문자·연속 공백과 겹쳐도
+])
+def test_whitespace_only_difference_is_a_duplicate(conn, stored, incoming):
+    assert save(conn, paper(stored)) == {"saved": 1, "skipped": 0, "failed": 0}
+    assert save(conn, paper(incoming, journal="Other Journal")) == {"saved": 0, "skipped": 1, "failed": 0}
+    assert conn.execute("SELECT COUNT(*) FROM papers").fetchone()[0] == 1
+    assert store.last_seq(conn) == 1  # 스킵은 seq 를 소비하지 않는다
+
+
+def test_whitespace_only_difference_is_blocked_by_a_tombstone_too(conn):
+    save(conn, paper("Electroreduction of CO 2 to ethylene"))
+    with store.write_tx(conn):
+        assert store._update_paper(conn, row(conn, "Electroreduction of CO 2 to ethylene"), {"deleted_at": "2026-09-21T00:00:00Z"})
+    assert save(conn, paper("Electroreduction of CO2 to ethylene")) == {"saved": 0, "skipped": 1, "failed": 0}
+    assert conn.execute("SELECT COUNT(*) FROM papers").fetchone()[0] == 1
+
+
+def test_whitespace_only_difference_ignores_dup_rows_and_unrelated_titles(conn):
+    save(conn, paper("Electroreduction of CO 2 to ethylene"))
+    owner = row(conn, "Electroreduction of CO 2 to ethylene")
+    # dup 행(dup_of 가 있는 행)은 점유자가 아니다: 공백 무시 키가 같아도 dup 행뿐이면 새 정본이 들어올 수 있다(정확 키와 같은 규칙)
+    conn.execute(
+        "INSERT INTO papers(ref,title,title_key,bucket_month,created_at,updated_at,change_seq,status_source,dup_of) "
+        "VALUES('d','Foo Bar Baz qux','foo bar baz qux','2026-09','t','t',99,'human',?)", (owner["id"],)
+    )
+    assert save(conn, paper("FooBar Baz qux")) == {"saved": 1, "skipped": 0, "failed": 0}
+    # 관련 없는 제목은 그대로 들어간다
+    assert save(conn, paper("Electroreduction of CO2 to propylene")) == {"saved": 1, "skipped": 0, "failed": 0}
+    assert save(conn, paper("Phase 2 trial of CO reduction")) == {"saved": 1, "skipped": 0, "failed": 0}
+
+
+def test_squash_lookup_uses_the_expression_index_and_runtime_ensure_creates_it(conn):
+    plan = " ".join(
+        r[-1] for r in conn.execute(
+            f"EXPLAIN QUERY PLAN SELECT id FROM papers WHERE {store._TITLE_SQUASH_EXPR}=? AND dup_of IS NULL", ("x",)
+        )
+    )
+    assert "ix_papers_title_squash" in plan
+    # init_schema 를 다시 거치지 않는 운영 DB 를 흉내: 인덱스를 지운 뒤 저장 경로가 쓰기 트랜잭션 안에서 다시 만든다
+    conn.execute("DROP INDEX ix_papers_title_squash")
+    assert conn.execute("SELECT 1 FROM sqlite_master WHERE name='ix_papers_title_squash'").fetchone() is None
+    assert save(conn, paper("Electroreduction of CO 2 to ethylene"))["saved"] == 1
+    sql = conn.execute("SELECT sql FROM sqlite_master WHERE name='ix_papers_title_squash'").fetchone()[0]
+    assert "replace(title_key,' ','')" in sql and "WHERE dup_of IS NULL" in sql
+    assert save(conn, paper("Electroreduction of CO2 to ethylene"))["skipped"] == 1
+
+
+def test_allow_dup_migration_path_is_unchanged_by_the_squash_lookup(conn):
+    """이관(allow_dup=True)은 정확 키만 dup 으로 단다. 공백만 다른 제목은 예전처럼 정본으로 들어간다."""
+    a, b = "aaaaaaaa-0000-0000-0000-0000000000a1", "aaaaaaaa-0000-0000-0000-0000000000a2"
+    with store.write_tx(conn):
+        store.upsert_migrated(conn, migrated(a, "Electroreduction of CO 2 to ethylene"))
+        store.upsert_migrated(conn, migrated(b, "Electroreduction of CO2 to ethylene"))
+    rows = {r["ref"]: r for r in conn.execute("SELECT * FROM papers")}
+    assert rows[a]["dup_of"] is None and rows[b]["dup_of"] is None
+
+
 def test_partial_unique_index_allows_dup_rows_only(conn):
     save(conn, paper("Owner"))
     owner = row(conn, "Owner")

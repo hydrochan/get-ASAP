@@ -182,7 +182,10 @@ _TAG_RE = re.compile(r"</?[A-Za-z][^<>]*>")  # "x < 5 and y > 3" 같은 본문 �
 # Crossref(RSC·일부 Elsevier/Wiley)는 <sub>/<sup> 앞뒤에 공백·개행을 넣어 둔다 -> 그대로 두면 "CF 3 -substituted"
 # 닫는 태그 뒤 공백은 "-substituted"·"XC<sub>2" 처럼 이어지는 경우만 지운다("CO2 reduction"·"CO2 Reduction"의 띄어쓰기는 보존).
 _SS = r"(?:[A-Za-z][\w.-]*:)?su[bp]"  # sub/sup, jats:/mml: 접두어 허용
-_SCRIPT_OPEN_RE = re.compile(rf"\s*(<{_SS}(?=[\s/>])[^<>]*>)\s*", re.IGNORECASE)
+# 여는 태그 앞 공백은 <sub> 일 때만 지운다("CO <sub>2" -> "CO2"). <sup> 앞 공백은 보존한다("Tracking <sup>13</sup>C" -> "Tracking 13C").
+_SCRIPT_OPEN_RE = re.compile(
+    rf"(?:\s*(?=<(?:[A-Za-z][\w.-]*:)?sub(?=[\s/>])))?(<{_SS}(?=[\s/>])[^<>]*>)\s*", re.IGNORECASE
+)
 _SCRIPT_CLOSE_RE = re.compile(
     rf"\s*(</{_SS}\s*>)(?:\s+(?=-\w|[)\],.;:]|(?-i:(?:[A-Z][a-z]?\d*)+)<{_SS}(?=[\s/>])))?", re.IGNORECASE
 )

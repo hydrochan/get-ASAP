@@ -3,7 +3,7 @@ import logging
 import re
 from bs4 import BeautifulSoup
 from models import PaperMetadata
-from parsers.base import BaseParser
+from parsers.base import BaseParser, title_text
 from parsers.filters import is_valid_paper_title
 
 logger = logging.getLogger(__name__)
@@ -85,7 +85,7 @@ class RSCParser(BaseParser):
                 if any(kw in section_name for kw in _SKIP_SECTION_KEYWORDS):
                     continue
 
-            title = self._clean_text(a_tag)
+            title = title_text(a_tag)
             if not is_valid_paper_title(title):
                 continue
             if title in seen_titles:
@@ -135,7 +135,7 @@ class RSCParser(BaseParser):
                 a_tag = td.find("a")
                 if a_tag is not None:
                     pending = {
-                        "title": self._clean_text(a_tag),
+                        "title": title_text(a_tag),
                         "url": a_tag.get("href", ""),
                     }
                 else:

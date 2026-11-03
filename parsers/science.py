@@ -1,9 +1,8 @@
 """Science/Science Advances 출판사 메일 파서"""
 import logging
-import re
 from bs4 import BeautifulSoup
 from models import PaperMetadata
-from parsers.base import BaseParser
+from parsers.base import BaseParser, title_text
 from parsers.filters import is_valid_paper_title
 
 logger = logging.getLogger(__name__)
@@ -65,5 +64,4 @@ class ScienceParser(BaseParser):
 
     @staticmethod
     def _clean_text(tag) -> str:
-        text = tag.get_text(separator=" ", strip=True)
-        return re.sub(r'\s+', ' ', text).strip()
+        return title_text(tag)
