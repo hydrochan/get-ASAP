@@ -296,6 +296,41 @@ def test_skip_reason_labels(it, title, reason):
     assert cs.is_research_item(it, title) is (reason is None)
 
 
+# 정정·철회 라벨은 뒤에 구분자(끝/콜론·대시/to·note·notice/인용 제목)가 올 때만 걸린다
+@pytest.mark.parametrize("title", [
+    "Correction to Alpha beta gamma delta study",
+    "Correction: Alpha beta gamma delta study",
+    "Correction – Alpha beta gamma delta study",
+    "Correction for “Alpha beta gamma delta study”",
+    "Retraction of “Alpha beta gamma delta study”",
+    "Retraction Note: Alpha beta gamma delta study",
+    "Retraction notice to \"Alpha beta gamma delta study\"",
+    "Retracted: Alpha beta gamma delta study",
+    "Retracted article: Alpha beta gamma delta study",
+    "Erratum to Alpha beta gamma delta study",
+    "Corrigendum on “Alpha beta gamma delta study”",
+    "Author Correction: Alpha beta gamma delta study",
+    "Publisher Correction",
+    "Addendum to “Alpha beta gamma delta study”",
+    "Expression of concern: Alpha beta gamma delta study",
+])
+def test_correction_labels_are_rejected(title):
+    assert cs.skip_reason(item("10.1/x", title), title) is not None
+
+
+@pytest.mark.parametrize("title", [
+    "Editorial and peer review dynamics at elite general science journals",
+    "Correction for multiple testing in genome-wide studies",
+    "Correction of chromatic aberration in electron microscopy of catalysts",
+    "Retraction patterns in chemistry journals over three decades",
+    "Erratum frequency and citation impact in materials science",
+    "Addendum effects on polymer film adhesion and wettability",
+    "Correctional facility air quality and respiratory outcomes",
+])
+def test_label_lookalike_research_titles_pass_skip_reason(title):
+    assert cs.skip_reason(item("10.1/x", title), title) is None
+
+
 def test_update_to_and_non_article_types_are_rejected_but_plain_research_passes():
     title = "Alpha beta gamma delta study of catalysts"
     assert cs.is_research_item(item("10.1/x", title), title) is True

@@ -64,7 +64,6 @@ SKIP_PREFIXES = (
     "correspondence on ",
     # 제목 앞에 라벨을 단 정정·부록·서문 공지 (DB 실측: 라벨 접두 제목 31건이 통과하고 있었다)
     # 뒤에 공백/콜론을 붙여 단어 경계를 맞춘다 - "Correctional ...", "Addendums ..." 같은 일반 제목은 걸리지 않는다.
-    "correction for ",
     "corrigendum on ",
     "erratum on ",
     "addendum to ",
@@ -90,7 +89,9 @@ SKIP_LABEL_RE = re.compile(
     # 편집자 글: "Editorial: ...", "Editorial—Special Issue ...", "Editorial Note: ...", "Editorial for the Special Issue ..."
     rf"|editorial\s*[:{_DASH}]"
     rf"|editorial\s+notes?\b"
-    rf"|editorial\s+for\s)"
+    rf"|editorial\s+for\s"
+    # 정정 공지: 뒤에 제목을 따옴표로 인용할 때만("Correction for “Considerations ...”"). "Correction for multiple testing in ..." 은 연구 제목
+    rf"|correction\s+for\s*[\"'“‘])"
 )
 
 # 제목 중간에 등장해도 비논문으로 간주할 문구(위치 무관, "contains" 매칭)

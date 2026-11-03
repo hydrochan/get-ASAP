@@ -187,9 +187,13 @@ _SCRIPT_CLOSE_RE = re.compile(
     rf"\s*(</{_SS}\s*>)(?:\s+(?=-\w|[)\],.;:]|(?-i:(?:[A-Z][a-z]?\d*)+)<{_SS}(?=[\s/>])))?", re.IGNORECASE
 )
 _WS_RE = re.compile(r"\s+")
+# 정정·철회 공지 라벨. 키워드만으로는 거르지 않는다 - 뒤에 라벨 구분자(끝/콜론·대시/to·note·notice/따옴표로 인용한 제목)가 와야 한다.
+# ("Correction for multiple testing in ..." 같은 연구 제목은 통과. 진짜 공지는 Crossref update-to 가 따로 걸러낸다.)
+# 'editorial' 은 여기서 뺐다 - 라벨 달린 편집자 글은 parsers.filters 가, "Editorial and peer review dynamics ..." 같은 연구 제목은 통과시킨다.
 _NON_RESEARCH_RE = re.compile(
     r"^(?:(?:author|publisher)\s+)?"
-    r"(?:addition/correction|correction|retraction|retracted|erratum|corrigendum|expression of concern|editorial|addendum)\b",
+    r"(?:addition/correction|correction|retraction|retracted\s+article|retracted|erratum|corrigendum|expression of concern|addendum)"
+    r"(?:$|\s*[:\-‐‑–—―−]|\s+(?:to|note|notice)\b|\s+(?:of|for|on)\s+[“\"'‘])",
     re.IGNORECASE,
 )
 

@@ -44,6 +44,10 @@ from parsers.filters import is_valid_paper_title
     "Addendum to “Ultrathin metal-organic framework nanosheets for sensing”",
     "Addendum: Ultrathin metal-organic framework nanosheets for sensing",
     "Correction for “Considerations for Gas-phase Hydrogen Production”",
+    "Correction for \"Considerations for Gas-phase Hydrogen Production\"",
+    "Correction for ‘Considerations for Gas-phase Hydrogen Production’",
+    "Correction for'Considerations for Gas-phase Hydrogen Production'",
+    "Correction for“Considerations for Gas-phase Hydrogen Production”",
     "Corrigendum on “Inhibiting corrosion of steel in acidic media”",
     "Erratum on “Inhibiting corrosion of steel in acidic media”",
     "News Spotlights, powered by C&EN",
@@ -73,6 +77,9 @@ def test_label_titles_are_excluded(title):
     "Responses of soil microbial communities to nitrogen deposition",
     "Reply latency in reaction networks governed by slow modes",
     "Obituaries as a data source for mortality modelling in chemistry",
+    # "correction for" 는 뒤에 따옴표로 인용한 제목이 올 때만 정정 공지
+    "Correction for multiple testing in genome-wide association studies",
+    "Correction of chromatic aberration in electron microscopy of catalysts",
 ])
 def test_label_lookalike_research_titles_stay_valid(title):
     assert is_valid_paper_title(title) is True
