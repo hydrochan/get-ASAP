@@ -11,25 +11,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>get-ASAP Analytics</title>
-  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { sans: ['Manrope', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'system-ui', 'sans-serif'] },
-          colors: {
-            navy: { 50: '#E8EEF8', 900: '#0F2A55', 800: '#163B73', 700: '#1F4A8C', 600: '#2A5BA8' },
-            slate: { 50: '#F8F9FA', 100: '#F3F4F5', 200: '#E5E7EB', 300: '#D1D5DB', 400: '#9CA3AF', 500: '#6B7280' }
-          }
-        }
-      }
-    }
-  </script>
   <style>
     /* ===== 디자인 토큰 (Home "A" 레이아웃: 상단 헤더 + 한 열 다이제스트) ===== */
     :root {
@@ -332,6 +318,8 @@
       color: var(--dash-muted) !important;
     }
   </style>
+  <!-- Tailwind 빌드 결과(build_css.py). 반드시 위 <style> 뒤에 둔다 — Play CDN 이 <head> 맨 끝에 <style> 을 붙이던 것과 같은 캐스케이드 위치. v= 는 build_css.py 가 갱신 -->
+  <link rel="stylesheet" href="/static/tailwind.css?v=36d328fc17">
 </head>
 <body class="font-sans min-h-screen">
 

@@ -87,3 +87,6 @@ tests/
 # 로컬 작업 파일 (공개 금지)
 outreach-email-director-lee.md
 .filenignore
+
+# Tailwind standalone CLI (build_css.py 가 사용; 바이너리는 커밋 금지)
+.tools/

@@ -1140,6 +1140,10 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
 
         self.send_response(200)
         self.send_header("Content-Type", f"{mime}; charset=utf-8")
+        # ?v=<해시> 가 붙은 css/js 는 URL 자체가 버전(build_css.py 가 index.html 의 v 를 갱신)이라 1년 immutable.
+        # v 가 없으면 기존 동작(캐시 헤더 없음) 그대로.
+        if ext in (".css", ".js") and urllib.parse.parse_qs(parsed.query).get("v"):
+            self.send_header("Cache-Control", "public, max-age=31536000, immutable")
         self.end_headers()
         with open(file_path, "rb") as f:
             self.wfile.write(f.read())
