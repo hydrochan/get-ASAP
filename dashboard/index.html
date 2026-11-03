@@ -226,9 +226,6 @@
     .kw-pick { flex: none; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 8px; background: transparent; color: var(--dash-muted); cursor: pointer; }
     .kw-pick:hover { background: #E8EBF0; color: var(--dash-navy); }
     .kw-pick.is-on { background: #D6E0F2; color: var(--dash-navy); }
-    /* broad 행의 이름 글자만 Browse 로 가는 버튼 (행의 나머지 영역은 그대로 펼침/접힘) */
-    .kw-link { display: inline-block; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; white-space: inherit; vertical-align: bottom; text-align: left; cursor: pointer; }
-    .kw-link:hover { color: var(--dash-navy); text-decoration: underline; }
     /* 펼친 sharp 행: 들여쓴 만큼 이름 칸을 줄이고 오른쪽을 띄워 막대 시작점·건수 열이 broad 행과 맞는다 */
     .kw-sub { list-style: none; margin: 2px 0 10px 14px; padding: 4px 48px 4px 14px; border-left: 2px solid var(--dash-hairline-soft); display: flex; flex-direction: column; gap: 10px; }
     .kw-sub .top-row.is-sub .top-name { flex-basis: 184px; }
@@ -2701,7 +2698,7 @@
         const chevron = topSharps.length ? (isOpen ? '▾' : '▸') : '';
         let row = `<li>
           <div class="top-row kw-row kw-broad-row${isFilter ? ' is-filter' : ''}" data-broad="${broadAttr}" role="button" tabindex="0" ${topSharps.length ? `aria-expanded="${isOpen}"` : ''}>
-            <span class="top-name" title="${broadAttr}"><span class="top-name-main"><span class="kw-chev" aria-hidden="true">${chevron}</span><button type="button" class="kw-link" data-browse-open="topic" data-browse-key="${broadAttr}" aria-label="${_escapeHtml(kwLabel(broad))}: view papers in Browse">${_escapeHtml(kwLabel(broad))}</button></span>${topSharps.length ? `<span class="top-name-sub">${topSharps.length}${hasMore ? '+' : ''} sharp keywords</span>` : ''}</span>
+            <span class="top-name" title="${broadAttr}"><span class="top-name-main"><span class="kw-chev" aria-hidden="true">${chevron}</span>${_escapeHtml(kwLabel(broad))}</span>${topSharps.length ? `<span class="top-name-sub">${topSharps.length}${hasMore ? '+' : ''} sharp keywords</span>` : ''}</span>
             <span class="top-bar"><span style="width:${(count / maxBroad * 100).toFixed(1)}%;background:${isFilter ? '#163B73' : '#4F74B3'}"></span></span>
             <span class="top-count">${count.toLocaleString('en-US')}</span>
             <button type="button" class="kw-pick kw-pick-broad${isFilter ? ' is-on' : ''}" data-broad="${broadAttr}" aria-pressed="${isFilter}" aria-label="Filter charts by ${_escapeHtml(kwLabel(broad))}" title="Filter charts by this domain">
@@ -2733,7 +2730,7 @@
 
     // 키워드 트리 클릭 위임 (XSS 방지: onclick 인라인 대신 data-broad 속성 + addEventListener)
     document.getElementById('kw-tree').addEventListener('click', (e) => {
-      if (e.target.closest('[data-browse-open]')) return;   // 이름 버튼·sharp 행은 아래 문서 단위 위임(openBrowse)이 처리 — 행 펼침/접힘과 겹치지 않게
+      if (e.target.closest('[data-browse-open]')) return;   // sharp 행은 아래 문서 단위 위임(openBrowse)이 처리 — 행 펼침/접힘과 겹치지 않게
       const pickBtn = e.target.closest('.kw-pick-broad');
       if (pickBtn) {
         e.stopPropagation();
@@ -2747,7 +2744,7 @@
     document.getElementById('kw-tree').addEventListener('keydown', (e) => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
       const row = e.target.closest && e.target.closest('.kw-broad-row');
-      if (!row || e.target.closest('.kw-pick-broad, .kw-link')) return;
+      if (!row || e.target.closest('.kw-pick-broad')) return;
       e.preventDefault();
       const broad = row.dataset.broad;
       window.toggleBroad(broad);
