@@ -16,15 +16,31 @@
   title 과 title_key 를 store._update_paper 로 바꾼다 -> change_seq·updated_at 이 올라가므로
   (1) PC 동기화 피드 /api/sync/v1/changes 가 변경분을 받고 (2) export_dirty()가 해당 월 CSV를 다시 쓴다.
 
+중복 정리 (제목 정정보다 먼저, 같은 쓰기 트랜잭션 안에서):
+  같은 논문이 쪼개진 제목과 붙은 제목으로 두 번 들어와 정본 행이 둘 있는 경우("Nb 2 O 5 -Filled" 와 "Nb2O5-Filled")를 정리한다.
+  정본 행(dup_of IS NULL)을 title_key 에서 공백을 모두 뺀 값(store._TITLE_SQUASH_EXPR 과 같은 키)으로 묶고, 살아 있는
+  (deleted_at IS NULL) 행이 2건 이상인 그룹만 대상으로 한다. 그룹 안에서 살아 있는 행만 다루고 tombstone 은 건드리지 않는다.
+  - 살아 있는 행 1건 + tombstone 만 있는 그룹은 조치 없이 건수만 보고한다.
+  - 살아 있는 두 행의 DOI(store.doi_from_url)가 둘 다 비어 있지 않은데 서로 다르면 다른 논문일 수 있으므로 그룹째 건너뛰고 보고한다.
+  유지할 행(keeper)은 다음 순서로 고른다.
+    1) status_source == 'human' (사람이 확인한 행)
+    2) 상태 순위: 다운완료 < 관련 < 불확실 < 무관 < 실패 < 대기중 (앞쪽이 우선)
+    3) ai_article_kind 가 NULL 이 아닌 행 (이미 받은 AI 판정 보존)
+    4) id 가 작은 행 (먼저 들어온 행)
+  나머지 행은 store._update_paper 로 {deleted_at: 지금, dup_of: keeper id} 만 바꾼다. status·status_source 는 건드리지 않고,
+  change_seq 가 올라가 동기화 피드가 deleted=true + dup_of_ref 로 내보내며(paper_autodown 은 삭제 행을 건너뛴다) 공개 export 는
+  deleted_at 이 있는 행을 뺀다. 숨긴 행은 dup_of 가 생겨 title_key 유일 인덱스에서 빠지므로, 이어지는 제목 정정에서 같은 키를
+  놓고 충돌하지 않는다(숨긴 행의 제목도 다른 dup 행처럼 정정된다). 이전에 충돌로 건너뛰던 keeper 도 이제 정정된다.
+
 사용법 (VM의 프로젝트 루트에서):
-  python fix_title_subscripts.py                         # 드라이런(기본): 저널별 건수·충돌·표본 출력, DB 변경 없음
-  python fix_title_subscripts.py --report out.csv        # 전체 목록(id, 저널, 옛 제목, 새 제목, 충돌)을 CSV 로 저장
-  python fix_title_subscripts.py --apply                 # 백업(backup_db) 후 한 트랜잭션으로 정정 + CSV 재생성
+  python fix_title_subscripts.py                         # 드라이런(기본): 중복 정리 + 제목 정정 통계·표본 출력, DB 변경 없음
+  python fix_title_subscripts.py --report out.csv        # 전체 목록을 CSV 로 저장 (action 열: hide_dup / fix_title, hide_dup 은 keeper_id)
+  python fix_title_subscripts.py --apply                 # 백업(backup_db) 후 한 트랜잭션으로 중복 정리 + 정정, 두 단계의 월 CSV 재생성
   python fix_title_subscripts.py --apply --skip-backup   # 방금 백업했다면 백업 생략
 
 주의:
   --apply 는 되돌릴 수 없는 쓰기이므로 기본으로 backup_db.make_backup()을 먼저 실행한다.
-  재실행해도 안전하다(정정된 제목은 더 이상 대상이 아니다. 충돌로 건너뛴 행만 계속 보고된다).
+  재실행해도 안전하다(숨긴 행은 더 이상 정본이 아니고 정정된 제목은 더 이상 대상이 아니다. DOI 충돌·충돌로 건너뛴 행만 계속 보고된다).
 """
 import argparse
 import collections
@@ -180,14 +196,78 @@ def _rejoin_once(title: str) -> str:
     return t
 
 
-def find_targets(conn: sqlite3.Connection) -> list[dict]:
+STATUS_RANK = {s: i for i, s in enumerate(("다운완료", "관련", "불확실", "무관", "실패", "대기중"))}  # 낮을수록 우선
+KEEPER_RULES = ("human", "status", "verdict", "id")  # _keeper_key 튜플의 각 칸이 결정한 근거 이름
+KEEPER_RULE_LABELS = {
+    "human": "human(사람 확인)", "status": "상태 순위", "verdict": "AI 글 종류 판정 보유", "id": "id(먼저 들어온 행)",
+}
+
+
+def _verdict(r) -> str | None:
+    """AI 글 종류 판정(ai_article_kind). 열이 아직 없는 구 DB 는 판정이 없는 것으로 본다."""
+    return r["ai_article_kind"] if "ai_article_kind" in r.keys() else None
+
+
+def _keeper_key(r) -> tuple:
+    """작을수록 유지 우선: (사람 확인 아님, 상태 순위, AI 판정 없음, id)."""
+    return (r["status_source"] != "human", STATUS_RANK.get(r["status"], len(STATUS_RANK)), _verdict(r) is None, r["id"])
+
+
+def find_duplicates(rows) -> dict:
+    """공백만 다른 정본 행 그룹의 정리 계획(읽기 전용, rows 는 papers 의 모든 행).
+
+    반환: {"groups": [{"keeper", "losers", "rows", "reason"}], "doi_conflicts": [살아 있는 행 목록], "live_tombstone": 건수}.
+    groups 는 실제로 숨길 그룹이고 rows 는 keeper 가 맨 앞인 살아 있는 행 전체, reason 은 KEEPER_RULES 중 keeper 를 가른 첫 근거다.
+    """
+    by_squash = collections.defaultdict(list)
+    for r in rows:
+        if r["dup_of"] is None:
+            by_squash[r["title_key"].replace(" ", "")].append(r)
+    groups, doi_conflicts, live_tombstone = [], [], 0
+    for members in by_squash.values():
+        live = sorted((r for r in members if r["deleted_at"] is None), key=_keeper_key)
+        if len(live) < 2:
+            if len(live) == 1 and len(members) > 1:
+                live_tombstone += 1
+            continue
+        if len({d.casefold() for d in (store.doi_from_url(r["url"]) for r in live) if d}) > 1:
+            doi_conflicts.append(live)
+            continue
+        keys = [_keeper_key(r) for r in live]
+        reason = next(rule for i, rule in enumerate(KEEPER_RULES) if len({k[i] for k in keys}) > 1)
+        groups.append({"keeper": live[0], "losers": live[1:], "rows": live, "reason": reason})
+    return {"groups": groups, "doi_conflicts": doi_conflicts, "live_tombstone": live_tombstone}
+
+
+def simulate_hides(rows, dedupe: dict) -> list[dict]:
+    """드라이런용: 중복 정리를 적용한 뒤의 행 목록(DB 는 건드리지 않는다). 숨길 행에 deleted_at·dup_of 를 단다."""
+    hidden = {loser["id"]: g["keeper"]["id"] for g in dedupe["groups"] for loser in g["losers"]}
+    out = []
+    for r in rows:
+        d = dict(r)
+        if d["id"] in hidden:
+            d["deleted_at"], d["dup_of"] = store._now(), hidden[d["id"]]
+        out.append(d)
+    return out
+
+
+def plan_all(conn: sqlite3.Connection) -> tuple[dict, list[dict]]:
+    """(중복 정리 계획, 중복 정리를 반영한 상태에서의 제목 정정 계획). 읽기 전용 - 드라이런·보고용."""
+    rows = conn.execute("SELECT * FROM papers ORDER BY id").fetchall()
+    dedupe = find_duplicates(rows)
+    return dedupe, find_targets(conn, simulate_hides(rows, dedupe))
+
+
+def find_targets(conn: sqlite3.Connection, rows=None) -> list[dict]:
     """정정 대상 행의 계획 목록(읽기 전용). 각 계획의 collision 은 None / "existing" / "intra".
 
     - existing: 새 title_key 가 다른 정본 행(dup_of IS NULL, tombstone 포함)의 현재 키와 같다.
     - intra: 백필 대상끼리 새 키가 같다(살아 있는 행 우선, 그다음 id 가 작은 행 하나만 정정 대상으로 남는다).
     dup 행(dup_of IS NOT NULL)은 title_key 유일 인덱스 밖이라 충돌 검사를 하지 않는다.
+    rows 를 주면 DB 대신 그 행들(simulate_hides 결과)을 기준으로 계획한다.
     """
-    rows = conn.execute("SELECT * FROM papers ORDER BY id").fetchall()
+    if rows is None:
+        rows = conn.execute("SELECT * FROM papers ORDER BY id").fetchall()
     owners = collections.defaultdict(list)  # 현재 title_key -> 정본 행 id
     for r in rows:
         if r["dup_of"] is None:
@@ -217,42 +297,106 @@ def find_targets(conn: sqlite3.Connection) -> list[dict]:
     return plans
 
 
+def _hide_duplicates(conn: sqlite3.Connection, now: str) -> dict:
+    """중복 그룹의 keeper 가 아닌 살아 있는 행을 숨긴다(deleted_at + dup_of). write_tx 안에서 호출한다.
+    status·status_source 는 바꾸지 않는다(status 가 changes 에 없으므로 _update_paper 가 status_source 를 요구하지 않는다)."""
+    dedupe = find_duplicates(conn.execute("SELECT * FROM papers ORDER BY id").fetchall())
+    for g in dedupe["groups"]:
+        for loser in g["losers"]:
+            store._update_paper(conn, loser, {"deleted_at": now, "dup_of": g["keeper"]["id"]}, now=now)
+    return dedupe
+
+
+def _fix_titles(conn: sqlite3.Connection, now: str) -> tuple[list[dict], list[dict]]:
+    """충돌이 아닌 제목 정정 대상을 정정한다(현재 DB 상태 기준). write_tx 안에서 호출한다."""
+    applied, skipped = [], []
+    for plan in find_targets(conn):
+        if plan["collision"]:
+            skipped.append(plan)
+        elif store._update_paper(conn, plan["row"], {"title": plan["new_title"]}, now=now):
+            applied.append(plan)
+    return applied, skipped
+
+
 def apply_fix(conn: sqlite3.Connection) -> tuple[list[dict], list[dict]]:
-    """충돌이 아닌 대상을 한 트랜잭션으로 정정한다. 반환: (적용한 계획, 충돌로 건너뛴 계획).
+    """제목 정정만 한 트랜잭션으로 한다(중복 정리 없음). 반환: (적용한 계획, 충돌로 건너뛴 계획).
 
     대상은 쓰기 잠금(BEGIN IMMEDIATE)을 잡은 뒤 다시 고른다(수집 cron과 겹쳐도 최신 상태 기준).
-    중간에 예외가 나면 전부 롤백된다.
+    중간에 예외가 나면 전부 롤백된다. 명령(main)은 중복 정리까지 하는 apply_all 을 쓴다.
     """
     with store.write_tx(conn):
-        plans = find_targets(conn)
+        return _fix_titles(conn, store._now())
+
+
+def apply_all(conn: sqlite3.Connection) -> tuple[dict, list[dict], list[dict]]:
+    """중복 정리 -> (정리가 반영된 상태에서) 제목 정정을 한 트랜잭션으로 한다. 반환: (중복 정리 계획, 적용한 계획, 건너뛴 계획).
+
+    두 단계 모두 쓰기 잠금을 잡은 뒤 DB 를 다시 읽어 고른다. 중간에 예외가 나면 전부 롤백된다.
+    """
+    with store.write_tx(conn):
         now = store._now()
-        applied, skipped = [], []
-        for plan in plans:
-            if plan["collision"]:
-                skipped.append(plan)
-            elif store._update_paper(conn, plan["row"], {"title": plan["new_title"]}, now=now):
-                applied.append(plan)
-    return applied, skipped
+        dedupe = _hide_duplicates(conn, now)
+        applied, skipped = _fix_titles(conn, now)
+    return dedupe, applied, skipped
 
 
 def affected_months(plans: list[dict]) -> list[str]:
     return sorted({p["row"]["bucket_month"] for p in plans})
 
 
-def write_report(plans: list[dict], path: str) -> None:
-    """전체 목록 CSV(Excel 에서 열리도록 BOM 포함): id, journal, old_title, new_title, collision."""
+def hidden_months(dedupe: dict) -> set[str]:
+    """숨긴 행이 있는 월 - 그 월의 공개 CSV 에서 숨긴 행이 빠져야 한다(keeper 의 월은 제목 정정 계획이 따로 챙긴다)."""
+    return {loser["bucket_month"] for g in dedupe["groups"] for loser in g["losers"]}
+
+
+def write_report(plans: list[dict], path: str, dedupe: dict | None = None) -> None:
+    """전체 목록 CSV(Excel 에서 열리도록 BOM 포함): id, journal, old_title, new_title, collision, action, keeper_id.
+
+    action 은 hide_dup(중복 정리: 숨길 행, keeper_id 가 남길 행) 또는 fix_title(제목 정정). hide_dup 행이 먼저 나온다.
+    """
     with open(path, "w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["id", "journal", "old_title", "new_title", "collision"])
+        w.writerow(["id", "journal", "old_title", "new_title", "collision", "action", "keeper_id"])
+        for g in (dedupe or {"groups": []})["groups"]:
+            for loser in g["losers"]:
+                w.writerow([loser["id"], loser["journal"], loser["title"], "", "", "hide_dup", g["keeper"]["id"]])
         for p in plans:
-            w.writerow([p["id"], p["journal"], p["old_title"], p["new_title"], p["collision"] or ""])
+            w.writerow([p["id"], p["journal"], p["old_title"], p["new_title"], p["collision"] or "", "fix_title", ""])
+
+
+def print_dedupe_report(dedupe: dict, applied: bool, sample: int = 10) -> None:
+    groups = dedupe["groups"]
+    print(f"\n=== 공백만 다른 중복 정리 ({'적용 결과' if applied else '드라이런'}) ===")
+    print(f"숨길 그룹 {len(groups)}개 -> 숨길 행 {sum(len(g['losers']) for g in groups)}건 (그룹마다 1건 유지)")
+    print(f"DOI 가 달라 건너뛴 그룹 {len(dedupe['doi_conflicts'])}개")
+    print(f"살아 있는 행 1건 + tombstone 인 그룹 {dedupe['live_tombstone']}개 (조치 없음)")
+    reasons = collections.Counter(g["reason"] for g in groups)
+    print("유지 행을 가른 근거: " + ", ".join(f"{KEEPER_RULE_LABELS[r]} {reasons[r]}" for r in KEEPER_RULES))
+    differ = [g for g in groups if len({r["status"] for r in g["rows"]}) > 1]
+    print(f"\n상태가 서로 다른 그룹 {len(differ)}개" + (":" if differ else ""))
+    for g in differ:
+        print(f"  {g['keeper']['title'][:100]}")
+        for r in g["rows"]:
+            print(f"    id={r['id']} status={r['status']} status_source={r['status_source']} [{'유지' if r is g['keeper'] else '숨김'}]")
+    if groups:
+        print("\n표본:")
+        for g in random.Random(7).sample(groups, min(sample, len(groups))):
+            print(f"  유지 id={g['keeper']['id']} ({g['reason']}): {g['keeper']['title'][:100]}")
+            for loser in g["losers"]:
+                print(f"    숨김 id={loser['id']}: {loser['title'][:100]}")
+    if dedupe["doi_conflicts"]:
+        print("\nDOI 충돌로 건너뛴 그룹 (표본):")
+        for live in dedupe["doi_conflicts"][:sample]:
+            for r in live:
+                print(f"  id={r['id']} doi={store.doi_from_url(r['url'])}: {r['title'][:100]}")
+    print(f"\n영향받는 월: {', '.join(sorted(hidden_months(dedupe))) or '(없음)'}")
 
 
 def print_report(plans: list[dict], applied: bool, sample: int = 15, top_journals: int = 40) -> None:
     n_existing = sum(p["collision"] == "existing" for p in plans)
     n_intra = sum(p["collision"] == "intra" for p in plans)
     ok = [p for p in plans if not p["collision"]]
-    print(f"\n=== 쪼개진 첨자 제목 정정 ({'적용 결과' if applied else '드라이런'}) ===")
+    print(f"\n=== 쪼개진 첨자 제목 정정 ({'적용 결과' if applied else '드라이런, 중복 정리를 반영한 뒤 기준'}) ===")
     print(f"대상 {len(plans)}건 = 정정 {len(ok)}건 + 충돌로 건너뜀 {n_existing + n_intra}건 (기존 행과 충돌 {n_existing}, 백필끼리 충돌 {n_intra})")
     by_journal = collections.Counter((p["journal"] or "(저널 없음)") for p in plans)
     print(f"\n저널별 건수 (상위 {min(top_journals, len(by_journal))}/{len(by_journal)}개):")
@@ -286,29 +430,36 @@ def main(argv: list[str] | None = None) -> int:
         print(f"정본 DB가 없습니다: {e}", file=sys.stderr)
         return 1
     try:
-        plans = find_targets(conn)
+        dedupe, plans = plan_all(conn)
         if args.report:
-            write_report(plans, args.report)
-            logger.info("전체 목록 저장: %s (%d건)", args.report, len(plans))
+            write_report(plans, args.report, dedupe)
+            n_hide = sum(len(g["losers"]) for g in dedupe["groups"])
+            logger.info("전체 목록 저장: %s (숨김 %d건 + 제목 정정 %d건)", args.report, n_hide, len(plans))
         if not args.apply:
+            print_dedupe_report(dedupe, applied=False)
             print_report(plans, applied=False)
-            logger.info("드라이런 완료. 실제 정정은 --apply 로 실행하세요.")
+            logger.info("드라이런 완료. 실제 정리·정정은 --apply 로 실행하세요.")
             return 0
-        if not any(not p["collision"] for p in plans):
+        if not dedupe["groups"] and not any(not p["collision"] for p in plans):
+            print_dedupe_report(dedupe, applied=True)
             print_report(plans, applied=True)
-            logger.info("정정할 행이 없어 종료합니다.")
+            logger.info("정리·정정할 행이 없어 종료합니다.")
             return 0
         if not args.skip_backup:
             logger.info("백업 생성: %s", backup_db.make_backup())
-        applied, skipped = apply_fix(conn)
+        dedupe, applied, skipped = apply_all(conn)
+        print_dedupe_report(dedupe, applied=True)
         print_report(applied + skipped, applied=True)
-        for month in affected_months(applied):
+        for month in sorted(set(affected_months(applied)) | hidden_months(dedupe)):
             try:
                 store.export_csv(month, conn)
-            except Exception as e:  # 정정은 이미 커밋됨 - CSV는 수동으로 다시 쓰면 된다
+            except Exception as e:  # 정리·정정은 이미 커밋됨 - CSV는 수동으로 다시 쓰면 된다
                 logger.error("CSV 재생성 실패 (%s): %s -> python refresh_csv.py --month %s", month, e, month)
                 return 1
-        logger.info("정정 완료: %d건 (충돌로 건너뜀 %d건)", len(applied), len(skipped))
+        logger.info(
+            "완료: 중복 숨김 %d건, 제목 정정 %d건 (충돌로 건너뜀 %d건)",
+            sum(len(g["losers"]) for g in dedupe["groups"]), len(applied), len(skipped),
+        )
     finally:
         conn.close()
     return 0

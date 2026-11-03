@@ -2,6 +2,7 @@
 
 rejoin 규칙(참 양성 / 일반 문구 불변 / 멱등), 대상 선정(정본·tombstone·dup 행), 충돌 처리(기존 행·백필끼리),
 title_key 재계산과 change_seq 갱신, 드라이런 무변경, --apply 시 백업 선행과 재실행 안전성을 검증한다.
+공백만 다른 정본 행 중복 정리(유지 행 우선순위·DOI 충돌·tombstone 그룹·export/동기화 피드 반영·멱등)도 검증한다.
 """
 import csv
 
@@ -75,15 +76,19 @@ def clock(monkeypatch):
     return c
 
 
-def add(conn, clock, title, *, ref=None, bucket="2026-10", journal="Synthetic Journal"):
-    """이관 경로(allow_dup)로 삽입한다: 공백만 다른 제목도 둘 다 정본으로 들어가 충돌 상황을 만들 수 있다."""
+def add(conn, clock, title, *, ref=None, bucket="2026-10", journal="Synthetic Journal", status=None, source="get_asap",
+        url="https://example.invalid/p", kind=None):
+    """이관 경로(allow_dup)로 삽입한다: 공백만 다른 제목도 둘 다 정본으로 들어가 충돌 상황을 만들 수 있다.
+    kind 를 주면 ai_article_kind(AI 글 종류 판정)도 채운다."""
     clock["now"] = CREATED
     ref = ref or f"00000000-0000-0000-0000-{abs(hash(title)) % 10**12:012d}"
     with store.write_tx(conn):
         store._insert_paper(conn, {
-            "ref": ref, "title": title, "journal": journal, "url": "https://example.invalid/p", "pub_date": "2026-10-20",
-            "bucket_month": bucket, "status_source": "get_asap", "created_at": CREATED, "updated_at": CREATED,
+            "ref": ref, "title": title, "journal": journal, "url": url, "pub_date": "2026-10-20", "status": status,
+            "bucket_month": bucket, "status_source": source, "created_at": CREATED, "updated_at": CREATED,
         }, allow_dup=True)
+    if kind:
+        conn.execute("UPDATE papers SET ai_article_kind=? WHERE ref=?", (kind, ref))
     return row(conn, title)
 
 
@@ -204,11 +209,204 @@ def test_apply_is_idempotent(conn, clock):
     assert [tuple(r) for r in conn.execute("SELECT * FROM papers ORDER BY id")] == snapshot
 
 
+# ---------- 중복 정리 (공백만 다른 정본 행) ----------
+
+SPLIT = "Synthesis of Nb 2 O 5 -Filled carbon nanotubes"   # rejoin 이 고친다
+JOINED = "Synthesis of Nb2O5-Filled carbon nanotubes"
+AG_SPLIT = "Adsorption on Ag(1 1 1) surfaces"               # rejoin 이 못 고친다(Ag(111) 로 붙이지 않는다)
+AG_JOINED = "Adsorption on Ag(111) surfaces"
+FURFURAL = "Selective hydrogenation of furfural over Ru catalysts"  # 일반 단어 안에 공백을 넣어 만든 변형은 rejoin 이 건드리지 않는다
+
+
+def furfural(i):
+    """i 번째 위치에 공백을 넣은 변형(1~5). title_key 는 서로 다르지만 공백을 뺀 키는 같다."""
+    w = "furfural"
+    return FURFURAL.replace(w, f"{w[:i]} {w[i:]}")
+
+
+def by_id(conn, paper_id):
+    return conn.execute("SELECT * FROM papers WHERE id=?", (paper_id,)).fetchone()
+
+
+def all_rows(conn):
+    return [tuple(r) for r in conn.execute("SELECT * FROM papers ORDER BY id")]
+
+
+def hidden_map(conn):
+    """{숨겨진 행 id: keeper id}"""
+    return {
+        r["id"]: r["dup_of"]
+        for r in conn.execute("SELECT id, dup_of FROM papers WHERE deleted_at IS NOT NULL AND dup_of IS NOT NULL")
+    }
+
+
+def test_split_and_joined_pair_hides_the_loser_and_fixes_the_keeper_title(conn, clock):
+    keeper = add(conn, clock, SPLIT)    # 먼저 들어온 행 = keeper
+    loser = add(conn, clock, JOINED)
+    assert [p["collision"] for p in fts.find_targets(conn)] == ["existing"]  # 중복 정리 없이는 건너뛰던 충돌
+    before = store.last_seq(conn)
+
+    clock["now"] = APPLIED_AT
+    dedupe, applied, skipped = fts.apply_all(conn)
+
+    assert [(g["keeper"]["id"], [x["id"] for x in g["losers"]], g["reason"]) for g in dedupe["groups"]] == [
+        (keeper["id"], [loser["id"]], "id")
+    ]
+    assert [p["new_title"] for p in applied] == [JOINED] and skipped == []
+    k, lo = by_id(conn, keeper["id"]), by_id(conn, loser["id"])
+    assert (k["title"], k["title_key"], k["deleted_at"], k["dup_of"]) == (JOINED, JOINED.casefold(), None, None)
+    assert (lo["deleted_at"], lo["dup_of"], lo["updated_at"]) == (APPLIED_AT, keeper["id"], APPLIED_AT)
+    assert [(r["status"], r["status_source"]) for r in (k, lo)] == [("대기중", "get_asap")] * 2  # 상태·출처는 그대로
+    assert store.last_seq(conn) == before + 2  # 숨김 1 + keeper 제목 1
+
+
+def test_hidden_loser_title_is_fixed_too(conn, clock):
+    keeper = add(conn, clock, JOINED)
+    loser = add(conn, clock, SPLIT)    # 나중에 들어온 쪼개진 행이 숨겨지고, 숨겨진 뒤 제목도 정정된다
+    before = store.last_seq(conn)
+
+    clock["now"] = APPLIED_AT
+    dedupe, applied, skipped = fts.apply_all(conn)
+
+    assert [x["id"] for x in dedupe["groups"][0]["losers"]] == [loser["id"]]
+    assert [p["id"] for p in applied] == [loser["id"]] and skipped == []
+    lo = by_id(conn, loser["id"])
+    assert (lo["title"], lo["deleted_at"], lo["dup_of"]) == (JOINED, APPLIED_AT, keeper["id"])
+    assert by_id(conn, keeper["id"])["dup_of"] is None
+    assert store.last_seq(conn) == before + 2  # 숨김 1 + 숨긴 행 제목 1
+
+
+@pytest.mark.parametrize("older, newer, newer_wins, reason", [
+    # (status, status_source, ai_article_kind)
+    (("다운완료", "paper_autodown", None), ("대기중", "human", None), True, "human"),     # human > 다운완료
+    (("대기중", "human", None), ("다운완료", "paper_autodown", None), False, "human"),    # 순서와 무관
+    (("무관", "paper_autodown", None), ("다운완료", "paper_autodown", None), True, "status"),   # 다운완료 > 무관
+    (("대기중", "get_asap", None), ("무관", "paper_autodown", None), True, "status"),     # 무관 > 대기중
+    (("대기중", "get_asap", "research"), ("관련", "paper_autodown", None), True, "status"),  # 상태가 판정보다 먼저
+    (("관련", "paper_autodown", None), ("관련", "paper_autodown", "research"), True, "verdict"),  # 같은 상태면 판정 보유
+    (("관련", "paper_autodown", "research"), ("관련", "paper_autodown", None), False, "verdict"),
+    (("관련", "paper_autodown", None), ("관련", "paper_autodown", None), False, "id"),    # 전부 같으면 먼저 들어온 행
+])
+def test_keeper_priority(conn, clock, older, newer, newer_wins, reason):
+    a = add(conn, clock, furfural(1), status=older[0], source=older[1], kind=older[2])
+    b = add(conn, clock, furfural(2), status=newer[0], source=newer[1], kind=newer[2])
+    (group,) = fts.find_duplicates(conn.execute("SELECT * FROM papers ORDER BY id").fetchall())["groups"]
+    keeper, loser = (b, a) if newer_wins else (a, b)
+    assert (group["keeper"]["id"], group["reason"]) == (keeper["id"], reason)
+    before = {r["id"]: (r["status"], r["status_source"]) for r in (a, b)}
+
+    fts.apply_all(conn)
+
+    assert hidden_map(conn) == {loser["id"]: keeper["id"]}
+    assert {i: (by_id(conn, i)["status"], by_id(conn, i)["status_source"]) for i in before} == before
+
+
+def test_status_rank_order_across_all_statuses(conn, clock):
+    order = ["대기중", "실패", "무관", "불확실", "관련", "다운완료"]  # 나쁜 순서대로 먼저 들어옴
+    rows = [add(conn, clock, furfural(i) if i else FURFURAL, status=s) for i, s in enumerate(order)]
+
+    fts.apply_all(conn)
+
+    assert hidden_map(conn) == {r["id"]: rows[-1]["id"] for r in rows[:-1]}  # 다운완료 하나만 남는다
+
+
+def test_doi_conflict_group_is_skipped_and_reported(conn, clock):
+    a = add(conn, clock, furfural(1), url="https://doi.org/10.1000/aaa")
+    b = add(conn, clock, furfural(2), url="https://doi.org/10.1000/bbb")
+    # 같은 DOI(추적 링크에 인코딩되어 있어도)이거나 한쪽 DOI 가 비어 있으면 같은 논문으로 본다
+    same1 = add(conn, clock, "Catalytic upgrading of lig nin oil", url="https://doi.org/10.1000/ccc")
+    same2 = add(conn, clock, "Catalytic upgrading of lignin oil", url="https://t.invalid/r?u=https%3A%2F%2Fdoi.org%2F10.1000%2Fccc")
+    has_doi = add(conn, clock, "Pyrolysis of cel lulose at low temperature", url="https://doi.org/10.1000/ddd")
+    no_doi = add(conn, clock, "Pyrolysis of cellulose at low temperature", url="https://t.invalid/r?id=1")
+    untouched = all_rows(conn)[:2]
+
+    dedupe, applied, skipped = fts.apply_all(conn)
+
+    assert [sorted(r["id"] for r in live) for live in dedupe["doi_conflicts"]] == [sorted([a["id"], b["id"]])]
+    assert hidden_map(conn) == {same2["id"]: same1["id"], no_doi["id"]: has_doi["id"]}
+    assert all_rows(conn)[:2] == untouched  # 충돌 그룹의 두 행은 그대로(제목도 정정 대상이 아니다)
+    assert (applied, skipped) == ([], [])
+
+
+def test_live_plus_tombstone_group_is_counted_and_untouched(conn, clock):
+    add(conn, clock, "Kinetics of cellu lose pyrolysis")
+    add(conn, clock, "Kinetics of cellulose pyrolysis")
+    tombstone(conn, "Kinetics of cellulose pyrolysis")
+    snapshot, seq = all_rows(conn), store.last_seq(conn)
+
+    dedupe, applied, skipped = fts.apply_all(conn)
+
+    assert (dedupe["groups"], dedupe["doi_conflicts"], dedupe["live_tombstone"]) == ([], [], 1)
+    assert all_rows(conn) == snapshot and store.last_seq(conn) == seq
+
+
+def test_tombstone_in_an_actionable_group_is_left_alone(conn, clock):
+    a = add(conn, clock, furfural(1))
+    b = add(conn, clock, furfural(2))
+    t = add(conn, clock, furfural(3))
+    tombstone(conn, furfural(3))
+    t_before = tuple(by_id(conn, t["id"]))
+
+    dedupe, _, _ = fts.apply_all(conn)
+
+    assert (dedupe["live_tombstone"], hidden_map(conn)) == (0, {b["id"]: a["id"]})  # 살아 있는 두 행만 다룬다
+    assert tuple(by_id(conn, t["id"])) == t_before  # tombstone 은 정본 tombstone 인 채 그대로
+
+
+def test_pair_that_rejoin_cannot_fix_is_still_deduped(conn, clock):
+    keeper = add(conn, clock, AG_JOINED)
+    loser = add(conn, clock, AG_SPLIT)
+    assert fts.find_targets(conn) == []  # 제목 정정 대상이 아니다
+
+    dedupe, applied, skipped = fts.apply_all(conn)
+
+    assert (applied, skipped) == ([], [])
+    assert hidden_map(conn) == {loser["id"]: keeper["id"]}
+    assert by_id(conn, loser["id"])["title"] == AG_SPLIT
+
+
+def test_export_excludes_loser_and_sync_feed_marks_it_deleted(conn, clock):
+    keeper = add(conn, clock, AG_JOINED)
+    loser = add(conn, clock, AG_SPLIT)
+    before = store.last_seq(conn)
+
+    clock["now"] = APPLIED_AT
+    fts.apply_all(conn)
+    store.export_csv("2026-10", conn)
+
+    text = open(store.csv_path("2026-10"), encoding="utf-8-sig").read()
+    assert AG_JOINED in text and AG_SPLIT not in text
+    feed = {x["ref"]: x for x in store.fetch_changes(conn, before)["rows"]}
+    assert set(feed) == {loser["ref"]}  # keeper 는 바뀐 게 없다
+    assert feed[loser["ref"]]["deleted"] is True and feed[loser["ref"]]["dup_of_ref"] == keeper["ref"]
+
+
+def test_second_apply_is_a_no_op(conn, clock):
+    add(conn, clock, SPLIT)
+    add(conn, clock, JOINED)
+    add(conn, clock, AG_JOINED)
+    add(conn, clock, AG_SPLIT)
+    add(conn, clock, furfural(1), url="https://doi.org/10.1000/aaa")   # DOI 충돌 그룹은 계속 건너뛴다
+    add(conn, clock, furfural(2), url="https://doi.org/10.1000/bbb")
+    clock["now"] = APPLIED_AT
+    first, applied, _ = fts.apply_all(conn)
+    assert (len(first["groups"]), len(applied)) == (2, 1)
+    seq, snapshot = store.last_seq(conn), all_rows(conn)
+
+    clock["now"] = "2026-11-03T09:00:00Z"
+    dedupe, applied, skipped = fts.apply_all(conn)
+
+    assert (dedupe["groups"], applied, skipped) == ([], [], [])
+    assert len(dedupe["doi_conflicts"]) == 1
+    assert store.last_seq(conn) == seq and all_rows(conn) == snapshot
+
+
 # ---------- CLI ----------
 
 def test_dry_run_changes_nothing_and_writes_the_full_report(db_file, conn, clock, tmp_path, capsys):
     seed(conn, clock)
     add(conn, clock, "Capture of CO2 in zeolites at low pressure")
+    tombstone(conn, "Capture of CO2 in zeolites at low pressure")                     # tombstone 이 점유한 키
     add(conn, clock, "Capture of CO 2 in zeolites at low pressure")
     seq = store.last_seq(conn)
     report = tmp_path / "report.csv"
@@ -218,23 +416,75 @@ def test_dry_run_changes_nothing_and_writes_the_full_report(db_file, conn, clock
     out = capsys.readouterr().out
     assert "드라이런" in out and "Synthetic Journal" in out and "Other Journal" in out
     assert "기존 행과 충돌 1" in out
+    assert "숨길 그룹 0개" in out and "tombstone 인 그룹 1개" in out
     assert store.last_seq(conn) == seq
     assert row(conn, "Electroreduction of CO 2 to ethylene") is not None
     with open(report, encoding="utf-8-sig", newline="") as f:
         rows = list(csv.reader(f))
-    assert rows[0] == ["id", "journal", "old_title", "new_title", "collision"]
+    assert rows[0] == ["id", "journal", "old_title", "new_title", "collision", "action", "keeper_id"]
     by_old = {r[2]: r for r in rows[1:]}
     assert len(rows) - 1 == 4
-    assert by_old["Electroreduction of CO 2 to ethylene"][3:] == ["Electroreduction of CO2 to ethylene", ""]
+    assert by_old["Electroreduction of CO 2 to ethylene"][3:] == ["Electroreduction of CO2 to ethylene", "", "fix_title", ""]
     assert by_old["Capture of CO 2 in zeolites at low pressure"][4] == "existing"
+
+
+def test_dry_run_reports_dedupe_stats_and_writes_hide_dup_rows(db_file, conn, clock, tmp_path, capsys):
+    older = add(conn, clock, SPLIT, status="대기중")
+    newer = add(conn, clock, JOINED, status="다운완료", source="paper_autodown")   # 상태 순위로 keeper
+    add(conn, clock, furfural(1), url="https://doi.org/10.1000/aaa")
+    add(conn, clock, furfural(2), url="https://doi.org/10.1000/bbb")
+    add(conn, clock, "Kinetics of cellu lose pyrolysis")
+    add(conn, clock, "Kinetics of cellulose pyrolysis")
+    tombstone(conn, "Kinetics of cellulose pyrolysis")
+    snapshot, seq = all_rows(conn), store.last_seq(conn)
+    report = tmp_path / "report.csv"
+
+    assert fts.main(["--report", str(report)]) == 0
+
+    out = capsys.readouterr().out
+    assert "숨길 그룹 1개 -> 숨길 행 1건" in out
+    assert "DOI 가 달라 건너뛴 그룹 1개" in out and "tombstone 인 그룹 1개" in out
+    assert "상태 순위 1" in out
+    assert "상태가 서로 다른 그룹 1개" in out
+    assert f"id={newer['id']} status=다운완료 status_source=paper_autodown [유지]" in out
+    assert f"id={older['id']} status=대기중 status_source=get_asap [숨김]" in out
+    assert "드라이런, 중복 정리를 반영한 뒤 기준" in out
+    assert all_rows(conn) == snapshot and store.last_seq(conn) == seq  # 드라이런은 아무것도 쓰지 않는다
+    with open(report, encoding="utf-8-sig", newline="") as f:
+        rows = list(csv.reader(f))
+    hide = [r for r in rows[1:] if r[5] == "hide_dup"]
+    assert hide == [[str(older["id"]), "Synthetic Journal", SPLIT, "", "", "hide_dup", str(newer["id"])]]
+    # 제목 정정은 중복 정리를 반영한 상태 기준: 숨겨질 쪼개진 행은 충돌이 아니다
+    assert [(r[0], r[3], r[4]) for r in rows[1:] if r[5] == "fix_title" and r[0] == str(older["id"])] == [(str(older["id"]), JOINED, "")]
+
+
+def test_apply_regenerates_months_of_both_phases_and_second_run_skips_backup(db_file, conn, clock, monkeypatch):
+    keeper = add(conn, clock, AG_JOINED, bucket="2026-10")
+    loser = add(conn, clock, AG_SPLIT, bucket="2026-09")   # 제목 정정이 없어도 숨긴 행의 월 CSV 는 다시 써야 한다
+    store.export_csv("2026-09", conn)
+    store.export_csv("2026-10", conn)
+    assert AG_SPLIT in open(store.csv_path("2026-09"), encoding="utf-8-sig").read()
+    backups = []
+    monkeypatch.setattr(fts.backup_db, "make_backup", lambda: backups.append(1) or "backup.gz")
+
+    assert fts.main(["--apply"]) == 0
+
+    assert hidden_map(conn) == {loser["id"]: keeper["id"]}
+    assert AG_SPLIT not in open(store.csv_path("2026-09"), encoding="utf-8-sig").read()
+    assert AG_JOINED in open(store.csv_path("2026-10"), encoding="utf-8-sig").read()
+    seq, snapshot = store.last_seq(conn), all_rows(conn)
+
+    assert fts.main(["--apply"]) == 0
+
+    assert backups == [1] and store.last_seq(conn) == seq and all_rows(conn) == snapshot
 
 
 def test_apply_backs_up_first_then_updates_and_regenerates_csv(db_file, conn, clock, tmp_path, monkeypatch):
     seed(conn, clock)
     order = []
     monkeypatch.setattr(fts.backup_db, "make_backup", lambda: order.append("backup") or "backup.gz")
-    real_apply = fts.apply_fix
-    monkeypatch.setattr(fts, "apply_fix", lambda c: order.append("apply") or real_apply(c))
+    real_apply = fts.apply_all
+    monkeypatch.setattr(fts, "apply_all", lambda c: order.append("apply") or real_apply(c))
 
     assert fts.main(["--apply"]) == 0
 
