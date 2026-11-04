@@ -1,10 +1,12 @@
 #!/usr/bin/env python
-"""월별 슬림 CSV 를 Cloudflare Pages(*.pages.dev)에 올린다 (cron 4시간).
+"""월별 슬림 CSV 와 공개 대시보드(index.html)를 Cloudflare Pages(*.pages.dev)에 올린다 (cron 4시간).
 
 공개 대시보드(get-asap.hydrochan.com)는 한국에서 Cloudflare LAX 로 연결돼 느리고 *.pages.dev 는 서울(ICN)에서 나간다.
 그래서 가장 무거운 월별 슬림 CSV(cache/slim_papers_<월>.csv)를 Pages 에 `csv/<월>.<버전>.csv` 로 올려 두고,
 /api/versions 가 "pages" 로 알려 주면 브라우저가 거기서 먼저 받는다. 올린 뒤 내용이 바뀐 달은 /api/versions 가 pages 목록에서
 빼므로 원본에서 받는다(최신성은 refresh_csv 주기 그대로).
+공개 화면 자체(dashboard/index.html + 그것이 참조하는 정적 파일 + 올라간 {월: 버전} 맵 versions.json)도 같이 올려, 비로그인 방문자는
+https://<project>.pages.dev/ 에서 첫 화면까지 Cloudflare LAX 를 거치지 않는다(관리자는 원본 get-asap.hydrochan.com 그대로).
 
   python publish_pages.py             # 지난 배포와 달라진 게 있을 때만 배포
   python publish_pages.py --force     # 같아도 배포
@@ -19,6 +21,7 @@ import json
 import logging
 import os
 import re
+import hashlib
 import shutil
 import subprocess
 import sys
@@ -33,14 +36,39 @@ DEFAULT_WRANGLER = os.path.join(".tools", "node", "bin", "wrangler")
 PROJECT_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,57}$")  # Pages 프로젝트 이름 규칙(소문자·숫자·하이픈, 58자 이하)
 MAX_FILE_BYTES = 25 * 1024 * 1024  # Pages 무료 플랜의 파일당 한도(25 MiB) - 넘는 달은 올리지 않고 원본에서 받게 둔다
 DEPLOY_TIMEOUT_SEC = 600
+DASHBOARD_DIR = os.path.join(store.PROJECT_ROOT, "dashboard")  # 공개 화면 원본(index.html + static/)
 
+# 원본(API) 출처 - pages 화면이 /api/* 를 부르는 곳. CSP connect-src 와 index.html 의 API_BASE 가 같아야 한다.
+API_ORIGIN = "https://get-asap.hydrochan.com"
+# 공개 화면 보안 헤더: 운영 nginx 의 CSP 와 같은 취지. 외부 출처는 index.html 이 쓰는 CDN(chart.js·papaparse)과 구글 폰트뿐이다.
+CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; "
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
+    "font-src 'self' https://fonts.gstatic.com; "
+    "img-src 'self' data:; "
+    f"connect-src 'self' {API_ORIGIN}; "
+    "frame-ancestors 'none'; base-uri 'self'"
+)
 # /csv/* 는 파일명에 버전이 들어 있어 내용이 바뀌면 이름이 바뀐다 -> 1년 immutable. CORS 는 대시보드(다른 출처)가 읽을 수 있게 연다.
 # Pages 는 text/csv 를 압축하지 않아 text/plain 으로 내보내면 br 압축된다(2.5MB→0.69MB 실측). 클라이언트는 텍스트로 파싱하므로 타입과 무관.
+# versions.json 은 매번 새로 받아야(no-store) 첫 화면이 최신 사본을 가리킨다. index.html 은 no-cache(재검증, 안 바뀌었으면 304).
 HEADERS_TXT = (
+    "/*\n"
+    f"  Content-Security-Policy: {CSP}\n"
+    "  X-Content-Type-Options: nosniff\n"
+    "  Referrer-Policy: strict-origin-when-cross-origin\n"
+    "  X-Frame-Options: DENY\n"
     "/csv/*\n"
     "  Access-Control-Allow-Origin: *\n"
     "  Content-Type: text/plain; charset=utf-8\n"
     "  Cache-Control: public, max-age=31536000, immutable\n"
+    "/versions.json\n"
+    "  Cache-Control: no-store\n"
+    "/\n"
+    "  Cache-Control: no-cache\n"
+    "/index.html\n"
+    "  Cache-Control: no-cache\n"
 )
 ROBOTS_TXT = "User-agent: *\nDisallow: /\n"
 
@@ -81,6 +109,57 @@ def build_staging(cache_dir: str, out_dir: str) -> dict[str, str]:
         with open(os.path.join(out_dir, name), "w", encoding="utf-8", newline="\n") as f:
             f.write(text)
     return months
+
+
+# index.html 이 가리키는 로컬 정적 파일(src/href 가 "/" 로 시작하고 "//" 아님). 쿼리(?v=)·해시는 파일 경로에서 뗀다.
+_LOCAL_REF_RE = re.compile(r"""(?:src|href)\s*=\s*["'](/(?!/)[^"'#?]*)""", re.IGNORECASE)
+
+
+def stage_front(out_dir: str, months: dict[str, str], dashboard_dir: str | None = None) -> str | None:
+    """공개 화면을 out_dir 에 넣는다: index.html, 그것이 참조하는 로컬 정적 파일(경로 유지), versions.json({월: 버전}).
+    돌려주는 값은 csv/ 밖의 모든 staged 파일(_headers·robots.txt 포함)의 sha256 앞 12자 - 화면·헤더가 바뀌면 달라진다.
+    index.html 이 없거나 참조 파일이 빠졌거나 dashboard 밖을 가리키면 깨진 화면을 올리지 않도록 None(= 화면은 올리지 않음)."""
+    root = os.path.normpath(dashboard_dir or DASHBOARD_DIR)
+    index_path = os.path.join(root, "index.html")
+    try:
+        with open(index_path, "rb") as f:
+            index = f.read()
+    except OSError:
+        logger.warning("index.html 을 읽지 못해 공개 화면은 올리지 않음: %s", index_path)
+        return None
+    refs = sorted(set(_LOCAL_REF_RE.findall(index.decode("utf-8", errors="replace"))) - {"/"})
+    files: dict[str, bytes] = {"index.html": index}
+    for ref in refs:
+        src = os.path.normpath(os.path.join(root, ref.lstrip("/")))
+        if os.path.commonpath([root, src]) != root:
+            logger.warning("dashboard 밖을 가리키는 참조라 공개 화면은 올리지 않음: %s", ref)
+            return None
+        try:
+            with open(src, "rb") as f:
+                data = f.read()
+        except OSError:
+            logger.warning("index.html 이 참조하는 파일이 없어 공개 화면은 올리지 않음: %s", ref)
+            return None
+        if len(data) > MAX_FILE_BYTES:
+            logger.warning("참조 파일이 Pages 파일 한도를 넘어 공개 화면은 올리지 않음: %s", ref)
+            return None
+        files[ref.lstrip("/")] = data
+    files["versions.json"] = json.dumps(months, ensure_ascii=False).encode("utf-8")
+    for rel, data in files.items():
+        dest = os.path.join(out_dir, *rel.split("/"))
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        with open(dest, "wb") as f:
+            f.write(data)
+    h = hashlib.sha256()
+    for dirpath, dirnames, filenames in os.walk(out_dir):
+        if os.path.normpath(dirpath) == os.path.normpath(out_dir):
+            dirnames[:] = sorted(d for d in dirnames if d != "csv")
+        for name in sorted(filenames):
+            path = os.path.join(dirpath, name)
+            rel = os.path.relpath(path, out_dir).replace(os.sep, "/")
+            with open(path, "rb") as f:
+                h.update(rel.encode("utf-8") + b"\0" + hashlib.sha256(f.read()).digest())
+    return h.hexdigest()[:12]
 
 
 def resolve_wrangler(value: str) -> str | None:
@@ -127,11 +206,13 @@ def deploy(cfg: dict[str, str], out_dir: str, cwd: str, message: str, timeout: i
     return lines[-1] if lines else ""
 
 
-def write_state(cache_dir: str, base: str, months: dict[str, str], now: datetime.datetime) -> None:
+def write_state(cache_dir: str, base: str, months: dict[str, str], now: datetime.datetime, front: str | None = None) -> None:
     """배포 성공 상태를 원자적으로 쓴다(임시 파일 → os.replace). /api/versions 가 반쯤 쓴 파일을 읽지 않게 한다."""
     path = os.path.join(cache_dir, store.PAGES_STATE_NAME)
     tmp = f"{path}.{os.getpid()}.tmp"
     payload = {"base": base, "months": months, "published_at": now.isoformat(timespec="seconds")}
+    if front:
+        payload["front"] = front  # 공개 화면까지 올라갔다는 표시 - 서버의 리다이렉트는 이 키가 있어야 켜진다
     try:
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False)
@@ -171,14 +252,17 @@ def main(argv=None) -> int:
     if not months:
         logger.error("올릴 슬림 CSV 가 없습니다 (%s)", cache_dir)
         return 1
+    front = stage_front(out_dir, months)
     state = store.read_pages_state(cache_dir)
     old = state["months"] if state else {}
-    unchanged = bool(state) and old == months and (not base or state["base"] == base)
+    unchanged = bool(state) and old == months and (not base or state["base"] == base) and state.get("front") == front
     changed = sorted(m for m, v in months.items() if old.get(m) != v)
+    front_changed = bool(front) and (not state or state.get("front") != front)
     if unchanged and not args.force:
         logger.info("변경 없음 - 배포 생략 (%d개월)", len(months))
         return 0
-    logger.info("배포 대상 %d개월, 달라진 달 %d개: %s", len(months), len(changed), ", ".join(changed) or "(없음)")
+    logger.info("배포 대상 %d개월, 달라진 달 %d개: %s, 공개 화면 %s", len(months), len(changed), ", ".join(changed) or "(없음)",
+                "변경" if front_changed else ("그대로" if front else "없음"))
     if args.dry_run:
         logger.info("--dry-run: 배포·상태 기록 생략 (staging: %s)", out_dir)
         return 0
@@ -190,7 +274,7 @@ def main(argv=None) -> int:
         logger.error("Pages 배포 실패 - 상태 파일은 그대로 둠: %s", e)
         return 1
     try:
-        write_state(cache_dir, base, months, now)
+        write_state(cache_dir, base, months, now, front)
     except OSError:
         logger.exception("배포는 끝났지만 상태 파일을 쓰지 못함 (%s)", store.PAGES_STATE_NAME)
         return 1

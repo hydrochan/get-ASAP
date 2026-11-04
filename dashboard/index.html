@@ -11,6 +11,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>get-ASAP Analytics</title>
+  <script>
+    // Pages 모드: 이 화면이 *.pages.dev 에서 서빙되면(공개 화면, 한국에서 빠름) API 는 원본 출처로 보낸다.
+    // 원본(get-asap.hydrochan.com)이나 로컬 개발 서버에서 열면 예전처럼 상대경로를 쓴다.
+    var ASAP_API_BASE = 'https://get-asap.hydrochan.com';
+    var ASAP_PAGES_MODE = /^https:\/\/[a-z0-9-]+\.pages\.dev$/.test(location.origin);
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -376,6 +382,8 @@
     <script>
       (function() {
         if (location.hash === '#admin-login') {
+          // 관리자 로그인은 원본에서만 한다(?stay=1 : 원본이 다시 Pages 로 돌려보내지 않게)
+          if (ASAP_PAGES_MODE) { location.replace(ASAP_API_BASE + '/?stay=1#admin-login'); return; }
           const ls = document.getElementById('login-screen');
           if (ls) ls.classList.remove('hidden');
           document.getElementById('dashboard').classList.add('hidden');
@@ -1159,6 +1167,15 @@
 
     // ---------- 상수 ----------
 
+    // Pages 모드 판별과 API 주소 (head 의 ASAP_* 전역). 원본 모드에서는 apiUrl 이 경로를 그대로 돌려준다.
+    const API_BASE = ASAP_API_BASE;
+    const PAGES_MODE = ASAP_PAGES_MODE;
+    function apiUrl(path) { return PAGES_MODE ? API_BASE + path : path; }
+    // 공개 API GET(versions·csv·announcements·metrics). Pages 모드는 쿠키 없이 CORS 로 부른다.
+    function pubFetch(path, opts) {
+      return fetch(apiUrl(path), PAGES_MODE ? { mode: 'cors', credentials: 'omit', ...opts } : opts);
+    }
+
     // 여러 계열 차트(Keyword trends · Frequent journals trend)의 범주 색: dataviz 기준 8색을 정해진 순서로만 쓴다
     // (흰 바탕 light 모드에서 validate_palette 통과: 인접 CVD ΔE 9.1, 정상시력 ΔE 19.6). 9번째 이후는 색을 만들지 않고
     // 무채색 + 점선으로 넘긴다 — 색만으로 구분하지 않도록 범례 칩과 툴팁이 이름을 항상 함께 보여 준다.
@@ -1641,6 +1658,7 @@
     // 로그인 화면은 공개 진입점이 없음 — URL 해시가 #admin-login일 때만 노출.
     // (관리자는 Nginx Basic Auth로 보호된 /manage 를 북마크 → 인증 통과 시 /#admin-login 으로 302 리다이렉트됨)
     function showLoginScreenForAdminHash() {
+      if (PAGES_MODE) { location.replace(API_BASE + '/?stay=1' + ADMIN_LOGIN_HASH); return; }
       document.getElementById('login-error').classList.add('hidden');
       document.getElementById('login-back-btn').classList.remove('hidden');
       dashboard.classList.add('hidden');
@@ -1676,7 +1694,7 @@
       const user = document.getElementById('login-user').value;
       const pass = document.getElementById('login-pass').value;
       try {
-        const res = await fetch('/api/login', {
+        const res = await fetch(apiUrl('/api/login'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username: user, password: pass })
@@ -1718,7 +1736,7 @@
     });
 
     document.getElementById('logout-btn').addEventListener('click', async () => {
-      await fetch('/api/logout', { method: 'POST' });
+      await fetch(apiUrl('/api/logout'), { method: 'POST' });
       currentUser = '';
       isAdmin = false;
       currentUserConfig = { hidden_sections: [], focus_config: null };
@@ -1807,9 +1825,9 @@
     // 실패하거나 JSON 이 아니면(구형 서버) null → 예전 full CSV 경로로 폴백한다.
     // 반환: { months: {월: 버전}, pages: {base, months} | null }. pages 는 *.pages.dev 에 올라가 있는 사본(버전이 같은 달만)이다.
     const PAGES_BASE_RE = /^https:\/\/[a-z0-9-]+\.pages\.dev$/;
-    async function fetchVersions() {
+    async function fetchOriginVersions() {
       try {
-        const vr = await fetch('/api/versions', { cache: 'no-store' });
+        const vr = await pubFetch('/api/versions', { cache: 'no-store' });
         if (vr.ok) {
           const vj = await vr.json();
           if (vj && vj.months && typeof vj.months === 'object') {
@@ -1820,6 +1838,31 @@
         }
       } catch {}
       return null;
+    }
+    // Pages 모드: 같은 출처의 ./versions.json = 이 화면과 함께 배포된 {월: 버전} 맵(= 올라가 있는 사본 목록). 서울(ICN)에서 바로 받으므로
+    // 이걸로 첫 화면을 그린다. 비어 있거나 모양이 틀리면 null(→ 원본 /api/versions 로 일반 경로).
+    async function fetchPagesVersions() {
+      try {
+        const r = await fetch('./versions.json', { cache: 'no-store' });
+        if (r.ok) {
+          const vj = await r.json();
+          const keys = vj && typeof vj === 'object' && !Array.isArray(vj) ? Object.keys(vj) : [];
+          if (keys.length && keys.every(k => typeof vj[k] === 'string' && vj[k])) {
+            return { months: vj, pages: { base: location.origin, months: { ...vj } }, origin: null };
+          }
+        }
+      } catch {}
+      return null;
+    }
+    // 반환: { months: {월: 버전}, pages: {base, months} | null, origin?: Promise }. pages 는 *.pages.dev 에 올라가 있는 사본(버전이 같은 달만)이다.
+    // Pages 모드에서는 versions.json 과 원본 /api/versions 를 동시에 받기 시작해, 전자로 첫 화면을 그리고 후자(origin Promise)는
+    // _loadData 가 첫 화면 뒤에 비교한다. 원본 응답이 실패하면 null 이라 pages 데이터를 그대로 둔다.
+    async function fetchVersions() {
+      if (!PAGES_MODE) return fetchOriginVersions();
+      const origin = fetchOriginVersions();
+      const pv = await fetchPagesVersions();
+      if (pv) { pv.origin = origin; return pv; }
+      return origin;   // versions.json 을 못 받으면 원본 값으로 (사본이 있는 달은 거기서, 아니면 원본에서) 받는다
     }
     // 첫 로드용 버전 맵은 세션 확인(/api/session)을 기다리지 않고 지금 받기 시작한다.
     // Cloudflare 경유 왕복이 1초 남짓이라 둘을 줄 세우면 첫 화면이 그만큼 늦는다. 첫 _loadData 가 한 번만 쓴다.
@@ -1853,7 +1896,7 @@
         const csvUrl = versions
           ? `/api/csv/${m}?fmt=slim&v=${encodeURIComponent(versions[m] || 0)}`
           : `/api/csv/${m}`;
-        const res = await fetch(csvUrl, fresh ? { cache: 'reload' } : undefined);
+        const res = await pubFetch(csvUrl, fresh ? { cache: 'reload' } : undefined);
         // 버전 맵이 없는 구형 서버 경로에서는 CSV 가 없는 달이 404 다 = 데이터 없음 (실패 아님). 버전 맵이 있으면 목록에 있는 달만 받으므로 404 도 실패다.
         if (res.status === 404 && !versions) return [];
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1893,8 +1936,35 @@
       }));
     }
 
+    // Pages 모드: 첫 화면을 pages 사본으로 그린 뒤, 원본 버전과 다른(또는 새로 생긴) 달만 원본에서 받아 그 달의 행을 바꾸고 다시 그린다.
+    // 원본 버전 응답이 실패하거나 달 하나를 못 받으면 조용히 pages 데이터를 그대로 둔다. stale(seq) 가드는 loadData 와 같다.
+    async function reconcileWithOrigin(ld, originP) {
+      const ov = await originP;
+      if (!ov || !ov.months || ld.seq !== loadSeq) return;
+      const changed = ld.monthList.filter(m => ov.months[m] && ov.months[m] !== ld.versions[m]);
+      if (!changed.length) return;
+      const got = await Promise.all(changed.map(async (m) => {
+        try { return [m, await fetchMonthRows(m, ov.months, false, null)]; } catch { return null; }
+      }));
+      if (ld.seq !== loadSeq) return;
+      let any = false;
+      for (const g of got) {
+        if (!g) continue;
+        ld.rows.set(g[0], g[1]);
+        ld.versions[g[0]] = ov.months[g[0]];
+        ld.failed.delete(g[0]);
+        any = true;
+      }
+      if (!any) return;
+      ld.months = ld.monthList.filter(m => m in ld.versions);   // 새로 생긴 달이 들어온다
+      ld.total = ld.months.length;
+      updateLoadNotice();
+      renderLoad(ld);
+    }
+
     async function _loadData(ld) {
       const monthList = getMonthRange(parseInt(document.getElementById('month-range').value));
+      ld.monthList = monthList;
       const pre = versionsPrefetch;
       versionsPrefetch = null;
       const vi = await (pre || fetchVersions());
@@ -1910,6 +1980,8 @@
       await fetchMonths(ld, ld.months.slice(FIRST_STAGE_MONTHS), () => scheduleRender(ld));
       if (ld.seq !== loadSeq) return;
       flushRender(ld);
+      // 로딩 표시(ld.active)는 pages 로 그린 데이터가 끝난 시점에 내린다 - 원본 비교는 뒤에서 조용히 진행한다
+      if (PAGES_MODE && vi && vi.origin) ld.reconcile = reconcileWithOrigin(ld, vi.origin).catch(() => {});
     }
 
     // Retry: 실패한 달만 다시 받는다 (브라우저 캐시를 건너뛰고). 끝나면 받은 만큼 다시 그린다.
@@ -2105,7 +2177,7 @@
 
         let res, data = null;
         try {
-          res = await fetch('/api/refresh_all', { method: 'POST' });
+          res = await fetch(apiUrl('/api/refresh_all'), { method: 'POST' });
           try { data = await res.json(); } catch (_) { data = null; }
         } catch (netErr) {
           showToast('네트워크 오류로 재조회에 실패했습니다.', 'error');
@@ -2140,7 +2212,7 @@
     // ---------- 공지·개선사항 ----------
     async function loadAnnouncements() {
       try {
-        const res = await fetch('/api/announcements');
+        const res = await pubFetch('/api/announcements');
         if (!res.ok) return;
         const items = await res.json();
         if (!Array.isArray(items) || items.length === 0) return;
@@ -2209,7 +2281,7 @@
       const dotEl = document.getElementById('visitor-badge-dot');
       if (!textEl) return;
       try {
-        const res = await fetch('/api/metrics');
+        const res = await pubFetch('/api/metrics');
         if (!res.ok) throw new Error('metrics unavailable');
         const data = await res.json();
         const online = Number.isFinite(data.online) ? data.online : 0;
@@ -3843,7 +3915,7 @@
 
     // ---------- 논문 링크 결정 (모든 목록·검색·리포트가 이 함수 하나만 쓴다) ----------
     // slim CSV(id,doi) 와 full CSV(url) 행을 모두 받는다. 우선순위: DOI → url(http/https 만) → /api/link/<id> → ''.
-    // '' 이면 호출부가 링크 없이 제목만 렌더한다. /api/link/ 는 상대경로라 파일로 내보내는 곳은 location.origin 을 붙여야 한다.
+    // '' 이면 호출부가 링크 없이 제목만 렌더한다. /api/link/ 는 원본 모드에선 상대경로라 파일로 내보내는 곳은 location.origin 을 붙여야 한다(Pages 모드는 처음부터 절대 URL).
     function paperHref(p) {
       if (!p) return '';
       const doi = String(p.doi || '').trim();
@@ -3851,7 +3923,7 @@
       const u = _safeUrl(p.url);
       if (/^https?:/i.test(u)) return u;
       const id = String(p.id || '').trim();
-      return id ? `/api/link/${encodeURIComponent(id)}` : '';
+      return id ? apiUrl(`/api/link/${encodeURIComponent(id)}`) : '';
     }
 
     // DOI 검색용 텍스트: slim 은 doi 컬럼, full 은 url 이 doi.org 링크일 때만 포함(추적 링크가 일반 검색어에 오탐되는 것 방지)
@@ -4022,7 +4094,7 @@
       setStatsLoading(true);
       hideStatsError();
       try {
-        const res = await fetch('/api/stats');
+        const res = await fetch(apiUrl('/api/stats'));
         if (!res.ok) {
           if (!handleAdminAuthError(res)) {
             showToast(`통계 로드 실패 (HTTP ${res.status})`, 'error');
@@ -4141,7 +4213,7 @@
         if (eventsState.type && eventsState.type !== 'all') params.set('type', eventsState.type);
         if (eventsState.q) params.set('q', eventsState.q);
 
-        const res = await fetch('/api/events?' + params.toString());
+        const res = await fetch(apiUrl('/api/events?' + params.toString()));
         if (!res.ok) {
           if (!handleAdminAuthError(res)) {
             showToast(`이벤트 로드 실패 (HTTP ${res.status})`, 'error');
@@ -4220,7 +4292,7 @@
     async function loadFeedback() {
       setFeedbackLoading(true);
       try {
-        const res = await fetch('/api/feedback');
+        const res = await fetch(apiUrl('/api/feedback'));
         if (!res.ok) {
           if (!handleAdminAuthError(res)) {
             showToast(`피드백 로드 실패 (HTTP ${res.status})`, 'error');
@@ -4291,7 +4363,7 @@
           btn.disabled = true;
           btn.textContent = '처리 중…';
           try {
-            const res = await fetch('/api/feedback/mark_read', {
+            const res = await fetch(apiUrl('/api/feedback/mark_read'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ id: fid, read: !wasRead }),
@@ -4343,7 +4415,7 @@
     };
 
     async function reviewPost(path, body) {
-      const res = await fetch(path, {
+      const res = await fetch(apiUrl(path), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
@@ -4792,9 +4864,11 @@
       submitBtn.textContent = 'Sending…';
       try {
         // 익명 게스트도 제출 가능한 공개 엔드포인트 — handleAdminAuthError(관리자 세션 만료 처리)는 여기에 적용하지 않고 상태코드별로 직접 처리
-        const res = await fetch('/api/feedback', {
+        // Pages 모드(다른 출처)에서는 text/plain 으로 보내 CORS preflight 를 피한다 - 서버는 Content-Type 과 무관하게 본문을 JSON 으로 읽는다
+        const res = await fetch(apiUrl('/api/feedback'), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': PAGES_MODE ? 'text/plain;charset=UTF-8' : 'application/json' },
+          ...(PAGES_MODE ? { credentials: 'omit' } : {}),
           body: JSON.stringify({ category, message, hp }),
         });
         if (res.ok) {
@@ -5335,9 +5409,20 @@
     });
 
     // ---------- 세션 체크 ----------
+    // Pages 모드: 공개(게스트) 화면 - 세션은 묻지 않고(/api/session 호출 없음) 바로 그린다. 방문은 페이지 로드마다 한 번 원본에 알린다
+    // (본문·사용자 헤더 없는 POST 라 preflight 가 없다. 원본이 봇 UA 를 걸러 IP 해시만 저장).
+    if (PAGES_MODE) {
+      try { fetch(apiUrl('/api/visit'), { method: 'POST', mode: 'cors', credentials: 'omit', keepalive: true }).catch(() => {}); } catch {}
+    }
     (async function checkSession() {
+      if (PAGES_MODE) {
+        applyUserVisibility();
+        loadData();
+        syncLoginScreenFromHash();
+        return;
+      }
       try {
-        const res = await fetch('/api/session');
+        const res = await fetch(apiUrl('/api/session'));
         if (res.ok) {
           try {
             const data = await res.json();

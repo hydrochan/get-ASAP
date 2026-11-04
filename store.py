@@ -1230,8 +1230,9 @@ PAGES_STATE_NAME = "pages_published.json"
 
 
 def read_pages_state(cache_dir: str | None = None) -> dict | None:
-    """마지막으로 배포에 성공한 Pages 사본 {"base": 주소, "months": {월: 버전}}. 파일이 없거나 깨졌거나 주소가 규칙에
-    안 맞으면 None(= 사본 없음으로 취급). months 에서는 월·버전이 문자열인 항목만 남긴다."""
+    """마지막으로 배포에 성공한 Pages 사본 {"base": 주소, "months": {월: 버전}[, "front": 공개 화면 해시]}. 파일이 없거나 깨졌거나
+    주소가 규칙에 안 맞으면 None(= 사본 없음으로 취급). months 에서는 월·버전이 문자열인 항목만 남긴다.
+    "front" 는 공개 화면(index.html 등)까지 올라간 배포에만 있다 - 옛 형식 상태 파일에는 키 자체가 없다."""
     path = os.path.join(cache_dir or CACHE_DIR, PAGES_STATE_NAME)
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -1244,7 +1245,11 @@ def read_pages_state(cache_dir: str | None = None) -> dict | None:
     if not isinstance(base, str) or not PAGES_BASE_RE.match(base):
         return None
     months = {m: v for m, v in data["months"].items() if isinstance(m, str) and _MONTH_RE.match(m) and isinstance(v, str) and v}
-    return {"base": base, "months": months}
+    out = {"base": base, "months": months}
+    front = data.get("front")
+    if isinstance(front, str) and front:
+        out["front"] = front
+    return out
 
 
 # ---------- 백업 ----------

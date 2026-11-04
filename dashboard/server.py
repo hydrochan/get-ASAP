@@ -164,6 +164,31 @@ def _pages_info(months: dict[str, str]) -> dict | None:
     return {"base": state["base"], "months": fresh} if fresh else None
 
 
+def _pages_base() -> str | None:
+    """공개 화면을 올린 Pages 주소(env PAGES_BASE_URL). https://<project>.pages.dev 모양이 아니면 None(= CORS·리다이렉트 모두 꺼짐)."""
+    base = (os.environ.get("PAGES_BASE_URL") or "").strip()
+    return base if store.PAGES_BASE_RE.match(base) else None
+
+
+def _front_redirect_base() -> str | None:
+    """익명 방문자를 보낼 Pages 주소. PUBLIC_FRONT_ON_PAGES 가 켜져 있고(1/true/yes/on) 공개 화면(state 의 front)이 실제로 올라가 있을 때만."""
+    if (os.environ.get("PUBLIC_FRONT_ON_PAGES") or "").strip().lower() not in ("1", "true", "yes", "on"):
+        return None
+    base = _pages_base()
+    state = store.read_pages_state(CACHE_DIR) if base else None
+    return base if state and state.get("front") else None
+
+
+# Pages 화면(다른 출처)이 브라우저에서 부르는 공개 엔드포인트만 CORS 를 연다. 관리자 API 는 열지 않는다.
+_CORS_PUBLIC_PATHS = ("/api/versions", "/api/announcements", "/api/metrics", "/api/visit")
+
+
+def _cors_applies(method: str, path: str) -> bool:
+    if path in _CORS_PUBLIC_PATHS or path.startswith("/api/csv/"):
+        return True
+    return path == "/api/feedback" and method in ("POST", "OPTIONS")  # GET 은 관리자 목록 - 제외
+
+
 def _init_access_db():
     """접속 로그 DB 초기화 (테이블 없으면 생성)"""
     with _db_lock:
@@ -639,6 +664,14 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
         logger.info(format, *args)
+
+    def end_headers(self):
+        # 공개 엔드포인트 응답(304·오류 포함)에 Pages 출처 CORS 를 붙인다. `*` 가 아니라 Pages 주소 그대로, 쿠키(credentials)는 허용하지 않는다.
+        base = _pages_base()
+        if base and _cors_applies(self.command or "", urllib.parse.urlparse(self.path).path):
+            self.send_header("Access-Control-Allow-Origin", base)
+            self.send_header("Vary", "Origin")
+        super().end_headers()
 
     def _send_json(self, data, status=200, extra_headers=None):
         self.send_response(status)
@@ -1122,6 +1155,19 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         if path == "/" or path == "":
             path = "/index.html"
 
+        # 공개 화면을 Pages 로 옮겼으면 익명 방문자는 거기로 보낸다. 세션이 있는 사람(관리자: /manage 에서 돌아온 경우 등)과
+        # ?stay=1 (Pages 의 관리자 로그인 진입)은 그대로 서빙한다. 방문 기록은 Pages 쪽 /api/visit 이 남기므로 여기서는 세지 않는다.
+        if path == "/index.html":
+            target = _front_redirect_base()
+            query = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+            if target and ("stay", "1") not in query and not self._is_authenticated():
+                rest = urllib.parse.urlencode([(k, v) for k, v in query if k != "stay"])
+                self.send_response(302)
+                self.send_header("Location", f"{target}/" + (f"?{rest}" if rest else ""))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                return
+
         # 대시보드 진입 페이지 서빙 = "사람이 대시보드를 열었다" 신호 → 방문 기록 (봇 제외).
         if path == "/index.html":
             self._maybe_record_visit()
@@ -1212,6 +1258,10 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         if path == "/api/feedback" and content_len > MAX_FEEDBACK_BODY_LEN:
             self._send_json({"error": "payload too large"}, 413)
             return
+        # 방문 신호는 본문을 쓰지 않는다 - 비정상적으로 큰 본문은 읽지 않고 거절
+        if path == "/api/visit" and content_len > 1024:
+            self._send_json({"error": "payload too large"}, 413)
+            return
         # 검토 API도 같은 방식: 과대 본문은 버퍼링하기 전에 차단 (이 응답에도 no-store)
         if path in REVIEW_PATHS and content_len > MAX_REVIEW_BODY_LEN:
             self._send_json({"error": "payload_too_large"}, 413, {"Cache-Control": "private, no-store"})
@@ -1221,6 +1271,14 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         # 검토 UI API (관리자 전용 - 세션·Origin 검사는 핸들러 안에서)
         if path in REVIEW_PATHS:
             self._handle_review(path, body)
+            return
+
+        # 방문 신호 (PUBLIC) - Pages 에서 서빙되는 공개 화면이 페이지 로드마다 한 번 보낸다. index.html 을 원본이 서빙하지 않으므로
+        # GET / 의 방문 기록을 대신한다(같은 봇 UA 제외·IP 해시 저장). 본문은 쓰지 않는다.
+        if path == "/api/visit":
+            self._maybe_record_visit()
+            self.send_response(204)
+            self.end_headers()
             return
 
         # 로그인

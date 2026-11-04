@@ -287,6 +287,17 @@ UTC 01:50부터 4시간마다(하루 최대 6회, 월 최대 186회)다. 01:50 �
 
 `--dry-run` 은 staging(`cache/pages_out`)만 만들고 계획을 출력하며, `--force` 는 같아도 배포한다. 실패하면 비정상 종료하고 상태 파일은 그대로다.
 
+#### 공개 화면(front)도 Pages 에서 서빙
+
+`publish_pages.py` 는 CSV 와 함께 공개 화면 `dashboard/index.html`, 그것이 참조하는 정적 파일(`static/tailwind.css` 등 - `src`/`href` 가 `/` 로 시작하는 것), 올라간 `{월: 버전}` 맵 `versions.json` 을 올리고 `_headers` 에 CSP·`nosniff`·`Referrer-Policy`·`X-Frame-Options`(`/csv/*` 규칙은 그대로, `versions.json` 은 `no-store`, `index.html` 은 `no-cache`)를 넣는다. 상태 파일에는 이 파일들의 해시 `front` 가 추가되고, **CSV 달이 바뀌었거나 `front` 가 바뀌면** 배포한다(옛 형식 상태 파일은 `front` 없이도 읽히며 처음 한 번 화면을 올린다). `index.html` 이나 참조 파일이 없으면 화면은 올리지 않고 CSV 만 올린다(상태에 `front` 없음 -> 리다이렉트 꺼짐).
+
+- 비로그인 방문자는 `https://<project>.pages.dev/` 에서 같은 `index.html` 을 받는다(출처가 `*.pages.dev` 면 Pages 모드). 첫 화면은 같은 출처 `./versions.json` 과 pages CSV 로 그리고(Cloudflare LAX 를 거치지 않음), 원본 `/api/versions` 는 동시에 받아 버전이 다른 달만 원본에서 받아 바꿔 그린다. 원본이 느리거나 실패하면 pages 데이터를 그대로 둔다. `/api/session` 은 부르지 않는다(항상 게스트). 공지·방문자 수·피드백은 원본 API 를 CORS 로 부르고, 방문은 페이지 로드마다 `POST /api/visit`(204)로 센다.
+- 서버 CORS: `PAGES_BASE_URL` 출처 하나(`*` 아님, 쿠키 없음)만 공개 엔드포인트(`/api/versions`, `/api/csv/*`, `/api/announcements`, `/api/metrics`, `/api/visit`, 공개 `POST /api/feedback`)에 붙고 관리자 API 에는 붙지 않는다. 피드백은 Pages 모드에서 `text/plain` 본문으로 보내(preflight 없음) 서버가 JSON 으로 읽는다.
+- 리다이렉트: `.env` 의 `PUBLIC_FRONT_ON_PAGES=1` 이고 상태 파일에 `front` 가 있을 때, 원본의 `GET /`·`/index.html` 은 **세션이 없고 `?stay=1` 이 아닌** 요청을 `302` 로 Pages 주소(`<PAGES_BASE_URL>/`, 쿼리 보존·`stay` 제거)에 보낸다. 세션이 있는 관리자와 `/manage`·`/api/*` 는 그대로다. 관리자 로그인(`#admin-login`)은 Pages 에서 `https://get-asap.hydrochan.com/?stay=1#admin-login` 으로 보낸다.
+- **리다이렉트 끄기**: `.env` 에 `PUBLIC_FRONT_ON_PAGES=0`(또는 줄 삭제) 후 `sudo systemctl restart get-asap-dashboard`. 즉시 원래대로 원본이 화면을 서빙한다. CORS 헤더는 `PAGES_BASE_URL` 만 있으면 계속 붙는다(무해).
+- **화면 코드를 고친 뒤 배포**: VM 에서 `git pull` -> 대시보드 서비스 재시작(`server.py` 가 바뀐 경우) -> `python publish_pages.py` (`front` 해시 변화를 감지해 배포한다. cron 4시간 주기를 기다려도 된다). Tailwind 클래스를 바꿨으면 `build_css.py` 를 먼저 돌리고 `index.html` 의 `?v=` 가 바뀐 것을 커밋한다.
+- 주의: Cloudflare 가 `/api/csv*` 를 엣지 캐시하므로, CORS 헤더가 없던 시절 캐시된 응답은 Pages 화면에서 읽히지 않을 수 있다(pages 사본은 영향 없음 - 원본 비교 단계의 달만 pages 데이터로 남는다). 켜기 전에 `/api/csv*` 캐시를 한 번 비운다.
+
 ### 이관 스크립트 운영 메모
 
 - `python migrate_from_notion.py --dry-run` (임시 DB, 5개 gate까지) → `python migrate_from_notion.py` → `python migrate_from_notion.py --verify`.
