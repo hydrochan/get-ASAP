@@ -21,6 +21,7 @@ import contextlib
 import csv
 import datetime as _dt
 import hashlib
+import json
 import logging
 import os
 import pathlib
@@ -1168,6 +1169,11 @@ def ensure_slim_csv(month: str, conn: sqlite3.Connection | None = None, cache_di
 _slim_version_memo: dict[str, tuple[tuple[int, int, int], str]] = {}
 
 
+def slim_version_of(data: bytes) -> str:
+    """슬림 CSV 바이트 → 버전. publish_pages.py 가 읽은 바이트로 직접 계산해, 파일명과 내용이 항상 맞게 한다."""
+    return hashlib.sha256(data).hexdigest()[:12]
+
+
 def slim_version(month: str, cache_dir: str | None = None) -> str | None:
     """슬림 CSV 의 버전 = 파일 내용 sha256 앞 12자리(불투명 문자열). 내용이 바뀔 때만 바뀐다.
 
@@ -1182,7 +1188,7 @@ def slim_version(month: str, cache_dir: str | None = None) -> str | None:
         if hit is not None and hit[0] == key:
             return hit[1]
         with open(path, "rb") as f:
-            ver = hashlib.sha256(f.read()).hexdigest()[:12]
+            ver = slim_version_of(f.read())
     except OSError:
         return None
     _slim_version_memo[path] = (key, ver)
@@ -1213,6 +1219,32 @@ def csv_versions(cache_dir: str | None = None) -> dict[str, str]:
         if ver is not None:
             out[month] = ver
     return out
+
+
+# ---------- Cloudflare Pages 사본 (publish_pages.py) ----------
+
+# 슬림 CSV 를 *.pages.dev 에서도 내려받게 하는 사본. publish_pages.py 가 배포에 성공한 뒤 이 상태 파일을 쓰고,
+# /api/versions 가 읽어 "pages" 로 알린다. 주소는 https://<프로젝트>.pages.dev 모양만 허용한다(끝의 \Z: `$` 는 뒤따르는 개행을 통과시킨다).
+PAGES_BASE_RE = re.compile(r"^https://[a-z0-9-]+\.pages\.dev\Z")
+PAGES_STATE_NAME = "pages_published.json"
+
+
+def read_pages_state(cache_dir: str | None = None) -> dict | None:
+    """마지막으로 배포에 성공한 Pages 사본 {"base": 주소, "months": {월: 버전}}. 파일이 없거나 깨졌거나 주소가 규칙에
+    안 맞으면 None(= 사본 없음으로 취급). months 에서는 월·버전이 문자열인 항목만 남긴다."""
+    path = os.path.join(cache_dir or CACHE_DIR, PAGES_STATE_NAME)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get("months"), dict):
+        return None
+    base = data.get("base")
+    if not isinstance(base, str) or not PAGES_BASE_RE.match(base):
+        return None
+    months = {m: v for m, v in data["months"].items() if isinstance(m, str) and _MONTH_RE.match(m) and isinstance(v, str) and v}
+    return {"base": base, "months": months}
 
 
 # ---------- 백업 ----------

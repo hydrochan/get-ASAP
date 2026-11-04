@@ -154,6 +154,16 @@ def _etag_matches(if_none_match: str | None, etag: str) -> bool:
     return any(tok.strip().removeprefix("W/") == etag for tok in value.split(","))
 
 
+def _pages_info(months: dict[str, str]) -> dict | None:
+    """/api/versions 의 "pages": publish_pages.py 가 *.pages.dev 에 올린 슬림 CSV 사본 중 지금 버전과 같은 달만.
+    그 뒤로 내용이 바뀐 달은 빼므로 클라이언트가 옛 사본을 받는 일이 없다(그 달은 원본에서 받는다). 사본이 없으면 None."""
+    state = store.read_pages_state(CACHE_DIR)
+    if not state:
+        return None
+    fresh = {m: v for m, v in months.items() if state["months"].get(m) == v}
+    return {"base": state["base"], "months": fresh} if fresh else None
+
+
 def _init_access_db():
     """접속 로그 DB 초기화 (테이블 없으면 생성)"""
     with _db_lock:
@@ -976,15 +986,20 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             return
 
         # API: 월별 슬림 CSV 버전 목록 — PUBLIC. {"months": {"2026-11": "<ver>", ...}} (최신 월 먼저).
+        # Pages 사본이 최신인 달이 있으면 "pages": {"base": "https://<project>.pages.dev", "months": {월: 버전}} 도 붙는다(없으면 키 생략).
         # 경로가 /api/csv 로 시작하지 않아 Cloudflare 의 /api/csv* 엣지 캐시 규칙에 걸리지 않는다. 항상 no-cache.
         if path == "/api/versions":
             try:
                 months = store.csv_versions(CACHE_DIR)
+                pages = _pages_info(months)
             except Exception:
                 logger.exception("versions failed")
                 self._send_json({"error": "internal server error"}, 500, {"Cache-Control": "no-store"})
                 return
-            self._send_json({"months": months}, 200, {"Cache-Control": "no-cache"})
+            body = {"months": months}
+            if pages:
+                body["pages"] = pages
+            self._send_json(body, 200, {"Cache-Control": "no-cache"})
             return
 
         # API: 논문 원문 링크 리다이렉트 — PUBLIC. 슬림 CSV 가 url 을 빼므로 id 로 저장된 원본 링크를 302 로 돌려준다.

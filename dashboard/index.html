@@ -1744,7 +1744,7 @@
     const RERENDER_DEBOUNCE_MS = 350;
     const SUBLINE_IDS = ['home-subline', 'analytics-subline', 'browse-subline', 'adv-subline'];
     let loadSeq = 0;           // 로드 토큰: 새 로드(Period 변경·Refresh)가 시작되면 올라간다. 옛 로드의 늦은 응답·타이머는 버린다
-    let loadState = null;      // 가장 최근 로드 { seq, versions, months, total, rows: Map, failed: Set, pending: Set, active, retrying, rendered, dirty, timer }
+    let loadState = null;      // 가장 최근 로드 { seq, versions, pages, months, total, rows: Map, failed: Set, pending: Set, active, retrying, rendered, dirty, timer }
     let everRendered = false;  // 이 페이지에서 한 번이라도 그렸나 (그 전에는 부제 자리에 "Loading papers…" 뿐이라 문구를 통째로 바꾼다)
 
     // 로딩 상태를 화면에 반영: 헤더 새로고침 아이콘(글자가 없으니 돌려서 알린다) + 각 뷰 제목 부제 끝의 "Loading papers… 2 of 6 months (partial)"
@@ -1787,7 +1787,7 @@
     async function loadData() {
       if (loadState) clearTimeout(loadState.timer);
       const ld = loadState = {
-        seq: ++loadSeq, versions: null, months: [], total: 0,
+        seq: ++loadSeq, versions: null, pages: null, months: [], total: 0,
         rows: new Map(), failed: new Set(), pending: new Set(),
         active: 1, retrying: false, rendered: false, dirty: false, timer: 0,
       };
@@ -1805,12 +1805,18 @@
     // 항상 no-store 로 새로 받는다 — 이 값이 slim CSV URL(?v=)에 들어가므로, 데이터가 바뀐 달만
     // 새 URL(=CDN·브라우저 캐시 미스)이 되고 안 바뀐 달은 immutable 캐시를 그대로 쓴다.
     // 실패하거나 JSON 이 아니면(구형 서버) null → 예전 full CSV 경로로 폴백한다.
+    // 반환: { months: {월: 버전}, pages: {base, months} | null }. pages 는 *.pages.dev 에 올라가 있는 사본(버전이 같은 달만)이다.
+    const PAGES_BASE_RE = /^https:\/\/[a-z0-9-]+\.pages\.dev$/;
     async function fetchVersions() {
       try {
         const vr = await fetch('/api/versions', { cache: 'no-store' });
         if (vr.ok) {
           const vj = await vr.json();
-          if (vj && vj.months && typeof vj.months === 'object') return vj.months;
+          if (vj && vj.months && typeof vj.months === 'object') {
+            const pg = vj.pages;
+            const okPages = pg && typeof pg.base === 'string' && PAGES_BASE_RE.test(pg.base) && pg.months && typeof pg.months === 'object';
+            return { months: vj.months, pages: okPages ? pg : null };
+          }
         }
       } catch {}
       return null;
@@ -1822,15 +1828,31 @@
     // 한 달 CSV → 행 배열. HTTP 오류·네트워크 오류는 throw (호출부가 failed 로 기록).
     // slim 행: id,title,journal,date,doi,gpt_reason / full 행: title,journal,date,url,gpt_reason.
     // 링크는 어느 쪽이든 paperHref(p) 가 결정한다.
-    async function fetchMonthRows(m, versions, fresh) {
-      const csvUrl = versions
-        ? `/api/csv/${m}?fmt=slim&v=${encodeURIComponent(versions[m] || 0)}`
-        : `/api/csv/${m}`;
-      const res = await fetch(csvUrl, fresh ? { cache: 'reload' } : undefined);
-      // 버전 맵이 없는 구형 서버 경로에서는 CSV 가 없는 달이 404 다 = 데이터 없음 (실패 아님). 버전 맵이 있으면 목록에 있는 달만 받으므로 404 도 실패다.
-      if (res.status === 404 && !versions) return [];
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const text = await res.text();
+    // pages 사본(*.pages.dev, 한국에서 원본보다 훨씬 빠르다)에 지금 버전과 같은 사본이 있는 달은 거기서 먼저 받고,
+    // 어떤 이유로든 실패하면(네트워크·HTTP 오류·빈 응답·CSV 가 아닌 응답) 조용히 원본으로 받는다. Retry(fresh)는 곧장 원본이다.
+    async function fetchMonthRows(m, versions, fresh, pages) {
+      let text = null;
+      const pv = !fresh && versions && pages && pages.months[m];
+      if (pv && pv === versions[m]) {
+        try {
+          const pr = await fetch(`${pages.base}/csv/${m}.${encodeURIComponent(pv)}.csv`, { mode: 'cors', credentials: 'omit' });
+          const t = pr.ok ? await pr.text() : '';
+          if (t && /^[^\r\n]*\btitle\b/.test(t)) text = t;   // 첫 줄(헤더)에 title 이 있어야 CSV 로 본다
+          else console.debug('pages copy unusable, using origin:', m, pr.status);
+        } catch (e) {
+          console.debug('pages copy failed, using origin:', m, e);
+        }
+      }
+      if (text === null) {
+        const csvUrl = versions
+          ? `/api/csv/${m}?fmt=slim&v=${encodeURIComponent(versions[m] || 0)}`
+          : `/api/csv/${m}`;
+        const res = await fetch(csvUrl, fresh ? { cache: 'reload' } : undefined);
+        // 버전 맵이 없는 구형 서버 경로에서는 CSV 가 없는 달이 404 다 = 데이터 없음 (실패 아님). 버전 맵이 있으면 목록에 있는 달만 받으므로 404 도 실패다.
+        if (res.status === 404 && !versions) return [];
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        text = await res.text();
+      }
       const rows = Papa.parse(text, { header: true, skipEmptyLines: true }).data.filter(r => r.title && r.title.trim());
       // 미래 발행일 보정: 오늘(로컬)보다 늦은 날짜는 오늘로 당기고 _dateClamped 표시.
       // 파이프라인 규칙(main._effective_pub_date: 발행일이 수신일보다 미래면 수신일로 대체)과 같은 취지의 방어선.
@@ -1855,7 +1877,7 @@
       syncLoadStatus();
       return Promise.all(months.map(async (m) => {
         let rows = null;
-        try { rows = await fetchMonthRows(m, ld.versions, fresh); } catch { rows = null; }
+        try { rows = await fetchMonthRows(m, ld.versions, fresh, ld.pages); } catch { rows = null; }
         if (ld.seq !== loadSeq) return;
         ld.pending.delete(m);
         if (rows) { ld.rows.set(m, rows); ld.failed.delete(m); } else ld.failed.add(m);
@@ -1869,7 +1891,9 @@
       const monthList = getMonthRange(parseInt(document.getElementById('month-range').value));
       const pre = versionsPrefetch;
       versionsPrefetch = null;
-      ld.versions = await (pre || fetchVersions());
+      const vi = await (pre || fetchVersions());
+      ld.versions = vi && vi.months;
+      ld.pages = vi && vi.pages;
       if (ld.seq !== loadSeq) return;
       // 버전 맵이 있으면 CSV 가 있는 달(목록에 든 달)만 받는다
       ld.months = ld.versions ? monthList.filter(m => m in ld.versions) : monthList;
