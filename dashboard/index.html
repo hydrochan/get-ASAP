@@ -1815,6 +1815,9 @@
       } catch {}
       return null;
     }
+    // 첫 로드용 버전 맵은 세션 확인(/api/session)을 기다리지 않고 지금 받기 시작한다.
+    // Cloudflare 경유 왕복이 1초 남짓이라 둘을 줄 세우면 첫 화면이 그만큼 늦는다. 첫 _loadData 가 한 번만 쓴다.
+    let versionsPrefetch = fetchVersions();
 
     // 한 달 CSV → 행 배열. HTTP 오류·네트워크 오류는 throw (호출부가 failed 로 기록).
     // slim 행: id,title,journal,date,doi,gpt_reason / full 행: title,journal,date,url,gpt_reason.
@@ -1864,7 +1867,9 @@
 
     async function _loadData(ld) {
       const monthList = getMonthRange(parseInt(document.getElementById('month-range').value));
-      ld.versions = await fetchVersions();
+      const pre = versionsPrefetch;
+      versionsPrefetch = null;
+      ld.versions = await (pre || fetchVersions());
       if (ld.seq !== loadSeq) return;
       // 버전 맵이 있으면 CSV 가 있는 달(목록에 든 달)만 받는다
       ld.months = ld.versions ? monthList.filter(m => m in ld.versions) : monthList;
