@@ -275,13 +275,15 @@ Cloudflare는 POST를 캐시하지 않고 앱이 모든 응답에 `Cache-Control
 
 경로(`/home/ubuntu/get-ASAP`)는 현재 crontab 의 실제 프로젝트 경로로 맞춘다. 복원은 `python backup_db.py --restore <파일.db.gz> --to <새 경로>`(대상이 이미 있으면 거부). 복원본은 `meta.db_epoch`가 새로 발급되므로, 복원 후 첫 `run`에서 KIST PC가 커서를 0으로 되돌리고 서버가 잃은 판정을 reconcile로 다시 push한다.
 
-### Pages 사본 (publish_pages.py, 2시간)
+### Pages 사본 (publish_pages.py, 4시간)
 
 공개 화면이 한국에서 느린 것(Cloudflare LAX 경유)을 피하려고 월별 슬림 CSV 를 `*.pages.dev`(서울 ICN)에도 올린다. 지난 배포와 달라진 달이 있을 때만 `wrangler pages deploy` 를 부르고, 성공한 뒤에만 `cache/pages_published.json` 을 쓴다. `/api/versions` 는 이 파일에서 **지금 버전과 같은 달만** `pages` 로 알리므로(그 뒤 바뀐 달은 원본에서 받는다) 최신성은 15분 그대로다. 설정은 `.env.example` 의 `CLOUDFLARE_*`·`PAGES_*`·`WRANGLER_BIN`.
 
 ```cron
-0 */2 * * * cd /home/ubuntu/get-ASAP && .venv/bin/python publish_pages.py >> logs/pages.log 2>&1
+50 1-23/4 * * * cd /home/ubuntu/get-ASAP && .venv/bin/python publish_pages.py >> logs/pages.log 2>&1
 ```
+
+UTC 01:50부터 4시간마다(하루 최대 6회, 월 최대 186회)다. 01:50 은 매일 01시대(KST 10시)에 들어오는 paper_autodown 분류 반영 뒤, 09:50·13:50·21:50 은 6시간 수집(00·06·12·18시)과 Crossref(각 30분) 뒤에 온다. Pages Free 의 월 500 빌드 한도에 direct upload 가 들어가는지는 문서에 없어 여유를 둔 주기다.
 
 `--dry-run` 은 staging(`cache/pages_out`)만 만들고 계획을 출력하며, `--force` 는 같아도 배포한다. 실패하면 비정상 종료하고 상태 파일은 그대로다.
 

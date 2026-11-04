@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""월별 슬림 CSV 를 Cloudflare Pages(*.pages.dev)에 올린다 (cron 2시간).
+"""월별 슬림 CSV 를 Cloudflare Pages(*.pages.dev)에 올린다 (cron 4시간).
 
 공개 대시보드(get-asap.hydrochan.com)는 한국에서 Cloudflare LAX 로 연결돼 느리고 *.pages.dev 는 서울(ICN)에서 나간다.
 그래서 가장 무거운 월별 슬림 CSV(cache/slim_papers_<월>.csv)를 Pages 에 `csv/<월>.<버전>.csv` 로 올려 두고,
