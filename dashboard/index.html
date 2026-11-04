@@ -1834,13 +1834,19 @@
       let text = null;
       const pv = !fresh && versions && pages && pages.months[m];
       if (pv && pv === versions[m]) {
+        // 응답 헤더가 8초 안에 안 오면(연결이 멈춘 경우) 포기하고 원본으로 간다. 헤더가 오면 본문은 끝까지 기다린다.
+        const ac = new AbortController();
+        const timer = setTimeout(() => ac.abort(), 8000);
         try {
-          const pr = await fetch(`${pages.base}/csv/${m}.${encodeURIComponent(pv)}.csv`, { mode: 'cors', credentials: 'omit' });
+          const pr = await fetch(`${pages.base}/csv/${m}.${encodeURIComponent(pv)}.csv`, { mode: 'cors', credentials: 'omit', signal: ac.signal });
+          clearTimeout(timer);
           const t = pr.ok ? await pr.text() : '';
           if (t && /^[^\r\n]*\btitle\b/.test(t)) text = t;   // 첫 줄(헤더)에 title 이 있어야 CSV 로 본다
           else console.debug('pages copy unusable, using origin:', m, pr.status);
         } catch (e) {
           console.debug('pages copy failed, using origin:', m, e);
+        } finally {
+          clearTimeout(timer);
         }
       }
       if (text === null) {
