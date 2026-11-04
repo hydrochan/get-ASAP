@@ -127,6 +127,8 @@ def test_staging_headers_and_robots(env):
     assert "  X-Content-Type-Options: nosniff\n" in headers
     assert "  Referrer-Policy: strict-origin-when-cross-origin\n" in headers
     assert "  X-Frame-Options: DENY\n" in headers
+    assert "  Strict-Transport-Security: max-age=31536000; includeSubDomains\n" in headers
+    assert "  Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()\n" in headers
     assert "/versions.json\n  Cache-Control: no-store\n" in headers
     assert "/index.html\n  Cache-Control: no-cache\n" in headers
     assert (env.out / "robots.txt").read_bytes() == b"User-agent: *\nDisallow: /\n"

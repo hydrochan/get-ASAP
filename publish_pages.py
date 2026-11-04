@@ -59,6 +59,9 @@ HEADERS_TXT = (
     "  X-Content-Type-Options: nosniff\n"
     "  Referrer-Policy: strict-origin-when-cross-origin\n"
     "  X-Frame-Options: DENY\n"
+    # 아래 둘은 운영 nginx 와 같은 값. 빠지면 securityheaders.com 이 B 로 매긴다(2026-11-04 실측, nginx 쪽은 A).
+    "  Strict-Transport-Security: max-age=31536000; includeSubDomains\n"
+    "  Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()\n"
     "/csv/*\n"
     "  Access-Control-Allow-Origin: *\n"
     "  Content-Type: text/plain; charset=utf-8\n"
