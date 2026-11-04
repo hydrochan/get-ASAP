@@ -103,6 +103,7 @@ def test_staging_headers_and_robots(env):
     assert (env.out / "_headers").read_bytes() == (
         b"/csv/*\n"
         b"  Access-Control-Allow-Origin: *\n"
+        b"  Content-Type: text/plain; charset=utf-8\n"
         b"  Cache-Control: public, max-age=31536000, immutable\n"
     )
     assert (env.out / "robots.txt").read_bytes() == b"User-agent: *\nDisallow: /\n"

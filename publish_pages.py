@@ -35,9 +35,11 @@ MAX_FILE_BYTES = 25 * 1024 * 1024  # Pages 무료 플랜의 파일당 한도(25 
 DEPLOY_TIMEOUT_SEC = 600
 
 # /csv/* 는 파일명에 버전이 들어 있어 내용이 바뀌면 이름이 바뀐다 -> 1년 immutable. CORS 는 대시보드(다른 출처)가 읽을 수 있게 연다.
+# Pages 는 text/csv 를 압축하지 않아 text/plain 으로 내보내면 br 압축된다(2.5MB→0.69MB 실측). 클라이언트는 텍스트로 파싱하므로 타입과 무관.
 HEADERS_TXT = (
     "/csv/*\n"
     "  Access-Control-Allow-Origin: *\n"
+    "  Content-Type: text/plain; charset=utf-8\n"
     "  Cache-Control: public, max-age=31536000, immutable\n"
 )
 ROBOTS_TXT = "User-agent: *\nDisallow: /\n"
