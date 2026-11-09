@@ -3,7 +3,9 @@
   GET / , /index.html 리다이렉트: PUBLIC_FRONT_ON_PAGES 켜짐 + 상태 파일에 front + 세션 없음 + stay=1 아님 -> 302 (쿼리 보존, stay 제거)
     꺼짐 / front 없음(옛 형식·CSV 만) / 유효 세션 / stay=1 / PAGES_BASE_URL 이 규칙에 안 맞음 -> 그대로 서빙(방문 기록 포함). /manage 는 영향 없음
   CORS: 공개 엔드포인트(/api/versions, /api/csv/*, /api/announcements, /api/metrics, /api/visit, 공개 POST /api/feedback)에만
-    Access-Control-Allow-Origin: <Pages 주소 그대로>(* 아님) + Vary: Origin, 자격증명 허용 없음. 관리자 엔드포인트에는 없다
+    요청 Origin 이 허용 목록(PAGES_BASE_URL + PUBLIC_FRONT_ORIGINS)에 있을 때만 Access-Control-Allow-Origin: <그 Origin>(* 아님), 항상 Vary: Origin,
+    자격증명 허용 없음. 관리자 엔드포인트에는 없다
+  자체 도메인 전환: PUBLIC_FRONT_URL 이 리다이렉트 목적지, 그 호스트가 요청 Host 와 같으면 루프 방지로 그대로 서빙, 새 env 가 없으면 기존 동작
   POST /api/visit: 브라우저 UA 만 기록, 봇은 건너뜀, 204, raw IP 는 저장하지 않고 해시만
   크로스 오리진 피드백: text/plain 본문(= CORS 단순 요청, preflight 없음)을 JSON 으로 읽어 저장한다
 
@@ -19,6 +21,7 @@ import pytest
 import store
 
 PAGES = "https://demo-proj.pages.dev"
+OWN = "https://front.example.com"
 IP = "203.0.113.77"
 BROWSER_UA = "Mozilla/5.0 (X11; Linux x86_64) Chrome/130"
 
@@ -37,6 +40,8 @@ def web(tmp_path, monkeypatch):
     monkeypatch.setattr(store, "CACHE_DIR", str(cache))
     monkeypatch.setenv("PAGES_BASE_URL", PAGES)
     monkeypatch.setenv("PUBLIC_FRONT_ON_PAGES", "1")
+    monkeypatch.delenv("PUBLIC_FRONT_ORIGINS", raising=False)
+    monkeypatch.delenv("PUBLIC_FRONT_URL", raising=False)
     visits, feedback = [], []
     monkeypatch.setattr(server, "_record_visit", visits.append)
     monkeypatch.setattr(server, "_feedback_rate_limited", lambda ip: False)
@@ -132,6 +137,30 @@ def test_bad_pages_base_url_disables_redirect(web, monkeypatch):
     assert web("GET", "/")[0] == 200
 
 
+def test_redirect_goes_to_public_front_url(web, monkeypatch):
+    web.publish_state()
+    monkeypatch.setenv("PUBLIC_FRONT_URL", OWN)
+    status, h, _ = web("GET", "/?q=h2&stay=0", Host="get-asap.hydrochan.com")
+    assert status == 302 and h["location"] == f"{OWN}/?q=h2"
+
+
+def test_redirect_self_loop_guard_serves_instead(web, monkeypatch):
+    web.publish_state()
+    monkeypatch.setenv("PUBLIC_FRONT_URL", OWN)
+    status, _, body = web("GET", "/", Host="front.example.com")  # 이미 그 호스트로 들어왔다
+    assert status == 200 and body == b"<p>origin front</p>"
+    assert web("GET", "/", Host="front.example.com:443")[0] == 200  # 포트가 붙어도 같은 호스트
+    assert web("GET", "/", Host="other.example.com")[0] == 302
+
+
+def test_bad_public_front_url_falls_back_to_pages_base(web, monkeypatch):
+    web.publish_state()
+    for bad in ("http://front.example.com", "https://front.example.com/x", "front.example.com"):
+        monkeypatch.setenv("PUBLIC_FRONT_URL", bad)
+        status, h, _ = web("GET", "/")
+        assert status == 302 and h["location"] == f"{PAGES}/"
+
+
 def test_manage_and_other_paths_unaffected(web):
     web.publish_state()
     status, h, _ = web("GET", "/manage")
@@ -151,7 +180,7 @@ def test_manage_and_other_paths_unaffected(web):
     ("POST", "/api/feedback"),
 ])
 def test_cors_exact_origin_on_public_endpoints(web, method, path):
-    status, h, _ = web(method, path, body=b'{"message":"hi"}' if method == "POST" and "feedback" in path else None)
+    status, h, _ = web(method, path, body=b'{"message":"hi"}' if method == "POST" and "feedback" in path else None, Origin=PAGES)
     assert h["access-control-allow-origin"] == PAGES  # '*' 가 아니라 정확한 출처
     assert h["vary"] == "Origin"
     assert "access-control-allow-credentials" not in h
@@ -172,9 +201,35 @@ def test_no_cors_on_admin_endpoints(web, method, path):
     assert "access-control-allow-origin" not in h
 
 
+def test_cors_reflects_only_allowed_origins(web, monkeypatch):
+    monkeypatch.setenv("PUBLIC_FRONT_ORIGINS", f" {OWN} , https://bad.example.com/x, http://plain.example.com ,")
+    for origin in (PAGES, OWN):
+        h = web("GET", "/api/versions", Origin=origin)[1]
+        assert h["access-control-allow-origin"] == origin and h["vary"] == "Origin"
+    for origin in ("https://evil.example.com", "https://bad.example.com", "http://plain.example.com", "null"):  # 형식 위반 항목은 허용 목록에 못 든다
+        h = web("GET", "/api/versions", Origin=origin)[1]
+        assert "access-control-allow-origin" not in h and h["vary"] == "Origin"
+    h = web("GET", "/api/versions")[1]  # Origin 없는 요청
+    assert "access-control-allow-origin" not in h and h["vary"] == "Origin"
+
+
+def test_cors_own_domain_not_on_admin_endpoints(web, monkeypatch):
+    monkeypatch.setenv("PUBLIC_FRONT_ORIGINS", OWN)
+    for method, path in (("GET", "/api/stats"), ("GET", "/api/feedback"), ("GET", "/api/session"), ("POST", "/api/login")):
+        h = web(method, path, body=b"{}" if method == "POST" else None, Origin=OWN)[1]
+        assert "access-control-allow-origin" not in h
+
+
+def test_cors_front_origins_work_without_pages_base(web, monkeypatch):
+    monkeypatch.delenv("PAGES_BASE_URL")
+    monkeypatch.setenv("PUBLIC_FRONT_ORIGINS", OWN)
+    assert web("GET", "/api/versions", Origin=OWN)[1]["access-control-allow-origin"] == OWN
+    assert "access-control-allow-origin" not in web("GET", "/api/versions", Origin=PAGES)[1]
+
+
 def test_no_cors_when_pages_base_not_configured(web, monkeypatch):
     monkeypatch.delenv("PAGES_BASE_URL")
-    assert "access-control-allow-origin" not in web("GET", "/api/versions")[1]
+    assert "access-control-allow-origin" not in web("GET", "/api/versions", Origin=PAGES)[1]
 
 
 # ---------- /api/visit ----------

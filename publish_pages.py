@@ -13,7 +13,8 @@ https://<project>.pages.dev/ 에서 첫 화면까지 Cloudflare LAX 를 거치�
   python publish_pages.py --dry-run   # staging(cache/pages_out)만 만들고 계획을 출력, 배포·상태 기록 없음
 
 설정(.env 또는 환경변수): CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, PAGES_PROJECT, PAGES_BASE_URL(https://<project>.pages.dev),
-WRANGLER_BIN(wrangler 실행 파일 경로, 기본 .tools/node/bin/wrangler). 배포에 성공한 뒤에만 cache/pages_published.json 을 쓴다.
+WRANGLER_BIN(wrangler 실행 파일 경로, 기본 .tools/node/bin/wrangler),
+PUBLIC_API_BASE(Pages 화면이 부르는 API·관리자 출처, 기본 https://get-asap.hydrochan.com). 배포에 성공한 뒤에만 cache/pages_published.json 을 쓴다.
 """
 import argparse
 import datetime
@@ -31,48 +32,58 @@ import store
 logger = logging.getLogger(__name__)
 
 REQUIRED_KEYS = ("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "PAGES_PROJECT", "PAGES_BASE_URL")
-OPTIONAL_KEYS = ("WRANGLER_BIN",)
+OPTIONAL_KEYS = ("WRANGLER_BIN", "PUBLIC_API_BASE")
 DEFAULT_WRANGLER = os.path.join(".tools", "node", "bin", "wrangler")
 PROJECT_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,57}$")  # Pages 프로젝트 이름 규칙(소문자·숫자·하이픈, 58자 이하)
 MAX_FILE_BYTES = 25 * 1024 * 1024  # Pages 무료 플랜의 파일당 한도(25 MiB) - 넘는 달은 올리지 않고 원본에서 받게 둔다
 DEPLOY_TIMEOUT_SEC = 600
 DASHBOARD_DIR = os.path.join(store.PROJECT_ROOT, "dashboard")  # 공개 화면 원본(index.html + static/)
 
-# 원본(API) 출처 - pages 화면이 /api/* 를 부르는 곳. CSP connect-src 와 index.html 의 API_BASE 가 같아야 한다.
-API_ORIGIN = "https://get-asap.hydrochan.com"
-# 공개 화면 보안 헤더: 운영 nginx 의 CSP 와 같은 취지. 외부 출처는 index.html 이 쓰는 CDN(chart.js·papaparse)과 구글 폰트뿐이다.
-CSP = (
-    "default-src 'self'; "
-    "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; "
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
-    "font-src 'self' https://fonts.gstatic.com; "
-    "img-src 'self' data:; "
-    f"connect-src 'self' {API_ORIGIN}; "
-    "frame-ancestors 'none'; base-uri 'self'"
-)
+# 원본(API) 출처 기본값 - pages 화면이 /api/* 를 부르는 곳. env PUBLIC_API_BASE 로 바꾼다(자체 도메인 전환: https://get-asap-api.hydrochan.com).
+# CSP connect-src · index.html 에 넣는 ASAP_API_BASE · _redirects 대상이 모두 이 값이다.
+DEFAULT_API_BASE = "https://get-asap.hydrochan.com"
+API_BASE_RE = re.compile(r"^https://[a-z0-9.-]+\Z")  # 끝 슬래시·경로·포트·대문자 없는 https 출처
+
+
+def csp_for(api_base: str) -> str:
+    """공개 화면 보안 헤더: 운영 nginx 의 CSP 와 같은 취지. 외부 출처는 index.html 이 쓰는 CDN(chart.js·papaparse)과 구글 폰트뿐이다."""
+    return (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        f"connect-src 'self' {api_base}; "
+        "frame-ancestors 'none'; base-uri 'self'"
+    )
+
+
 # /csv/* 는 파일명에 버전이 들어 있어 내용이 바뀌면 이름이 바뀐다 -> 1년 immutable. CORS 는 대시보드(다른 출처)가 읽을 수 있게 연다.
 # Pages 는 text/csv 를 압축하지 않아 text/plain 으로 내보내면 br 압축된다(2.5MB→0.69MB 실측). 클라이언트는 텍스트로 파싱하므로 타입과 무관.
 # versions.json 은 매번 새로 받아야(no-store) 첫 화면이 최신 사본을 가리킨다. index.html 은 no-cache(재검증, 안 바뀌었으면 304).
-HEADERS_TXT = (
-    "/*\n"
-    f"  Content-Security-Policy: {CSP}\n"
-    "  X-Content-Type-Options: nosniff\n"
-    "  Referrer-Policy: strict-origin-when-cross-origin\n"
-    "  X-Frame-Options: DENY\n"
-    # 아래 둘은 운영 nginx 와 같은 값. 빠지면 securityheaders.com 이 B 로 매긴다(2026-11-04 실측, nginx 쪽은 A).
-    "  Strict-Transport-Security: max-age=31536000; includeSubDomains\n"
-    "  Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()\n"
-    "/csv/*\n"
-    "  Access-Control-Allow-Origin: *\n"
-    "  Content-Type: text/plain; charset=utf-8\n"
-    "  Cache-Control: public, max-age=31536000, immutable\n"
-    "/versions.json\n"
-    "  Cache-Control: no-store\n"
-    "/\n"
-    "  Cache-Control: no-cache\n"
-    "/index.html\n"
-    "  Cache-Control: no-cache\n"
-)
+def headers_txt(api_base: str) -> str:
+    return (
+        "/*\n"
+        f"  Content-Security-Policy: {csp_for(api_base)}\n"
+        "  X-Content-Type-Options: nosniff\n"
+        "  Referrer-Policy: strict-origin-when-cross-origin\n"
+        "  X-Frame-Options: DENY\n"
+        # 아래 둘은 운영 nginx 와 같은 값. 빠지면 securityheaders.com 이 B 로 매긴다(2026-11-04 실측, nginx 쪽은 A).
+        "  Strict-Transport-Security: max-age=31536000; includeSubDomains\n"
+        "  Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()\n"
+        "/csv/*\n"
+        "  Access-Control-Allow-Origin: *\n"
+        "  Content-Type: text/plain; charset=utf-8\n"
+        "  Cache-Control: public, max-age=31536000, immutable\n"
+        "/versions.json\n"
+        "  Cache-Control: no-store\n"
+        "/\n"
+        "  Cache-Control: no-cache\n"
+        "/index.html\n"
+        "  Cache-Control: no-cache\n"
+    )
+
+
 ROBOTS_TXT = "User-agent: *\nDisallow: /\n"
 
 
@@ -86,8 +97,13 @@ def load_config(env=None) -> dict[str, str]:
     return {k: (env.get(k) or "").strip() for k in REQUIRED_KEYS + OPTIONAL_KEYS}
 
 
-def build_staging(cache_dir: str, out_dir: str) -> dict[str, str]:
-    """out_dir 을 비우고 새로 만든다: csv/<월>.<버전>.csv, _headers, robots.txt. 올라가는 {월: 버전} 을 돌려준다.
+def redirects_txt(api_base: str) -> str:
+    """Pages 의 _redirects: 공개 화면 호스트로 들어온 옛 북마크·링크(/manage, /api/*)를 API 출처로 302 한다."""
+    return f"/manage {api_base}/manage 302\n/api/* {api_base}/api/:splat 302\n"
+
+
+def build_staging(cache_dir: str, out_dir: str, api_base: str = DEFAULT_API_BASE) -> dict[str, str]:
+    """out_dir 을 비우고 새로 만든다: csv/<월>.<버전>.csv, _headers, _redirects, robots.txt. 올라가는 {월: 버전} 을 돌려준다.
 
     버전은 여기서 읽은 바이트로 계산한다 - refresh_csv 가 그 사이 파일을 다시 써도 파일명과 내용이 어긋나지 않는다."""
     shutil.rmtree(out_dir, ignore_errors=True)
@@ -108,7 +124,7 @@ def build_staging(cache_dir: str, out_dir: str) -> dict[str, str]:
         with open(os.path.join(csv_dir, f"{month}.{ver}.csv"), "wb") as f:
             f.write(data)
         months[month] = ver
-    for name, text in (("_headers", HEADERS_TXT), ("robots.txt", ROBOTS_TXT)):
+    for name, text in (("_headers", headers_txt(api_base)), ("_redirects", redirects_txt(api_base)), ("robots.txt", ROBOTS_TXT)):
         with open(os.path.join(out_dir, name), "w", encoding="utf-8", newline="\n") as f:
             f.write(text)
     return months
@@ -118,10 +134,16 @@ def build_staging(cache_dir: str, out_dir: str) -> dict[str, str]:
 _LOCAL_REF_RE = re.compile(r"""(?:src|href)\s*=\s*["'](/(?!/)[^"'#?]*)""", re.IGNORECASE)
 
 
-def stage_front(out_dir: str, months: dict[str, str], dashboard_dir: str | None = None) -> str | None:
+# 정적 공개 화면 표시: 원본 index.html 은 아래 두 줄이 문자 그대로 한 번씩 있고(false / ''), staging 사본에서만 true / API 출처로 바뀐다.
+_STATIC_FRONT_OFF = "var ASAP_STATIC_FRONT = false;"
+_API_BASE_EMPTY = "var ASAP_API_BASE = '';"
+
+
+def stage_front(out_dir: str, months: dict[str, str], dashboard_dir: str | None = None, api_base: str = DEFAULT_API_BASE) -> str | None:
     """공개 화면을 out_dir 에 넣는다: index.html, 그것이 참조하는 로컬 정적 파일(경로 유지), versions.json({월: 버전}).
     돌려주는 값은 csv/ 밖의 모든 staged 파일(_headers·robots.txt 포함)의 sha256 앞 12자 - 화면·헤더가 바뀌면 달라진다.
-    index.html 이 없거나 참조 파일이 빠졌거나 dashboard 밖을 가리키면 깨진 화면을 올리지 않도록 None(= 화면은 올리지 않음)."""
+    index.html 이 없거나 표시 줄이 정확히 한 번씩 없거나 참조 파일이 빠졌거나 dashboard 밖을 가리키면 깨진 화면을 올리지 않도록 None(= 화면은 올리지 않음).
+    원본 dashboard/index.html 은 건드리지 않고 staging 사본에만 ASAP_STATIC_FRONT=true 와 api_base 를 넣는다."""
     root = os.path.normpath(dashboard_dir or DASHBOARD_DIR)
     index_path = os.path.join(root, "index.html")
     try:
@@ -130,7 +152,12 @@ def stage_front(out_dir: str, months: dict[str, str], dashboard_dir: str | None 
     except OSError:
         logger.warning("index.html 을 읽지 못해 공개 화면은 올리지 않음: %s", index_path)
         return None
-    refs = sorted(set(_LOCAL_REF_RE.findall(index.decode("utf-8", errors="replace"))) - {"/"})
+    text = index.decode("utf-8", errors="replace")
+    if text.count(_STATIC_FRONT_OFF) != 1 or text.count(_API_BASE_EMPTY) != 1:
+        logger.warning("index.html 에 정적 화면 표시 줄이 정확히 한 번씩 없어 공개 화면은 올리지 않음: %s / %s", _STATIC_FRONT_OFF, _API_BASE_EMPTY)
+        return None
+    index = text.replace(_STATIC_FRONT_OFF, "var ASAP_STATIC_FRONT = true;").replace(_API_BASE_EMPTY, f"var ASAP_API_BASE = '{api_base}';").encode("utf-8")
+    refs = sorted(set(_LOCAL_REF_RE.findall(text)) - {"/"})
     files: dict[str, bytes] = {"index.html": index}
     for ref in refs:
         src = os.path.normpath(os.path.join(root, ref.lstrip("/")))
@@ -241,6 +268,10 @@ def main(argv=None) -> int:
         if missing:
             print(f"설정이 없습니다 (.env 또는 환경변수): {', '.join(missing)}", file=sys.stderr)
             return 2
+    api_base = cfg["PUBLIC_API_BASE"] or DEFAULT_API_BASE
+    if not API_BASE_RE.match(api_base):
+        print("PUBLIC_API_BASE 는 https://호스트 형식이어야 합니다 (끝 슬래시·경로 없이).", file=sys.stderr)
+        return 2
     base = cfg["PAGES_BASE_URL"]
     if base and not store.PAGES_BASE_RE.match(base):
         print("PAGES_BASE_URL 은 https://<project>.pages.dev 형식이어야 합니다.", file=sys.stderr)
@@ -251,11 +282,11 @@ def main(argv=None) -> int:
 
     cache_dir = store.CACHE_DIR
     out_dir = os.path.join(cache_dir, "pages_out")
-    months = build_staging(cache_dir, out_dir)
+    months = build_staging(cache_dir, out_dir, api_base)
     if not months:
         logger.error("올릴 슬림 CSV 가 없습니다 (%s)", cache_dir)
         return 1
-    front = stage_front(out_dir, months)
+    front = stage_front(out_dir, months, api_base=api_base)
     state = store.read_pages_state(cache_dir)
     old = state["months"] if state else {}
     unchanged = bool(state) and old == months and (not base or state["base"] == base) and state.get("front") == front

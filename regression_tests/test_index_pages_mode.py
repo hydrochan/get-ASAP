@@ -1,7 +1,7 @@
 """dashboard/index.html 의 Pages 모드(공개 화면을 *.pages.dev 에서 서빙) 클라이언트 동작 회귀 테스트.
 
 브라우저 없이 Node 로 index.html 인라인 스크립트에서 함수 원문을 뽑아 가짜 fetch 로 돌린다(regression_tests/pages_mode_driver.js).
-  Pages 모드 판별 / apiUrl·pubFetch / paperHref 절대 링크 / versions.json 으로 첫 화면 -> 원본 버전과 다른 달만 다시 받기 /
+  Pages 모드 판별(호스트가 아니라 publish_pages.py 가 staging 사본에 넣는 ASAP_STATIC_FRONT 표시) / apiUrl·pubFetch / paperHref 절대 링크 / versions.json 으로 첫 화면 -> 원본 버전과 다른 달만 다시 받기 /
   원본 실패 시 pages 데이터 유지 / stale 로드 가드 / /api/session 호출 없음 + 방문 신호 한 번 / 관리자 로그인은 원본으로 / 구문 검사
 Node 가 없으면 건너뛴다.
 """
@@ -20,6 +20,8 @@ pytestmark = pytest.mark.skipif(NODE is None, reason="node 가 없음")
 
 SCENARIOS = [
     "pages mode detection",
+    "marker true on a custom domain drives the pages flow with the injected api base",
+    "marker false on a pages dev like origin stays in origin mode",
     "apiUrl and pubFetch",
     "paperHref absolute in pages mode",
     "first paint from versions.json then only changed months from origin",

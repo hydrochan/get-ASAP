@@ -35,7 +35,7 @@ const csv = (id, month) => `id,title,journal,date,doi,gpt_reason\n${id},Paper ${
 function deferred() { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; }
 
 // 환경을 만든다. routes: (url, opts) => 응답 | Promise (없으면 404)
-function build({ pagesMode, routes, origin = PAGES, months = ['2026-11', '2026-10', '2026-09'] }) {
+function build({ pagesMode, routes, origin = PAGES, months = ['2026-11', '2026-10', '2026-09'], apiBase = API }) {
   const calls = [];
   const renders = [];
   const ctx = {
@@ -62,7 +62,7 @@ function build({ pagesMode, routes, origin = PAGES, months = ['2026-11', '2026-1
   const names = ['apiUrl', 'pubFetch', 'fetchOriginVersions', 'fetchPagesVersions', 'fetchVersions', 'fetchMonthRows',
                  'fetchMonths', 'reconcileWithOrigin', '_loadData', 'paperHref'];
   const body = `
-    const API_BASE = ${JSON.stringify(API)}; const PAGES_MODE = ${pagesMode};
+    const API_BASE = ${JSON.stringify(apiBase)}; const PAGES_MODE = ${pagesMode};
     const PAGES_BASE_RE = /^https:\\/\\/[a-z0-9-]+\\.pages\\.dev$/;
     const { fetch, location, Papa, localDateStr, getMonthRange, document, FIRST_STAGE_MONTHS, scheduleRender, flushRender,
             renderLoad, syncLoadStatus, updateLoadNotice, _safeUrl, console } = ctx;
@@ -75,17 +75,69 @@ function build({ pagesMode, routes, origin = PAGES, months = ['2026-11', '2026-1
   return { api, calls, renders, ctx, newLd };
 }
 
+// publish_pages.py 가 staging 사본에 하는 치환과 같다(원본 표시 줄 -> true / API 출처)
+const stagedHead = (apiBase) => headScript.replace('var ASAP_STATIC_FRONT = false;', 'var ASAP_STATIC_FRONT = true;').replace("var ASAP_API_BASE = '';", `var ASAP_API_BASE = '${apiBase}';`);
 const isCsv = (u) => u.includes('/csv/') || u.includes('/api/csv/');
 const scenarios = {
   async 'pages mode detection'() {
-    const modeOf = (origin) => { const sb = { location: { origin } }; vm.runInNewContext(headScript, sb); return sb.ASAP_PAGES_MODE; };
-    assert.strictEqual(modeOf('https://get-asap-data.pages.dev'), true);
-    assert.strictEqual(modeOf('https://get-asap.hydrochan.com'), false);
-    assert.strictEqual(modeOf('http://localhost:8080'), false);
-    assert.strictEqual(modeOf('https://a.b.pages.dev'), false);
-    assert.strictEqual(modeOf('http://x.pages.dev'), false);
-    const sb = { location: { origin: PAGES } }; vm.runInNewContext(headScript, sb);
-    assert.strictEqual(sb.ASAP_API_BASE, API);
+    // 원본(서버가 서빙하는) index.html 은 표시 줄이 false / '' - 어느 호스트에서 열어도(pages.dev 포함) 원본 모드
+    assert.strictEqual((headScript.match(/var ASAP_STATIC_FRONT = false;/g) || []).length, 1);
+    assert.strictEqual((headScript.match(/var ASAP_API_BASE = '';/g) || []).length, 1);
+    const modeOf = (src, origin) => { const sb = { location: { origin } }; vm.runInNewContext(src, sb); return sb; };
+    for (const origin of ['https://get-asap-data.pages.dev', 'https://get-asap.hydrochan.com', 'https://get-asap-api.hydrochan.com', 'http://localhost:8080', 'https://a.b.pages.dev']) {
+      const sb = modeOf(headScript, origin);
+      assert.strictEqual(sb.ASAP_PAGES_MODE, false, origin);
+      assert.strictEqual(sb.ASAP_API_BASE, '', origin);
+    }
+    // staging 사본(표시 true)은 호스트와 무관하게 정적 화면 모드 + 주입된 API 출처
+    for (const origin of ['https://get-asap-data.pages.dev', 'https://get-asap.hydrochan.com', 'https://front.example.com', 'http://localhost:8080']) {
+      const sb = modeOf(stagedHead(API), origin);
+      assert.strictEqual(sb.ASAP_PAGES_MODE, true, origin);
+      assert.strictEqual(sb.ASAP_API_BASE, API, origin);
+    }
+    // 메인 스크립트는 head 전역을 그대로 쓴다(자체 호스트 판별 없음)
+    assert.ok(main.includes('const PAGES_MODE = ASAP_PAGES_MODE;') && main.includes('const API_BASE = ASAP_API_BASE;'));
+    assert.strictEqual(/pages\.dev/.test(headScript), false);
+  },
+
+  async 'marker true on a custom domain drives the pages flow with the injected api base'() {
+    const API2 = 'https://get-asap-api.hydrochan.com';
+    const sb = { location: { origin: 'https://front.example.com' } };
+    vm.runInNewContext(stagedHead(API2), sb);
+    const routes = (u) => {
+      if (u === './versions.json') return resp({ '2026-10': 'v10' });
+      if (u === API2 + '/api/versions') return resp({ months: { '2026-10': 'v10' }, pages: { base: PAGES, months: { '2026-10': 'v10' } } });
+      if (u.startsWith(PAGES + '/csv/2026-10.v10.csv')) return resp(csv(10, '2026-10'));
+    };
+    const p = build({ pagesMode: sb.ASAP_PAGES_MODE, apiBase: sb.ASAP_API_BASE, origin: 'https://front.example.com', routes, months: ['2026-10'] });
+    assert.strictEqual(p.api.apiUrl('/api/x'), API2 + '/api/x');
+    assert.strictEqual(p.api.paperHref({ id: '42' }), API2 + '/api/link/42');
+    await p.api.pubFetch('/api/metrics');
+    assert.strictEqual(p.calls[0].url, API2 + '/api/metrics');
+    assert.deepStrictEqual({ mode: p.calls[0].opts.mode, credentials: p.calls[0].opts.credentials }, { mode: 'cors', credentials: 'omit' });
+    const ld = p.newLd();
+    await p.api._loadData(ld);
+    await new Promise(r => setTimeout(r, 20));
+    const urls = p.calls.map(c => c.url);
+    assert.ok(urls.includes('./versions.json'), urls.join('\n'));
+    assert.ok(urls.includes(API2 + '/api/versions'), urls.join('\n'));
+    assert.ok(urls.every(u => !u.startsWith(API + '/')), urls.join('\n'));   // 기본 출처로는 가지 않는다
+  },
+
+  async 'marker false on a pages dev like origin stays in origin mode'() {
+    const sb = { location: { origin: PAGES } };
+    vm.runInNewContext(headScript, sb);   // 표시가 false 면 pages.dev 에서 열어도 원본 모드
+    const routes = (u) => {
+      if (u === '/api/versions') return resp({ months: { '2026-10': 'v10' }, pages: null });
+      if (u.startsWith('/api/csv/2026-10')) return resp(csv(10, '2026-10'));
+    };
+    const p = build({ pagesMode: sb.ASAP_PAGES_MODE, apiBase: sb.ASAP_API_BASE, origin: PAGES, routes, months: ['2026-10'] });
+    assert.strictEqual(p.api.apiUrl('/api/x'), '/api/x');
+    assert.strictEqual(p.api.paperHref({ id: '42' }), '/api/link/42');
+    await p.api._loadData(p.newLd());
+    await new Promise(r => setTimeout(r, 20));
+    const urls = p.calls.map(c => c.url);
+    assert.ok(urls.length > 0 && urls.every(u => u.startsWith('/api/')), urls.join('\n'));   // versions.json·절대 주소 없음
   },
 
   async 'apiUrl and pubFetch'() {

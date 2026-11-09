@@ -170,13 +170,34 @@ def _pages_base() -> str | None:
     return base if store.PAGES_BASE_RE.match(base) else None
 
 
-def _front_redirect_base() -> str | None:
-    """익명 방문자를 보낼 Pages 주소. PUBLIC_FRONT_ON_PAGES 가 켜져 있고(1/true/yes/on) 공개 화면(state 의 front)이 실제로 올라가 있을 때만."""
+_HTTPS_ORIGIN_RE = re.compile(r"^https://[a-z0-9.-]+\Z")  # 경로·포트·끝 슬래시 없는 https 출처
+
+
+def _front_origins() -> set[str]:
+    """공개 화면이 떠 있는 출처들 = PAGES_BASE_URL + env PUBLIC_FRONT_ORIGINS(쉼표 목록, 예: 자체 도메인 https://get-asap.hydrochan.com).
+    규칙(https://호스트)에 안 맞는 항목은 버린다. 비어 있으면 CORS 가 꺼진다."""
+    out = {b for b in (_pages_base(),) if b}
+    for item in (os.environ.get("PUBLIC_FRONT_ORIGINS") or "").split(","):
+        item = item.strip()
+        if _HTTPS_ORIGIN_RE.match(item):
+            out.add(item)
+    return out
+
+
+def _front_redirect_base(request_host: str = "") -> str | None:
+    """익명 방문자를 보낼 공개 화면 주소(env PUBLIC_FRONT_URL, 없거나 규칙에 안 맞으면 PAGES_BASE_URL). PUBLIC_FRONT_ON_PAGES 가 켜져 있고(1/true/yes/on)
+    공개 화면(state 의 front)이 실제로 올라가 있을 때만. 목적지 호스트가 이 요청의 Host 와 같으면 리다이렉트 루프가 되므로 None(= 그대로 서빙)."""
     if (os.environ.get("PUBLIC_FRONT_ON_PAGES") or "").strip().lower() not in ("1", "true", "yes", "on"):
         return None
-    base = _pages_base()
-    state = store.read_pages_state(CACHE_DIR) if base else None
-    return base if state and state.get("front") else None
+    pages = _pages_base()
+    custom = (os.environ.get("PUBLIC_FRONT_URL") or "").strip()
+    target = custom if _HTTPS_ORIGIN_RE.match(custom) else pages
+    state = store.read_pages_state(CACHE_DIR) if target else None
+    if not (state and state.get("front")):
+        return None
+    if request_host and urllib.parse.urlparse(target).hostname == request_host.split(":")[0].strip().lower():
+        return None
+    return target
 
 
 # Pages 화면(다른 출처)이 브라우저에서 부르는 공개 엔드포인트만 CORS 를 연다. 관리자 API 는 열지 않는다.
@@ -666,10 +687,13 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         logger.info(format, *args)
 
     def end_headers(self):
-        # 공개 엔드포인트 응답(304·오류 포함)에 Pages 출처 CORS 를 붙인다. `*` 가 아니라 Pages 주소 그대로, 쿠키(credentials)는 허용하지 않는다.
-        base = _pages_base()
-        if base and _cors_applies(self.command or "", urllib.parse.urlparse(self.path).path):
-            self.send_header("Access-Control-Allow-Origin", base)
+        # 공개 엔드포인트 응답(304·오류 포함)에 공개 화면 출처 CORS 를 붙인다. `*` 가 아니라 요청 Origin 이 허용 목록(_front_origins)에 있을 때 그 값 그대로,
+        # 쿠키(credentials)는 허용하지 않는다. 캐시가 출처별로 갈리도록 Vary: Origin 은 항상 붙인다.
+        allowed = _front_origins()
+        if allowed and _cors_applies(self.command or "", urllib.parse.urlparse(self.path).path):
+            origin = (getattr(self, "headers", None) or {}).get("Origin")
+            if origin in allowed:
+                self.send_header("Access-Control-Allow-Origin", origin)
             self.send_header("Vary", "Origin")
         super().end_headers()
 
@@ -1158,7 +1182,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         # 공개 화면을 Pages 로 옮겼으면 익명 방문자는 거기로 보낸다. 세션이 있는 사람(관리자: /manage 에서 돌아온 경우 등)과
         # ?stay=1 (Pages 의 관리자 로그인 진입)은 그대로 서빙한다. 방문 기록은 Pages 쪽 /api/visit 이 남기므로 여기서는 세지 않는다.
         if path == "/index.html":
-            target = _front_redirect_base()
+            target = _front_redirect_base(self.headers.get("Host") or "")
             query = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
             if target and ("stay", "1") not in query and not self._is_authenticated():
                 rest = urllib.parse.urlencode([(k, v) for k, v in query if k != "stay"])

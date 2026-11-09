@@ -34,8 +34,16 @@ SLIM_10 = "﻿id,title,journal,date,doi,gpt_reason\n2,Beta,J,2026-10-02,,why\n".
 INDEX_HTML = (
     '<html><head><link rel="stylesheet" href="/static/tailwind.css?v=abc123">'
     '<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script></head><body>'
+    "<script>\n  var ASAP_STATIC_FRONT = false;\n  var ASAP_API_BASE = '';\n</script>"
     '<a href="https://doi.org/x">x</a><a href="#top">t</a></body></html>'
 )
+API = "https://get-asap.hydrochan.com"
+API2 = "https://get-asap-api.hydrochan.com"
+
+
+def staged_index(api=API, html=INDEX_HTML):
+    """staging 사본에 들어가야 하는 index.html: 표시 두 줄만 true / API 출처로 바뀐다."""
+    return html.replace("ASAP_STATIC_FRONT = false", "ASAP_STATIC_FRONT = true").replace("ASAP_API_BASE = ''", f"ASAP_API_BASE = '{api}'")
 
 
 def sha12(data: bytes) -> str:
@@ -134,6 +142,22 @@ def test_staging_headers_and_robots(env):
     assert (env.out / "robots.txt").read_bytes() == b"User-agent: *\nDisallow: /\n"
 
 
+def test_staging_redirects_follow_api_base(env):
+    publish_pages.build_staging(str(env.cache), str(env.out))
+    assert (env.out / "_redirects").read_text(encoding="utf-8") == (
+        f"/manage {API}/manage 302\n/api/* {API}/api/:splat 302\n")
+    publish_pages.build_staging(str(env.cache), str(env.out), API2)
+    assert (env.out / "_redirects").read_text(encoding="utf-8") == (
+        f"/manage {API2}/manage 302\n/api/* {API2}/api/:splat 302\n")
+
+
+def test_staging_csp_connect_src_follows_api_base(env):
+    publish_pages.build_staging(str(env.cache), str(env.out), API2)
+    headers = (env.out / "_headers").read_text(encoding="utf-8")
+    assert f"connect-src 'self' {API2}; frame-ancestors 'none'" in headers
+    assert "connect-src 'self' https://get-asap.hydrochan.com" not in headers
+
+
 def test_staging_is_rebuilt_from_scratch(env):
     publish_pages.build_staging(str(env.cache), str(env.out))
     old = env.out / "csv" / f"2026-09.{sha12(SLIM_09)}.csv"
@@ -160,13 +184,42 @@ def stage(env):
 
 def test_front_stages_index_referenced_assets_and_versions_json(env):
     months, front = stage(env)
-    assert (env.out / "index.html").read_text(encoding="utf-8") == INDEX_HTML
+    assert (env.out / "index.html").read_text(encoding="utf-8") == staged_index()
     assert (env.out / "static" / "tailwind.css").read_text(encoding="utf-8") == "body{margin:0}"  # 쿼리(?v=)는 경로에서 뗀다
     versions = json.loads((env.out / "versions.json").read_text(encoding="utf-8"))
     assert versions == months
     assert list(versions) == ["2026-10", "2026-09"]  # 최신 월 먼저
     assert re.fullmatch(r"[0-9a-f]{12}", front)
     assert not (env.out / "https:").exists()  # 외부 URL·#앵커는 파일로 보지 않는다
+
+
+def test_front_marker_injected_into_staged_copy_only(env):
+    months = publish_pages.build_staging(str(env.cache), str(env.out), API2)
+    assert publish_pages.stage_front(str(env.out), months, api_base=API2)
+    staged = (env.out / "index.html").read_text(encoding="utf-8")
+    assert staged == staged_index(API2)
+    assert "ASAP_STATIC_FRONT = false" not in staged
+    assert (env.dash / "index.html").read_text(encoding="utf-8") == INDEX_HTML  # 원본은 그대로(false / '')
+
+
+@pytest.mark.parametrize("html", [
+    INDEX_HTML.replace("var ASAP_STATIC_FRONT = false;", ""),  # 표시 줄 없음
+    INDEX_HTML.replace("var ASAP_API_BASE = '';", ""),
+    INDEX_HTML + "<script>var ASAP_STATIC_FRONT = false;</script>",  # 중복
+    INDEX_HTML + "<script>var ASAP_API_BASE = '';</script>",
+])
+def test_front_not_staged_when_marker_missing_or_duplicated(env, html):
+    (env.dash / "index.html").write_text(html, encoding="utf-8")
+    _, front = stage(env)
+    assert front is None and not (env.out / "versions.json").exists()
+
+
+def test_front_hash_changes_with_api_base(env):
+    months = publish_pages.build_staging(str(env.cache), str(env.out))
+    h1 = publish_pages.stage_front(str(env.out), months)
+    months = publish_pages.build_staging(str(env.cache), str(env.out), API2)
+    h2 = publish_pages.stage_front(str(env.out), months, api_base=API2)
+    assert h1 != h2
 
 
 def test_front_hash_tracks_html_asset_and_versions(env):
@@ -214,7 +267,7 @@ def test_deploy_success_runs_wrangler_and_writes_state(env, run, caplog):
     assert call.kwargs["env"]["CLOUDFLARE_API_TOKEN"] == TOKEN
     assert call.kwargs["env"]["CLOUDFLARE_ACCOUNT_ID"] == ACCOUNT
     assert TOKEN not in " ".join(call.cmd) and ACCOUNT not in " ".join(call.cmd)  # 인자로는 넘기지 않는다
-    assert call.listing == ["_headers", "csv", "index.html", "robots.txt", "static", "versions.json"]
+    assert call.listing == ["_headers", "_redirects", "csv", "index.html", "robots.txt", "static", "versions.json"]
     assert TOKEN not in caplog.text and ACCOUNT not in caplog.text
 
     state = json.loads(env.state.read_text(encoding="utf-8"))
@@ -223,6 +276,27 @@ def test_deploy_success_runs_wrangler_and_writes_state(env, run, caplog):
     dt.datetime.fromisoformat(state["published_at"])
     assert re.fullmatch(r"[0-9a-f]{12}", state["front"])
     assert not list(env.cache.glob("*.tmp"))
+
+
+def test_api_base_env_flows_into_deploy_and_redeploys_on_change(env, run, monkeypatch):
+    assert publish_pages.main([]) == 0 and len(run.calls) == 1
+    first = json.loads(env.state.read_text(encoding="utf-8"))["front"]
+    monkeypatch.setenv("PUBLIC_API_BASE", API2)
+    assert publish_pages.main([]) == 0
+    assert len(run.calls) == 2  # API 출처만 바뀌어도 재배포
+    assert json.loads(env.state.read_text(encoding="utf-8"))["front"] != first
+    assert f"var ASAP_API_BASE = '{API2}';" in (env.out / "index.html").read_text(encoding="utf-8")
+    assert f"connect-src 'self' {API2};" in (env.out / "_headers").read_text(encoding="utf-8")
+    assert f"/api/* {API2}/api/:splat 302" in (env.out / "_redirects").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("bad", ["http://x.example.com", "https://x.example.com/", "https://x.example.com/api",
+                                 "https://x.example.com:8443", "https://X.example.com", "get-asap.hydrochan.com",
+                                 "https://evil.com'; alert(1)//"])
+def test_invalid_api_base_is_rejected(env, run, monkeypatch, bad):
+    monkeypatch.setenv("PUBLIC_API_BASE", bad)
+    assert publish_pages.main([]) == 2
+    assert not run.calls and not env.state.exists()
 
 
 def test_unchanged_skips_deploy(env, run, caplog):
