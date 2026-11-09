@@ -110,7 +110,7 @@ def assert_denied(web, resp):
 
 
 def assert_logged_in(web, resp, user=ADMIN):
-    assert resp.status == 302 and resp.headers["location"] == "/"
+    assert resp.status == 302 and resp.headers["location"] == "/?stay=1"
     cookie = resp.headers["set-cookie"]
     assert "HttpOnly" in cookie and "SameSite=Strict" in cookie
     token = cookie.split(";")[0].removeprefix("session=")

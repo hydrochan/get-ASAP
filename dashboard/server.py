@@ -1171,7 +1171,10 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             forwarded_proto = self.headers.get("X-Forwarded-Proto", "").lower()
             secure_flag = "; Secure" if forwarded_proto == "https" else ""
             self.send_header("Set-Cookie", f"session={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={SESSION_TTL}{secure_flag}")
-            self.send_header("Location", "/")
+            # stay=1: Access 로그인(교차 사이트)을 거친 리다이렉트 체인에서는 Strict 쿠키가 다음 이동에 실리지 않아
+            # `/` 의 공개 화면 리다이렉트(PUBLIC_FRONT_ON_PAGES)가 관리자를 공개 화면으로 보내 버린다(2026-11-09 실측).
+            # 페이지가 뜬 뒤의 /api/session 요청(같은 사이트)에는 쿠키가 실리므로 관리자 모드로 로드된다.
+            self.send_header("Location", "/?stay=1")
             self.end_headers()
             return
 
