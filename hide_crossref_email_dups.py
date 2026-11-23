@@ -52,6 +52,7 @@ logger = logging.getLogger(__name__)
 MATCH_RANK = {"doi": 0, "alnum": 1, "prefix": 2, "fuzzy": 3}
 _SERIES_RE = re.compile(r"^[ivx0-9]{1,4}$")  # "Part I" -> "Part II", "(1)" -> "(2)" 같은 연재·번호 표지 차이
 MIN_PREFIX_REMAINDER = 4  # 접두 일치에서 긴 쪽이 이 글자 수 이상 더 길어야 초록 덧붙임으로 본다(그보다 짧으면 번호 표지 차이일 수 있다)
+FUZZY_BLOCK = 5  # 유사도 후보를 좁히는 앞·끝 글자 수
 LIVE = "deleted_at IS NULL AND dup_of IS NULL"
 
 
@@ -89,7 +90,7 @@ def title_match(new_title: str, old_title: str) -> str | None:
 
 
 class _OldIndex:
-    """저널 한 곳의 옛 행 조회표: DOI·영숫자 키 정확 조회, 접두 후보(정렬 키 bisect), 길이 순 정렬(유사도 후보)."""
+    """저널 한 곳의 옛 행 조회표: DOI·영숫자 키 정확 조회, 접두 후보(정렬 키 bisect), 앞·끝 5자 블록(유사도 후보)."""
 
     def __init__(self, rows):
         self.by_doi: dict[str, list] = collections.defaultdict(list)
@@ -102,8 +103,13 @@ class _OldIndex:
             if k:
                 self.by_key[k].append(r)
         self.sorted_keys = sorted(self.by_key)
-        self.by_len = sorted(((len(k), k) for k in self.by_key))
-        self.lens = [n for n, _ in self.by_len]
+        # 유사도 후보는 앞 5자 또는 끝 5자가 같은 키로 좁힌다(difflib 전수 비교는 저널당 수천 행이라 너무 느리다).
+        # 메일 제목과 Crossref 제목의 차이(초록 덧붙임·기호·엔티티)는 대개 한쪽 끝에서 생긴다.
+        self.by_head: dict[str, list[str]] = collections.defaultdict(list)
+        self.by_tail: dict[str, list[str]] = collections.defaultdict(list)
+        for k in self.by_key:
+            self.by_head[k[:FUZZY_BLOCK]].append(k)
+            self.by_tail[k[-FUZZY_BLOCK:]].append(k)
 
     def candidates(self, title: str):
         """title 과 느슨하게 닿을 수 있는 옛 행 후보(중복 없이)."""
@@ -123,12 +129,12 @@ class _OldIndex:
         for n in range(cs.PREFIX_MIN_LEN, len(a) + 1):
             for r in self.by_key.get(a[:n], ()):
                 seen[r["id"]] = r
-        # (3) 길이가 비슷한 키(유사도): 짧은 쪽 >= 0.9 * 긴 쪽
-        lo = bisect.bisect_left(self.lens, int(len(a) * cs.FUZZY_RATIO))
-        hi = bisect.bisect_right(self.lens, int(len(a) / cs.FUZZY_RATIO) + 1)
-        for _, k in self.by_len[lo:hi]:
-            for r in self.by_key[k]:
-                seen[r["id"]] = r
+        # (3) 앞·끝이 같고 길이가 비슷한 키(유사도): 짧은 쪽 >= 0.9 * 긴 쪽
+        lo, hi = len(a) * cs.FUZZY_RATIO, len(a) / cs.FUZZY_RATIO
+        for k in self.by_head.get(a[:FUZZY_BLOCK], []) + self.by_tail.get(a[-FUZZY_BLOCK:], []):
+            if lo <= len(k) <= hi:
+                for r in self.by_key[k]:
+                    seen[r["id"]] = r
         return list(seen.values())
 
 
