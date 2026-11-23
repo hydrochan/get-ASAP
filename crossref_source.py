@@ -285,6 +285,47 @@ def to_paper(item: dict, journal: str, today: dt.date | None = None) -> PaperMet
 # 호 번호 뒤 슬래시가 둘인 표지("Adv. Mater. 28//2026")도 있다(2026-11 백필 리허설에서 발견).
 _COVER_TITLE_RE = re.compile(r"\(\s*[A-Z][\w.&\- ]{1,40}?\s\d{1,3}/{1,2}(?:19|20)\d{2}\s*\)\s*$")
 _NATURE_DOI_PREFIX = "10.1038/"
+# 편집자 글·행사 공지·논평 라벨 (2026-11-23 유출 실측: Crossref 가 journal-article 로 등록하지만 연구 논문이 아닌 항목).
+# 패턴은 제목 앞머리(^)에 고정하거나 DOI 접두로 출판사를 한정하고, 운영 DB 정본 행 전체(메일 행 포함) 제목과 대조해
+# 연구 논문 오탐이 0건인 것만 남겼다(regression_tests/test_crossref_source.py 가 양·음 사례를 고정한다).
+_QUOTE = "\"'“‘"
+_EDITORIAL_ANY_RE = re.compile(  # 출판사 무관
+    rf"^(?:addition\s+(?:and\s+correction\s+)?(?:to|for)\s+[{_QUOTE}]"  # ACS 정정: Addition and Correction to “...”
+    r"|editor['’]?s?\s+notes?\s+to\s+(?:the\s+)?article\b"              # iScience: Editor Note to article entitled “...”
+    r"|comments?\s+on\s*:"                                              # Small: Comment on: ... (콜론 변형; reply to: 등은 filters 가 이미 거른다)
+    r"|commentary\s*:"
+    r"|snapshot\s*:)",                                                  # Cell Press SnapShot:
+    re.IGNORECASE,
+)
+_ACS_DOI_PREFIX = "10.1021/"
+_ACS_EDITORIAL_RE = re.compile(  # ACS 편집자 글: 행사·추모·인터뷰·저널 소식
+    r"^(?:celebrating|announcing|(?:a\s+)?tribute\s+to|interview\s+with|a\s+conversation\s+with"
+    r"|editor['’]s\s+(?:highlights|choice)|\d+\s+years?\s+of\b|introducing\s+the\b.*\b(?:collection|series|special\s+issue)\b)"
+    r"|\bspecial\s+issue\b|\bnobel\s+symposium\b|\bin\s+memory\s+of\b|\bES&T\b|\bappoints\b"
+    r"|\b(?:ACS\s+(?:Nano|Catalysis|Omega|Energy\s+Letters|Photonics|Central\s+Science|Sustainable|Applied|Materials|Physical|Polymers"
+    r"|Measurement|Engineering|Chemical\s+Biology|Organic|Nanoscience|Au)|JACS\s*Au)\b",  # 제 저널 이름이 제목에 나오는 글
+    re.IGNORECASE,
+)
+_CELL_DOI_PREFIXES = ("10.1016/j.chempr.", "10.1016/j.checat.", "10.1016/j.joule.", "10.1016/j.xcrp.", "10.1016/j.cell.",
+                      "10.1016/j.isci.", "10.1016/j.matt.")
+_CELL_EDITORIAL_RE = re.compile(r"^(?:chem\s+at\s+10|reaction|catalyst|voices)\s*:", re.IGNORECASE)  # Chem 10주년·Reaction·Catalyst 논평
+# RSC: 편집·서문·테마호 안내는 논문 번호 첫 자리가 9(d6cp90114j, d6sc90197b). 운영 DB 9로 시작하는 24건 전부 비논문, 연구 논문은 0/1.
+_RSC_EDITORIAL_DOI_RE = re.compile(r"^10\.1039/d\d[a-z]{2,3}9\d{4}[a-z]$")
+
+
+def _editorial_title(doi: str, title: str) -> bool:
+    """편집자 글·행사 공지·논평 라벨(출판사별 규칙). 출판사 한정 규칙은 DOI 접두로 범위를 좁힌다."""
+    doi = (doi or "").strip().lower()
+    title = title or ""
+    if _EDITORIAL_ANY_RE.match(title):
+        return True
+    if doi.startswith(_ACS_DOI_PREFIX) and _ACS_EDITORIAL_RE.search(title):
+        return True
+    if doi.startswith(_CELL_DOI_PREFIXES) and _CELL_EDITORIAL_RE.match(title):
+        return True
+    return _RSC_EDITORIAL_DOI_RE.match(doi) is not None
+
+
 _SCIENCE_DOI_PREFIX = "10.1126/science."  # Science 본지만(Science Advances 10.1126/sciadv., Science Signaling 10.1126/scisignal. 은 해당 없음)
 
 
@@ -304,7 +345,7 @@ def _has_peer_review_dates(item: dict) -> bool:
 def skip_reason(item: dict, title: str) -> str | None:
     """연구 논문이 아니면 제외 사유 라벨, 연구 논문이면 None.
 
-    update-to(정정·철회 공지) / type(journal-article 아님) / correction-title(정정류 제목) / cover-title(Wiley 표지) /
+    update-to(정정·철회 공지) / type(journal-article 아님) / correction-title(정정류 제목) / cover-title(Wiley 표지) / editorial-title(편집자 글·행사 공지·논평 라벨, 출판사별) /
     nature-magazine(10.1038/d41586-, Nature 뉴스·해설) / nature-not-peer-reviewed(10.1038/ 인데 received·accepted 이력 없음) /
     science-not-peer-reviewed(10.1126/science. 인데 received·accepted 이력 없음 - Science 본지 뉴스·사설·서평) /
     short-title(parsers.filters 의 4단어 미만 규칙에만 걸림 - 짧은 실제 논문 제목이 섞일 수 있어 따로 센다) /
@@ -318,6 +359,8 @@ def skip_reason(item: dict, title: str) -> str | None:
         return "correction-title"
     if _COVER_TITLE_RE.search(title or ""):
         return "cover-title"
+    if _editorial_title(item.get("DOI") or "", title):
+        return "editorial-title"
     nature = _is_nature(item)
     if nature:
         if item["DOI"].strip().lower().startswith("10.1038/d41586-"):
