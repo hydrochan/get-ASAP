@@ -9,14 +9,17 @@
   - 제목: title[0] 에서 JATS/HTML 태그를 공백 없이 제거(CO<sub>2</sub> -> CO2) -> html.unescape -> 공백 정리.
   - 발행일: published-online 이 연-월-일을 모두 가지면 그것, 아니면 created(UTC) 날짜.
     미래 날짜는 main._effective_pub_date 와 같은 규칙으로 오늘(UTC)로 줄인다.
-  - 비논문 제외: update-to 가 있는 항목(정정·철회 공지), 정정류 제목, parsers/filters.is_valid_paper_title 이 거절하는 제목.
+  - 비논문 제외: update-to 가 있는 항목(정정·철회 공지), 정정류 제목, Wiley 표지 제목, Nature(10.1038/) 의 뉴스(d41586-)·
+    received/accepted 이력 없는 항목, parsers/filters.is_valid_paper_title 이 거절하는 제목.
   - 중복: store.normalize_title 키 정확 일치(전체 DB; 저장 시 유일 인덱스와 같은 기준) + 같은 저널 최근 ~180일 행과의
-    공백 무시 키 일치(메일 파서가 "CO 2" 로 쪼개 저장한 제목 대응).
+    공백 무시 키·영숫자 키(alnum_key) 일치(메일 파서가 "CO 2" 로 쪼갠 제목, 하이픈·기호·엔티티 차이 대응).
+    접두·유사도 일치는 shadow 측정에만 쓴다(Part I/II 오병합 방지).
 
 main.py 연결은 별도 작업이다. email_skip_journals() 가 연결용 헬퍼다.
 """
 import dataclasses
 import datetime as dt
+import difflib
 import html
 import json
 import logging
@@ -25,6 +28,7 @@ import re
 import sqlite3
 import threading
 import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -44,8 +48,9 @@ MAX_PAGES = 100            # 커서 무한 루프 방지(1000행 x 100쪽)
 MAX_RETRIES = 4            # 429/5xx/네트워크 오류 재시도 횟수(첫 시도 제외)
 # select 로 쓰는 필드만 받는다(없으면 참고문헌·초록까지 와서 1000행이 1MB 가 된다 - 실측 33KB vs 1.05MB).
 # title/DOI/created/published-online = 제목·URL·발행일, type·update-to = 비논문 제외. ISSN 은 여러 저널을 한 번에 조회할 때
-# 항목을 저널로 되돌리는 데만 쓴다.
-SELECT_FIELDS = "DOI,title,type,created,published-online,update-to"
+# 항목을 저널로 되돌리는 데만 쓴다. assertion = Nature 의 received/accepted(동료심사 여부) 판정용 - 이 필드가 select 에서
+# 빠지면 모든 Nature 논문이 nature-not-peer-reviewed 로 버려지므로 테스트가 포함 여부를 고정한다.
+SELECT_FIELDS = "DOI,title,type,created,published-online,update-to,assertion"
 SELECT_FIELDS_MULTI = SELECT_FIELDS + ",ISSN"
 REQUEST_TIMEOUT = 60       # 요청 한 건의 소켓 제한(초)
 DEDUP_WINDOW_DAYS = 180    # 공백 무시 키 비교 대상: 같은 저널의 최근 이 기간 행
@@ -275,10 +280,26 @@ def to_paper(item: dict, journal: str, today: dt.date | None = None) -> PaperMet
     )
 
 
+# Wiley 표지 항목: 제목 끝에 "(Adv. Mater. 55/2026)" 같은 "<저널 약칭> <호>/<연도>" 괄호가 붙는다(2026-08~11 Wiley 8,174건 중 339건,
+# 약칭 7종 전부 표지). 실제 연구 제목은 이 모양으로 끝나지 않는다(DB 제목 0건·Nature Crossref 4,801건 0건 일치).
+_COVER_TITLE_RE = re.compile(r"\(\s*[A-Z][\w.&\- ]{1,40}?\s\d{1,3}/(?:19|20)\d{2}\s*\)\s*$")
+_NATURE_DOI_PREFIX = "10.1038/"
+
+
+def _is_nature(item: dict) -> bool:
+    return (item.get("DOI") or "").strip().lower().startswith(_NATURE_DOI_PREFIX)
+
+
+def _has_peer_review_dates(item: dict) -> bool:
+    """Crossref assertion 에 received/accepted 가 있으면 동료심사를 거친 논문이다(Nature 는 뉴스·해설에 이 이력을 달지 않는다)."""
+    return any(isinstance(a, dict) and a.get("name") in ("received", "accepted") for a in item.get("assertion") or [])
+
+
 def skip_reason(item: dict, title: str) -> str | None:
     """연구 논문이 아니면 제외 사유 라벨, 연구 논문이면 None.
 
-    update-to(정정·철회 공지) / type(journal-article 아님) / correction-title(정정류 제목) /
+    update-to(정정·철회 공지) / type(journal-article 아님) / correction-title(정정류 제목) / cover-title(Wiley 표지) /
+    nature-magazine(10.1038/d41586-, Nature 뉴스·해설) / nature-not-peer-reviewed(10.1038/ 인데 received·accepted 이력 없음) /
     short-title(parsers.filters 의 4단어 미만 규칙에만 걸림 - 짧은 실제 논문 제목이 섞일 수 있어 따로 센다) /
     filters(그 밖의 parsers.filters 규칙: 표지·목차·저널명 등).
     """
@@ -288,6 +309,14 @@ def skip_reason(item: dict, title: str) -> str | None:
         return "type"
     if _NON_RESEARCH_RE.match(title or ""):
         return "correction-title"
+    if _COVER_TITLE_RE.search(title or ""):
+        return "cover-title"
+    nature = _is_nature(item)
+    if nature:
+        if item["DOI"].strip().lower().startswith("10.1038/d41586-"):
+            return "nature-magazine"
+        if not _has_peer_review_dates(item):  # 키가 아예 없는 항목도 전부 비논문이었다 - 예외를 두지 않는다
+            return "nature-not-peer-reviewed"
     if is_valid_paper_title(title):
         return None
     low = (title or "").strip().casefold()
@@ -295,7 +324,9 @@ def skip_reason(item: dict, title: str) -> str | None:
         len(low.split()) < 4 and len(low) >= 10 and low not in SKIP_TITLES
         and not has_skip_label(low) and not any(s in low for s in SKIP_SUBSTRINGS)
     )
-    return "short-title" if only_short else "filters"
+    if only_short:
+        return None if nature else "short-title"  # 동료심사 확인된 Nature 논문은 짧은 제목("Multilevel molecular weaving")이어도 통과
+    return "filters"
 
 
 def is_research_item(item: dict, title: str) -> bool:
@@ -309,30 +340,80 @@ def _squash(key: str) -> str:
     return _WS_RE.sub("", key)
 
 
+ALNUM_MIN_LEN = 10   # 이보다 짧은 영숫자 키는 우연히 겹치기 쉬워 쓰지 않는다
+PREFIX_MIN_LEN = 25  # shadow 접두 일치: 짧은 쪽이 이 길이 이상일 때만
+FUZZY_RATIO = 0.9    # shadow 유사도 일치 하한
+
+
+def alnum_key(title: str) -> str:
+    """영숫자만 남긴 비교 키(DB title_key 와 별개의 메모리 전용 키). HTML 엔티티를 두 번 풀고(Crossref 에 "&gt;" 가 그대로 있다)
+    NFKC·casefold 한 뒤 글자·숫자만 남긴다 -> 하이픈·공백 차이, 결합 문자·기호, 끝의 " †"(RSC), 사설 영역 문자(Crossref 가 "≡" 를
+    바꿔 넣는다)가 모두 사라진다. ALNUM_MIN_LEN 미만이면 빈 문자열."""
+    text = unicodedata.normalize("NFKC", html.unescape(html.unescape(title or ""))).casefold()
+    key = "".join(ch for ch in text if ch.isalnum())
+    return key if len(key) >= ALNUM_MIN_LEN else ""
+
+
+def loose_match(a: str, b: str) -> bool:
+    """두 영숫자 키가 같은 논문으로 보이는가: 짧은 쪽(>= PREFIX_MIN_LEN)이 긴 쪽의 접두이거나 유사도 >= FUZZY_RATIO.
+    오탐 가능성이 있어("Part I"/"Part II") shadow 측정에만 쓰고 수집 중복 판정에는 쓰지 않는다."""
+    if not a or not b:
+        return False
+    short, long_ = (a, b) if len(a) <= len(b) else (b, a)
+    if len(short) >= PREFIX_MIN_LEN and long_.startswith(short):
+        return True
+    if len(short) < FUZZY_RATIO * len(long_):
+        return False
+    m = difflib.SequenceMatcher(None, short, long_, autojunk=False)
+    return m.real_quick_ratio() >= FUZZY_RATIO and m.quick_ratio() >= FUZZY_RATIO and m.ratio() >= FUZZY_RATIO
+
+
 class TitleIndex:
-    """제목 키 조회표. exact 는 normalize_title 키, nospace 는 거기서 공백을 모두 뺀 키. 값은 그 행의 created_at."""
+    """제목 키 조회표. exact 는 normalize_title 키, nospace 는 거기서 공백을 모두 뺀 키, alnum 은 alnum_key(영숫자만).
+    값은 그 행의 created_at. alnum 은 nospace 와 같은 범위에 들어간다(메모리 전용 - DB 열·인덱스는 그대로)."""
 
     def __init__(self):
         self.exact: dict[str, str] = {}
         self.nospace: dict[str, str] = {}
+        self.alnum: dict[str, str] = {}
 
-    def add_key(self, title_key: str, created_at: str = "", *, exact: bool = True, nospace: bool = True) -> None:
+    def add_key(self, title_key: str, created_at: str = "", *, exact: bool = True, nospace: bool = True,
+                title: str | None = None) -> None:
+        """title 은 DB 의 원 제목(엔티티·사설 영역 문자 처리용). 없으면 title_key 로 alnum 키를 만든다."""
         if exact:
             self.exact.setdefault(title_key, created_at)
         if nospace:
             self.nospace.setdefault(_squash(title_key), created_at)
+            a = alnum_key(title if title is not None else title_key)
+            if a:
+                self.alnum.setdefault(a, created_at)
 
     def add_title(self, title: str, created_at: str = "") -> None:
-        self.add_key(store.normalize_title(title), created_at)
+        self.add_key(store.normalize_title(title), created_at, title=title)
 
-    def lookup_key(self, title_key: str) -> str | None:
-        """이미 정규화된 키(DB title_key)로 조회. 일치하는 행의 created_at, 없으면 None."""
+    def lookup_key(self, title_key: str, title: str | None = None) -> str | None:
+        """이미 정규화된 키(DB title_key)로 조회. 일치하는 행의 created_at, 없으면 None. title 을 주면 alnum 키를 그것으로 만든다."""
         hit = self.exact.get(title_key)
-        return hit if hit is not None else self.nospace.get(_squash(title_key))
+        if hit is None:
+            hit = self.nospace.get(_squash(title_key))
+        if hit is None:
+            a = alnum_key(title if title is not None else title_key)
+            hit = self.alnum.get(a) if a else None
+        return hit
 
     def lookup(self, title: str) -> str | None:
         """제목으로 조회. 일치하는 행의 created_at, 없으면 None."""
-        return self.lookup_key(store.normalize_title(title))
+        return self.lookup_key(store.normalize_title(title), title)
+
+    def lookup_loose(self, title: str) -> str | None:
+        """접두·유사도 일치(loose_match). shadow 측정 전용 - 수집 중복 판정에 쓰지 말 것. 일치하는 행의 created_at, 없으면 None."""
+        a = alnum_key(title)
+        if not a:
+            return None
+        for key, created_at in self.alnum.items():
+            if loose_match(a, key):
+                return created_at
+        return None
 
 
 def load_index(
@@ -355,13 +436,13 @@ def load_index(
     else:
         for r in conn.execute(f"SELECT title_key, created_at FROM papers WHERE journal IN ({marks}) ORDER BY created_at", journals):
             index.add_key(r[0], r[1], nospace=False)
-    sql = f"SELECT title_key, created_at FROM papers WHERE journal IN ({marks})"
+    sql = f"SELECT title_key, created_at, title FROM papers WHERE journal IN ({marks})"
     args: list = list(journals)
     if since_created:
         sql += " AND created_at >= ?"
         args.append(since_created)
     for r in conn.execute(sql + " ORDER BY created_at", args):
-        index.add_key(r[0], r[1], exact=False)
+        index.add_key(r[0], r[1], exact=False, title=r[2])
     return index
 
 

@@ -239,9 +239,12 @@ def shadow_compare(conn, journal: str, names: list[str], items: list[dict], star
             in_window.append((item, title))
 
     db_index = cs.load_index(conn, names, global_exact=False, since_created=None)
-    matched, lags, missing = 0, [], []
+    matched, loose_matched, lags, missing = 0, 0, [], []
     for item, title in in_window:
         hit = db_index.lookup(title)
+        if hit is None:
+            hit = db_index.lookup_loose(title)  # 접두·유사도 일치는 측정에만 쓴다(수집 중복 판정에는 쓰지 않는다)
+            loose_matched += hit is not None
         if hit is None:
             missing.append(title)
             continue
@@ -252,13 +255,16 @@ def shadow_compare(conn, journal: str, names: list[str], items: list[dict], star
 
     marks = ",".join("?" * len(names))
     window_rows = conn.execute(
-        f"SELECT title_key, created_at FROM papers WHERE journal IN ({marks}) AND deleted_at IS NULL AND dup_of IS NULL "
+        f"SELECT title_key, created_at, title FROM papers WHERE journal IN ({marks}) AND deleted_at IS NULL AND dup_of IS NULL "
         "AND substr(created_at, 1, 10) BETWEEN ? AND ?",
         [*names, s, e],
     ).fetchall()
-    email_only, arrival = 0, []
-    for key, created_at in window_rows:
-        cr_created = every.lookup_key(key)
+    email_only, loose_email, arrival = 0, 0, []
+    for key, created_at, db_title in window_rows:
+        cr_created = every.lookup_key(key, db_title)
+        if cr_created is None:
+            cr_created = every.lookup_loose(db_title)
+            loose_email += cr_created is not None
         if cr_created is None:
             email_only += 1
         else:
@@ -282,6 +288,8 @@ def shadow_compare(conn, journal: str, names: list[str], items: list[dict], star
         "non_research_skipped": non_research,
         "db_rows_in_window": len(window_rows),
         "email_only": email_only,
+        "loose_matched": loose_matched,          # matched_in_db 중 접두·유사도로만 일치한 건수
+        "loose_email_matched": loose_email,      # email_only 에서 빠진 건수 중 접두·유사도로만 일치한 건수
         "baseline_active": baseline_rows > 0,  # 최근 180일에 이 저널 행이 하나도 없으면 메일 기준선이 없다(구독·파싱 안 됨)
         "missing_samples": missing[:3],
         "_lags": lags,
@@ -302,6 +310,8 @@ def _aggregate(rows: list[dict]) -> dict:
         "median_lag_days": _median(lags),
         "median_arrival_lag_days": _median(arrival),
         "email_only": sum(r["email_only"] for r in rows),
+        "loose_matched": sum(r["loose_matched"] for r in rows),
+        "loose_email_matched": sum(r["loose_email_matched"] for r in rows),
     }
 
 

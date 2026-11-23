@@ -437,8 +437,8 @@ def test_every_works_query_sends_a_narrow_select(monkeypatch):
     cs.fetch_works_many(["1463-9076", "1463-9084", "2041-1723"], "2026-10-01", "2026-10-27")
 
     single, many = (urllib.parse.parse_qs(urllib.parse.urlsplit(u).query) for u in urls)
-    assert single["select"] == ["DOI,title,type,created,published-online,update-to"]
-    assert many["select"] == ["DOI,title,type,created,published-online,update-to,ISSN"]  # 묶음 조회만 ISSN 을 더 받는다
+    assert single["select"] == ["DOI,title,type,created,published-online,update-to,assertion"]
+    assert many["select"] == ["DOI,title,type,created,published-online,update-to,assertion,ISSN"]  # 묶음 조회만 ISSN 을 더 받는다
     for q in (single, many):
         assert not {"reference", "abstract", "author", "link", "license"} & set(q["select"][0].split(","))
         assert q["cursor"] == ["*"] and q["rows"] == ["1000"]

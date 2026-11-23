@@ -38,7 +38,7 @@
     {"journal": "Langmuir", "publisher": "acs", "issn": ["0743-7463", "1520-5827"], "mode": "shadow"},
     {"journal": "The Journal of Physical Chemistry C", "publisher": "acs", "issn": ["1932-7447", "1932-7455"], "mode": "shadow"},
     {"journal": "The Journal of Physical Chemistry Letters", "publisher": "acs", "issn": ["1948-7185"], "mode": "shadow"},
-    {"journal": "Angewandte Chemie", "publisher": "wiley", "issn": ["0044-8249", "1521-3757"], "mode": "shadow", "note": "정확 일치 레코드 'Angewandte Chemie'(독일어판 0044-8249/1521-3757)를 사용. 국제판(1433-7851, 10.1002/anie.*)과 같은 논문이 영어 제목 그대로 병행 등록되어 제목 기준 매칭은 동일하다."},
+    {"journal": "Angewandte Chemie", "publisher": "wiley", "issn": ["1433-7851", "1521-3773"], "mode": "shadow", "note": "국제판(Angewandte Chemie International Edition, DOI 10.1002/anie.*)의 ISSN. DB 행은 국제판 메일에서 오므로 독일어판(0044-8249/1521-3757, DOI ange.*)이 아니라 이쪽을 조회해야 한다(2026-11 실측으로 교체)."},
     {"journal": "Advanced Materials", "publisher": "wiley", "issn": ["0935-9648", "1521-4095"], "mode": "shadow"},
     {"journal": "Advanced Energy Materials", "publisher": "wiley", "issn": ["1614-6832", "1614-6840"], "mode": "shadow"},
     {"journal": "Advanced Functional Materials", "publisher": "wiley", "issn": ["1616-301X", "1616-3028"], "mode": "shadow"},
