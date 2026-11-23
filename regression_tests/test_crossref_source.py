@@ -412,7 +412,10 @@ def test_shipped_journals_file_is_consistent_with_publishers_json():
     assert len(names) == len(set(names))
     assert {j for p in publishers.values() for j in p["journals"]} <= set(names)  # publishers.json 의 모든 저널이 있다(이름 동일)
     assert config["skip_email_for_ingest"] is True
-    assert cs.email_skip_journals() == {"Nature Communications", "iScience", "Physical Chemistry Chemical Physics"}
+    # 2026-11 전면 전환: ISSN 이 없어 조회할 수 없는 두 항목만 shadow 이고, 나머지(별칭 포함)는 모두 ingest = 메일 스킵 대상
+    assert {e["journal"] for e in entries if e["mode"] == "shadow"} == {"ACS Applied Materials", "Chemistry"}
+    assert cs.email_skip_journals() == {e["journal"] for e in entries if e["mode"] == "ingest"}
+    assert {"Nature Communications", "iScience", "Physical Chemistry Chemical Physics", "JACS"} <= cs.email_skip_journals()
     assert {e["mode"] for e in entries} == {"ingest", "shadow"}
     by_name = {e["journal"]: e for e in entries}
     for e in entries:
