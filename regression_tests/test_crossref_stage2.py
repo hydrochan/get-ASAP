@@ -99,6 +99,7 @@ def test_nature_labels_flow_into_partition_non_research(conn):
     "Synergistic Catalytic Mechanism (Adv. Funct. Mater. 62/2026)",
     "Chelation Drives Surface Substitution in Hybrid‐MXenes (Angew. Chem. Int. Ed. 37/2026)",
     "Carbon Dots for Color‐Changing Hydrogels (Adv. Energy Mater. 5/2026) ",
+    "Diffraction‐Free Omnidirectional Antireflection Binary Metasurface via Femtosecond Laser Hybrid Etching (Adv. Mater. 28//2026)",
 ])
 def test_wiley_cover_titles_are_skipped(title):
     assert cs.skip_reason(item("10.1002/adma.1", title), title) == "cover-title"
@@ -112,6 +113,24 @@ def test_wiley_cover_titles_are_skipped(title):
 ])
 def test_non_cover_titles_pass(title):
     assert cs.skip_reason(item("10.1002/adma.1", title), title) is None
+
+
+# ---------- Science 본지 ----------
+
+@pytest.mark.parametrize("it, title, reason", [
+    (item("10.1126/science.zzz1", "Kennedy rejects NIH director's pick for mental health institute", assertion=[{"name": "published"}]),
+     "Kennedy rejects NIH director's pick for mental health institute", "science-not-peer-reviewed"),
+    (item("10.1126/science.zzz2", "Use common standards to stop risky research"), "Use common standards to stop risky research",
+     "science-not-peer-reviewed"),
+    (item("10.1126/science.aem1", "Programmable lattice assembly of nanocrystal superstructures", assertion=REVIEWED),
+     "Programmable lattice assembly of nanocrystal superstructures", None),
+    (item("10.1126/science.aem2", "Quantum-Cutting Metals", assertion=REVIEWED), "Quantum-Cutting Metals", None),  # 짧은 제목도 동료심사 확인되면 통과
+    # Science Advances·Signaling 은 규칙 대상이 아니다(신규 항목이 모두 연구 논문이었다)
+    (item("10.1126/sciadv.abc1", "Emergent patterns of island biodiversity in the Anthropocene"),
+     "Emergent patterns of island biodiversity in the Anthropocene", None),
+])
+def test_science_skip_rules(it, title, reason):
+    assert cs.skip_reason(it, title) == reason
 
 
 # ---------- 영숫자 키 ----------

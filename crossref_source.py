@@ -282,12 +282,18 @@ def to_paper(item: dict, journal: str, today: dt.date | None = None) -> PaperMet
 
 # Wiley 표지 항목: 제목 끝에 "(Adv. Mater. 55/2026)" 같은 "<저널 약칭> <호>/<연도>" 괄호가 붙는다(2026-08~11 Wiley 8,174건 중 339건,
 # 약칭 7종 전부 표지). 실제 연구 제목은 이 모양으로 끝나지 않는다(DB 제목 0건·Nature Crossref 4,801건 0건 일치).
-_COVER_TITLE_RE = re.compile(r"\(\s*[A-Z][\w.&\- ]{1,40}?\s\d{1,3}/(?:19|20)\d{2}\s*\)\s*$")
+# 호 번호 뒤 슬래시가 둘인 표지("Adv. Mater. 28//2026")도 있다(2026-11 백필 리허설에서 발견).
+_COVER_TITLE_RE = re.compile(r"\(\s*[A-Z][\w.&\- ]{1,40}?\s\d{1,3}/{1,2}(?:19|20)\d{2}\s*\)\s*$")
 _NATURE_DOI_PREFIX = "10.1038/"
+_SCIENCE_DOI_PREFIX = "10.1126/science."  # Science 본지만(Science Advances 10.1126/sciadv., Science Signaling 10.1126/scisignal. 은 해당 없음)
 
 
 def _is_nature(item: dict) -> bool:
     return (item.get("DOI") or "").strip().lower().startswith(_NATURE_DOI_PREFIX)
+
+
+def _is_science(item: dict) -> bool:
+    return (item.get("DOI") or "").strip().lower().startswith(_SCIENCE_DOI_PREFIX)
 
 
 def _has_peer_review_dates(item: dict) -> bool:
@@ -300,6 +306,7 @@ def skip_reason(item: dict, title: str) -> str | None:
 
     update-to(정정·철회 공지) / type(journal-article 아님) / correction-title(정정류 제목) / cover-title(Wiley 표지) /
     nature-magazine(10.1038/d41586-, Nature 뉴스·해설) / nature-not-peer-reviewed(10.1038/ 인데 received·accepted 이력 없음) /
+    science-not-peer-reviewed(10.1126/science. 인데 received·accepted 이력 없음 - Science 본지 뉴스·사설·서평) /
     short-title(parsers.filters 의 4단어 미만 규칙에만 걸림 - 짧은 실제 논문 제목이 섞일 수 있어 따로 센다) /
     filters(그 밖의 parsers.filters 규칙: 표지·목차·저널명 등).
     """
@@ -317,6 +324,11 @@ def skip_reason(item: dict, title: str) -> str | None:
             return "nature-magazine"
         if not _has_peer_review_dates(item):  # 키가 아예 없는 항목도 전부 비논문이었다 - 예외를 두지 않는다
             return "nature-not-peer-reviewed"
+    science = _is_science(item)
+    if science and not _has_peer_review_dates(item):
+        # Science 본지는 뉴스·사설·서평·정책 글도 journal-article 로 등록한다(2026-11 백필 리허설: 신규 672건 중 대부분).
+        # 연구 논문은 메일에 잡힌 192건 전부 received/accepted 이력이 있고 비논문에는 거의 없다.
+        return "science-not-peer-reviewed"
     if is_valid_paper_title(title):
         return None
     low = (title or "").strip().casefold()
@@ -325,7 +337,7 @@ def skip_reason(item: dict, title: str) -> str | None:
         and not has_skip_label(low) and not any(s in low for s in SKIP_SUBSTRINGS)
     )
     if only_short:
-        return None if nature else "short-title"  # 동료심사 확인된 Nature 논문은 짧은 제목("Multilevel molecular weaving")이어도 통과
+        return None if (nature or science) else "short-title"  # 동료심사 확인된 Nature·Science 논문은 짧은 제목("Multilevel molecular weaving")이어도 통과
     return "filters"
 
 
