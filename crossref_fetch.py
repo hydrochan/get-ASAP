@@ -127,10 +127,9 @@ def plan_ingest(conn, config: dict, entry: dict, *, since: dt.date | None, today
     else:
         from_date, source = (today - dt.timedelta(days=DEFAULT_SINCE_DAYS)).isoformat(), f"기본 {DEFAULT_SINCE_DAYS}일 전"
     names = [entry["journal"]] + cs.alias_names(config, entry["journal"])
-    index = cs.load_index(
-        conn, names, global_exact=True,
-        since_created=(today - dt.timedelta(days=cs.DEDUP_WINDOW_DAYS)).isoformat(),
-    )
+    # 공백·영숫자 키 비교 범위: 최근 180일, 단 조회 시작일이 더 옛날이면(백필) 그 날부터. 안 그러면 180일 밖의 메일 행이 놓친 짝이 된다.
+    window_from = min(dt.date.fromisoformat(from_date), today - dt.timedelta(days=cs.DEDUP_WINDOW_DAYS))
+    index = cs.load_index(conn, names, global_exact=True, since_created=window_from.isoformat())
     items = cs.fetch_works(issn, from_date)
     return {
         "journal": entry["journal"], "issn": issn, "from_date": from_date, "source": source,
