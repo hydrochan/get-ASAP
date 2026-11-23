@@ -32,3 +32,14 @@ def conn(db_file):
     c = store.connect(str(db_file))
     yield c
     c.close()
+
+
+@pytest.fixture(autouse=True)
+def _no_crossref_email_skip(monkeypatch):
+    """메일 경로 테스트가 운영 crossref_journals.json(전 저널 ingest)에 좌우되지 않게 스킵 집합을 비운다.
+
+    스킵 동작 자체는 test_pipeline_retry 의 tmp 설정 테스트와 test_real_config_ingest_journal_is_skipped 가 따로 검증한다.
+    """
+    import main
+
+    monkeypatch.setattr(main, "_crossref_skip_cache", frozenset())

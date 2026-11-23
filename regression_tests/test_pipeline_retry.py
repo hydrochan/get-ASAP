@@ -552,3 +552,14 @@ def test_dry_run_never_opens_the_database(pipeline, monkeypatch, tmp_path, capsy
     monkeypatch.setattr(main.store, "save_papers", _REAL_STORE.save_papers)
     pipeline.run(dry_run=True)
     assert not ghost.exists() and "월 버킷: 2026-09" in capsys.readouterr().out
+
+
+def test_real_config_ingest_journal_is_skipped_by_email_path(monkeypatch):
+    """conftest 는 스킵 집합을 비우지만, 운영 설정에서는 ingest 저널이 메일 경로에서 걸러져야 한다."""
+    monkeypatch.setattr(main, "_crossref_skip_cache", None)  # 실제 crossref_journals.json 을 다시 읽게 한다
+    paper = SimpleNamespace(journal="Nature Communications", title="t", date="2026-01-01")
+    final = main._finalize_paper(
+        paper, sender="", subject="", publishers={"nature": {"name": "Nature", "journals": []}},
+        pub_key="nature", mail_date="2026-01-02",
+    )
+    assert final is None
