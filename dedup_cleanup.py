@@ -35,11 +35,21 @@ import sys
 
 import backup_db
 import store
-from fix_title_subscripts import KEEPER_RULE_LABELS, KEEPER_RULES, _keeper_key
+from fix_title_subscripts import KEEPER_RULE_LABELS as _BASE_LABELS, KEEPER_RULES as _BASE_RULES, _keeper_key as _base_key
 
 logger = logging.getLogger(__name__)
 
 DOWNLOADED = "다운완료"
+
+# fix_title_subscripts 의 유지 행 규칙에 'doi'(url 에 DOI 가 있는 행 우선)를 상태 순위 바로 뒤에 끼운 이 모듈 전용 규칙.
+KEEPER_RULES = _BASE_RULES[:2] + ("doi",) + _BASE_RULES[2:]
+KEEPER_RULE_LABELS = {**_BASE_LABELS, "doi": "doi(DOI 링크 보유)"}
+
+
+def _keeper_key(r) -> tuple:
+    """작을수록 유지 우선: (사람 확인 아님, 상태 순위, DOI 링크 없음, AI 판정 없음, id). 추적 URL 행보다 DOI 행을 남긴다."""
+    k = _base_key(r)
+    return k[:2] + (not store.doi_key(r["url"]),) + k[2:]
 
 
 def _components(rows) -> list[list]:

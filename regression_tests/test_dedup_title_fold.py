@@ -271,3 +271,35 @@ def test_doi_conflict_groups_are_reported_not_hidden(conn, capsys):
     # 같은 제목이지만 DOI 가 다른 두 행은 묶이지만(같은 title_fold) 건너뛴다
     plan = dc.plan(conn)
     assert plan["groups"] == [] and len(plan["doi_conflicts"]) == 1
+
+
+def _keeper_of(conn):
+    groups = dc.plan(conn)["groups"]
+    assert len(groups) == 1
+    return groups[0]
+
+
+def test_doi_row_is_kept_over_tracking_row_when_status_ties_even_with_higher_id(conn):
+    track = add(conn, "Carbon dioxide capture on porous frameworks", url=TRACKING)  # id 가 더 낮다
+    doi = add(conn, "Carbon dioxide capture on porous frameworks.", url="https://doi.org/10.1021/x.77")
+    g = _keeper_of(conn)
+    assert track["id"] < doi["id"]
+    assert g["keeper"]["id"] == doi["id"] and [r["id"] for r in g["losers"]] == [track["id"]] and g["reason"] == "doi"
+
+
+def test_status_rank_still_beats_doi_preference(conn):
+    track = add(conn, "Carbon dioxide capture on porous frameworks", url=TRACKING, status="다운완료")
+    add(conn, "Carbon dioxide capture on porous frameworks.", url="https://doi.org/10.1021/x.77", status="무관")
+    g = _keeper_of(conn)
+    assert g["keeper"]["id"] == track["id"] and g["reason"] == "status"
+
+
+def test_human_still_beats_doi_preference(conn):
+    track = add(conn, "Carbon dioxide capture on porous frameworks", url=TRACKING, status="무관", source="human")
+    add(conn, "Carbon dioxide capture on porous frameworks.", url="https://doi.org/10.1021/x.77", status="다운완료")
+    g = _keeper_of(conn)
+    assert g["keeper"]["id"] == track["id"] and g["reason"] == "human"
+
+
+def test_doi_reason_is_labelled_in_summary(conn):
+    assert "doi" in dc.KEEPER_RULE_LABELS["doi"] and "doi" in dc.KEEPER_RULES
