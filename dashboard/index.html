@@ -26,17 +26,40 @@
   <style>
     /* ===== 디자인 토큰 (Home "A" 레이아웃: 상단 헤더 + 한 열 다이제스트) ===== */
     :root {
-      --dash-canvas: #F4F5F7;
+      --dash-canvas: #F4F5F7;           /* 페이지 · 행/목록/표 hover · 범례 칩 hover */
       --dash-surface: #FFFFFF;
-      --dash-surface-soft: #EEF1F5;
+      --dash-surface-soft: #EEF1F5;     /* 조용한 채움(태그·코드·막대 트랙) + 버튼/칩/작은 무테 버튼 hover */
+      --dash-field: #F9FAFB;            /* 입력 칸 · 셀렉트 바탕 */
       --dash-hairline: #E2E5EA;
       --dash-hairline-soft: #EEF0F3;
+      --dash-control-border: #D3D8E0;   /* 컨트롤 테두리 · 스크롤바 */
       --dash-ink: #111827;
       --dash-ink-2: #374151;
-      --dash-muted: #586273;
+      --dash-muted: #586273;            /* placeholder · 꺼진 범례 칩 글자 겸용 */
       --dash-navy: #163B73;
       --dash-navy-deep: #0F2A55;
+      --dash-navy-tint: #E8EEF8;        /* 선택 바탕 */
+      --dash-navy-tint-strong: #D6E0F2; /* 포커스 후광 · kw-pick 켜짐 */
       --dash-bar-soft: #C3D0E6;
+      --dash-bar-mid: #8FA8D1;
+      --dash-navy-mid: #4F74B3;
+      --dash-axis: #C9CED6;
+      --dash-danger: #B91C1C;
+      --dash-danger-bg: #FEF2F2;
+      --dash-danger-border: #F3C4C4;
+      --dash-success: #065F46;
+      --dash-success-bg: #ECFDF5;
+      --dash-success-border: #6EE7B7;
+      /* 차트 계열 색(범주 8색) + 9번째 이후 무채색 */
+      --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100;
+      --series-5: #e87ba4; --series-6: #008300; --series-7: #6250d6; --series-8: #e34948;
+      --series-overflow-1: #6B7280; --series-overflow-2: #9AA3B2;
+      /* 모서리: 4 / 8 / 10 / 14 / pill 다섯 가지만 */
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-control: 10px;
+      --radius-card: 14px;
+      --radius-pill: 9999px;
     }
     body {
       background: var(--dash-canvas);
@@ -45,7 +68,7 @@
       font-variant-numeric: tabular-nums;
       letter-spacing: 0;
     }
-    .card { background: var(--dash-surface); border: 1px solid var(--dash-hairline); border-radius: 14px; }
+    .card { background: var(--dash-surface); border: 1px solid var(--dash-hairline); border-radius: var(--radius-card); }
     .chart-container { position: relative; width: 100%; }
     /* 섹션 제목: 문장형 대소문자 · 16px · 800 */
     .sec-title { font-size: 16px; font-weight: 800; line-height: 1.3; color: var(--dash-ink); margin: 0; }
@@ -54,18 +77,26 @@
     .link-btn:hover { text-decoration: underline; }
     .login-bg { background: linear-gradient(135deg, #001B44 0%, #002F6C 50%, #003D8F 100%); }
     ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: var(--dash-control-border); border-radius: var(--radius-pill); }
     /* 섹션 구분선 */
-    .sec-divider { border-top: 1px solid #E5E7EB; margin: 0.5rem 0; }
-    /* 헤더 탭 (#tab-*; 밑줄 스타일. display 는 지정하지 않는다 — Tailwind hidden 토글이 이기도록. 전역 button border-color !important 를 이기려면 밑줄 색에도 !important 가 필요) */
+    .sec-divider { border-top: 1px solid var(--dash-hairline); margin: 0.5rem 0; }
+    /* 헤더 탭 (#tab-*; 밑줄 스타일. display 는 지정하지 않는다 — Tailwind hidden 토글이 이기도록) */
     .hdr-tab { padding: 11px 0 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--dash-muted); font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; flex: none; }
     .hdr-tab:hover:not(.active) { color: var(--dash-ink); }
-    .hdr-tab.active { color: var(--dash-ink); font-weight: 700; border-bottom-color: var(--dash-navy) !important; }
+    .hdr-tab.active { color: var(--dash-ink); font-weight: 700; border-bottom-color: var(--dash-navy); }
     .no-scrollbar { scrollbar-width: none; }
     .no-scrollbar::-webkit-scrollbar { display: none; }
-    /* 토스트 알림 */
+    /* 토스트 알림 (#toast-container 안에 showToast 가 만든다) */
     @keyframes toastIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
-    .toast-enter { animation: toastIn 0.18s ease-out; }
+    .toast { display: flex; align-items: flex-start; gap: 8px; padding: 12px 14px; border: 1px solid; border-radius: var(--radius-md); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1); font-size: 12px; font-weight: 600; pointer-events: auto; animation: toastIn 0.18s ease-out; }
+    .toast-icon { margin-top: 2px; }
+    .toast-text { flex: 1; line-height: 1.625; white-space: pre-line; }
+    .toast-close { color: inherit; opacity: 0.5; font-weight: 700; line-height: 1; border: 0; background: transparent; cursor: pointer; }
+    .toast-close:hover { opacity: 1; }
+    .toast-success { background: var(--dash-success-bg); border-color: var(--dash-success-border); color: var(--dash-success); }
+    .toast-error { background: var(--dash-danger-bg); border-color: var(--dash-danger-border); color: var(--dash-danger); }
+    .toast-info { background: var(--dash-canvas); border-color: var(--dash-control-border); color: var(--dash-ink-2); }
+    @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
     /* Review 뷰 (관리자): GPT reason 기본 2줄, 클릭하면 펼침 */
     .review-reason { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
     .review-reason.expanded { display: block; overflow: visible; }
@@ -74,23 +105,28 @@
        <1024px 에서는 DOM 순서와 다르게 order 로 재배치: [브랜드 + 리포트] / [검색] / [Period + 새로고침] / [관리자 버튼] */
     .hdr-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
     .hdr-brand { order: 1; flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .hdr-wordmark { font-size: 20px; font-weight: 800; letter-spacing: -0.025em; line-height: 1.25; color: var(--dash-ink); }
+    .hdr-tagline { font-size: 11px; color: var(--dash-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    @media (min-width: 640px) { .hdr-tagline { font-size: 12px; } }
+    .hdr { background: var(--dash-surface); border-bottom: 1px solid var(--dash-hairline); }
     #report-btn { order: 2; flex: none; }
     /* .fld = 헤더 검색창과 같은 값의 입력 칸 (Browse 안 검색·Advanced search 등 본문 입력에 재사용) */
-    .hdr-search, .fld { min-width: 0; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 8px 0 14px; border: 1px solid #D3D8E0; border-radius: 10px; background: #F9FAFB; }
+    .hdr-search, .fld { min-width: 0; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 8px 0 14px; border: 1px solid var(--dash-control-border); border-radius: var(--radius-control); background: var(--dash-field); }
+    .hdr-search > svg, .fld > svg { color: var(--dash-muted); }   /* 돋보기 아이콘(stroke=currentColor) */
     .hdr-search { order: 3; flex: 1 1 100%; }
-    .hdr-search:focus-within, .fld:focus-within { outline: 2px solid var(--dash-navy); outline-offset: 2px; background: #fff; }
+    .hdr-search:focus-within, .fld:focus-within { outline: 2px solid var(--dash-navy); outline-offset: 2px; background: var(--dash-surface); }
     .hdr-search input, .fld input { flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; font: inherit; font-size: 14px; color: var(--dash-ink); outline: none; text-overflow: ellipsis; }
-    .hdr-search input::placeholder, .fld input::placeholder { color: #7A8494; }
+    .hdr-search input::placeholder, .fld input::placeholder { color: var(--dash-muted); }
     .hdr-search input::-webkit-search-cancel-button, .fld input::-webkit-search-cancel-button { display: none; }
-    .search-clear { flex: none; height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--dash-muted); font-size: 13px; font-weight: 600; cursor: pointer; }
-    .search-clear:hover { background: #E8EBF0; }
+    .search-clear { flex: none; height: 32px; padding: 0 10px; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--dash-muted); font-size: 13px; font-weight: 600; cursor: pointer; }
+    .search-clear:hover { background: var(--dash-surface-soft); }
     .hdr-period { order: 4; flex: 1 1 0; min-width: 196px; }   /* min-width: 관리자 버튼이 보여도 Period 가 찌그러지지 않고 버튼이 다음 줄로 넘어가게 */
     #refresh-btn { order: 5; }
     #refresh-all-btn, #logout-btn { order: 6; }
-    .seg.hdr-period { height: 44px; border-radius: 10px; }
+    .seg.hdr-period { height: 44px; border-radius: var(--radius-control); }
     .hdr-period .seg-btn { flex: 1 1 0; min-width: 48px; padding: 0 10px; }
-    .hdr-icon-btn { flex: none; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #D3D8E0; border-radius: 10px; background: #fff; color: var(--dash-ink-2); cursor: pointer; }
-    .hdr-icon-btn:hover { background: #F1F3F6; }
+    .hdr-icon-btn { flex: none; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--dash-control-border); border-radius: var(--radius-control); background: var(--dash-surface); color: var(--dash-ink-2); cursor: pointer; }
+    .hdr-icon-btn:hover { background: var(--dash-surface-soft); }
     @media (min-width: 1024px) {
       .hdr-row > *, #report-btn, #refresh-btn, #refresh-all-btn, #logout-btn { order: 0; }   /* 데스크톱은 DOM 순서 그대로 (ID 선택자는 우선순위가 높아 따로 적는다) */
       .hdr-brand { flex: 0 0 auto; margin-right: auto; }
@@ -100,7 +136,7 @@
     }
 
     /* ===== Home: KPI 띠 (한 컨테이너 · 1px 칸막이 · 5칸. 모바일은 2열 + 마지막 칸 전체 폭) ===== */
-    .kpi-strip { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--dash-hairline); border: 1px solid var(--dash-hairline); border-radius: 14px; overflow: hidden; }
+    .kpi-strip { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--dash-hairline); border: 1px solid var(--dash-hairline); border-radius: var(--radius-card); overflow: hidden; }
     .kpi-cell { background: var(--dash-surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
     .kpi-cell:last-child { grid-column: 1 / -1; }
     .kpi-label { font-size: 13px; font-weight: 600; color: var(--dash-muted); }
@@ -116,13 +152,13 @@
     }
 
     /* ===== Home: Papers per day 카드 ===== */
-    .seg { display: flex; height: 36px; border: 1px solid #D3D8E0; border-radius: 8px; overflow: hidden; }
-    .seg-btn { min-width: 56px; padding: 0 12px; border: 0; border-left: 1px solid var(--dash-hairline); background: #fff; color: var(--dash-ink-2); font-size: 13px; font-weight: 600; cursor: pointer; }
+    .seg { display: flex; height: 36px; border: 1px solid var(--dash-control-border); border-radius: var(--radius-md); overflow: hidden; }
+    .seg-btn { min-width: 56px; padding: 0 12px; border: 0; border-left: 1px solid var(--dash-hairline); background: var(--dash-surface); color: var(--dash-ink-2); font-size: 13px; font-weight: 600; cursor: pointer; }
     .seg-btn:first-child { border-left: 0; }
-    .seg-btn.is-on { background: var(--dash-navy); color: #fff; font-weight: 700; }
-    .legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dash-ink-2); }
-    .legend-bar { display: inline-block; width: 12px; height: 12px; border-radius: 2px; background: var(--dash-bar-soft); }
-    .legend-line { display: inline-block; width: 16px; height: 3px; border-radius: 2px; background: var(--dash-navy); }
+    .seg-btn.is-on { background: var(--dash-navy); color: var(--dash-surface); font-weight: 600; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--dash-ink-2); }
+    .legend-bar { display: inline-block; width: 12px; height: 12px; border-radius: var(--radius-sm); background: var(--dash-bar-soft); }
+    .legend-line { display: inline-block; width: 16px; height: 3px; border-radius: var(--radius-sm); background: var(--dash-navy); }
 
     /* ===== Home: Top journals / Top keywords ===== */
     .tops-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
@@ -132,15 +168,19 @@
     .top-name { flex: 0 0 168px; min-width: 0; display: flex; flex-direction: column; }
     .top-name-main { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .top-name-sub { font-size: 11px; color: var(--dash-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .top-bar { flex: 1 1 auto; min-width: 0; height: 8px; border-radius: 4px; background: #EEF1F5; overflow: hidden; display: block; }
-    .top-bar > span { display: block; height: 100%; border-radius: 4px; }
+    .top-bar { flex: 1 1 auto; min-width: 0; height: 8px; border-radius: var(--radius-sm); background: var(--dash-surface-soft); overflow: hidden; display: block; }
+    .top-bar > span { display: block; height: 100%; border-radius: var(--radius-sm); }
+    /* 막대 채움 색(JS 가 막대 <span> 에 클래스로 붙인다) */
+    .bar-journal { background: var(--dash-navy); }
+    .bar-keyword { background: var(--dash-navy-mid); }
+    .bar-sharp { background: var(--dash-bar-soft); }
     .top-count { flex: 0 0 52px; text-align: right; color: var(--dash-ink-2); }
     /* Frequent journals / keywords 두 카드: 모든 행을 같은 높이로(키워드는 2줄·저널 이름이 짧으면 1줄이어도) 맞추고, 이름 열은 카드 폭에 맞춰 조금 넓힌다 */
     .tops-grid .top-row { min-height: 46px; }
     .tops-grid .top-name { flex-basis: clamp(128px, 42%, 240px); }
     /* 행 전체가 Browse 로 가는 버튼일 때 (Home 의 Frequent 목록 · Analytics 의 sharp 행 · By journal keywords 행).
        양옆 8px 를 음수 마진으로 빌려 글자 위치는 그대로 두고 hover 배경만 넓힌다 */
-    button.top-link { width: calc(100% + 16px); margin: 0 -8px; padding: 4px 8px; border: 0; border-radius: 8px; background: transparent; text-align: left; cursor: pointer; }
+    button.top-link { width: calc(100% + 16px); margin: 0 -8px; padding: 4px 8px; border: 0; border-radius: var(--radius-md); background: transparent; text-align: left; cursor: pointer; }
     button.top-link:hover { background: var(--dash-canvas); }
     button.top-link:hover .top-name-main { color: var(--dash-navy); }
 
@@ -151,7 +191,7 @@
     .rp-table td { padding: 12px; border-bottom: 1px solid var(--dash-hairline-soft); vertical-align: top; }
     .rp-table th:first-child, .rp-table td:first-child { padding-left: 0; }
     .rp-table th:last-child, .rp-table td:last-child { padding-right: 0; }
-    .rp-table tr:hover td { background: #FAFBFC; }
+    .rp-table tr:hover td { background: var(--dash-canvas); }
     .rp-table td.rp-date { color: var(--dash-muted); white-space: nowrap; }
     .rp-table td.rp-journal { font-weight: 700; color: var(--dash-ink-2); overflow-wrap: anywhere; }
     .rp-table td.rp-title { line-height: 1.45; overflow-wrap: anywhere; }
@@ -167,30 +207,81 @@
     .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
     .sec-help { margin: 4px 0 0; font-size: 13px; font-weight: 500; color: var(--dash-muted); }
     .lbl { font-size: 12px; font-weight: 700; color: var(--dash-muted); }
-    .empty-note { padding: 40px 12px; text-align: center; font-size: 13px; color: var(--dash-muted); }
+    .empty-note { padding: 40px 12px; text-align: center; font-size: 13px; font-weight: 500; color: var(--dash-muted); }
+    /* 제목·부제·보조 문구 */
+    .page-title { font-size: 24px; font-weight: 800; letter-spacing: -0.025em; line-height: 1.25; color: var(--dash-ink); margin: 0; }
+    .page-sub { font-size: 14px; color: var(--dash-muted); }
+    .help { font-size: 12px; color: var(--dash-muted); }
+    /* Analytics 필터 접힘 줄: 요약 글자(필터가 걸리면 남색) · 건수 · 펼침 화살표 */
+    .filters-summary { font-size: 13px; font-weight: 500; color: var(--dash-muted); }
+    .filters-summary.has-filter { color: var(--dash-navy); }
+    .count-note { font-size: 13px; font-weight: 600; color: var(--dash-muted); }
+    .filters-icon { font-size: 12px; color: var(--dash-muted); }
+    @media (min-width: 640px) { .page-title { font-size: 26px; } }
+    .visitor-badge { font-size: 12px; color: var(--dash-muted); }   /* 표시/숨김·배치는 마크업의 Tailwind(hidden md:flex …)가 맡는다 */
+    .visitor-dot { width: 6px; height: 6px; border-radius: var(--radius-pill); background: var(--dash-success); }
+    /* 공지(Announcements): 안쪽 .ann-* 는 renderAnnouncements 가 만든다. #section-announcements 는 hidden 토글 대상이라 display 는 안쪽 요소에만 둔다 */
+    .ann-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .ann-heading { font-size: 14px; font-weight: 800; color: var(--dash-ink); }
+    .ann-toggle { min-height: 32px; padding: 0 8px; border: 0; background: transparent; font-size: 12px; font-weight: 600; color: var(--dash-muted); cursor: pointer; }
+    .ann-toggle:hover { color: var(--dash-ink); }
+    .ann-list { margin-top: 4px; }
+    .ann-list > * + * { border-top: 1px solid var(--dash-hairline-soft); }
+    .ann-row { display: flex; gap: 12px; padding: 10px 0; }
+    .ann-side { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 72px; }
+    .ann-badge { padding: 2px 6px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 800; letter-spacing: 0.06em; color: var(--dash-surface); }
+    .ann-fix { background: var(--dash-muted); }
+    .ann-update { background: var(--dash-success); }
+    .ann-info { background: var(--dash-navy); }
+    .ann-warning { background: var(--dash-danger); }
+    .ann-date { font-size: 12px; font-weight: 600; color: var(--dash-muted); }
+    .ann-main { flex: 1; min-width: 0; }
+    .ann-title { font-size: 14px; font-weight: 700; line-height: 1.375; color: var(--dash-ink); }
+    .ann-body { margin-top: 2px; font-size: 13px; font-weight: 500; line-height: 1.625; color: var(--dash-ink-2); }
+    /* 푸터 */
+    footer a:hover { color: var(--dash-navy); text-decoration: underline; }
+    .ftr-btn { min-height: 40px; padding: 0 4px; border: 0; background: transparent; font-size: 12px; font-weight: 600; color: var(--dash-navy); cursor: pointer; }
+    .ftr-btn:hover { text-decoration: underline; }
+    /* 모달 (Download report · Send feedback). #report-modal / #feedback-modal 은 hidden 토글 대상이라 display 는 지정하지 않는다 — 마크업의 Tailwind flex 가 맡는다 */
+    .modal-backdrop { position: fixed; inset: 0; z-index: 50; padding: 16px; background: rgba(17, 24, 39, 0.45); align-items: center; justify-content: center; }
+    .modal { width: 100%; padding: 20px 24px; background: var(--dash-surface); border: 1px solid var(--dash-hairline); border-radius: var(--radius-card); }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .modal-title { margin: 0; font-size: 16px; font-weight: 800; line-height: 1.3; color: var(--dash-ink); }
+    .modal-close { border: 0; background: transparent; padding: 0 4px; font-size: 20px; font-weight: 800; line-height: 1; color: var(--dash-muted); cursor: pointer; }
+    .modal-close:hover { color: var(--dash-ink); }
+    .modal-actions { display: flex; gap: 8px; padding-top: 8px; }
+    .modal-actions.ruled { padding-top: 16px; border-top: 1px solid var(--dash-hairline-soft); }
+    .modal-actions > .btn { flex: 1 1 0; }
+    .modal-field { width: 100%; margin-top: 4px; }
+    .modal-check { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: var(--dash-ink-2); }
+    .modal-check input { width: 16px; height: 16px; accent-color: var(--dash-navy); }
+    .modal-textarea { width: 100%; margin-top: 4px; padding: 10px 12px; border: 1px solid var(--dash-control-border); border-radius: var(--radius-control); background: var(--dash-field); color: var(--dash-ink); font: inherit; font-size: 14px; resize: none; }
+    .modal-chips { border: 1px solid var(--dash-hairline-soft); border-radius: var(--radius-md); background: var(--dash-canvas); }
+    .modal-status-ok { color: var(--dash-success); }
+    .modal-status-err { color: var(--dash-danger); }
     /* 데이터를 단계별로 받는 동안 제목 부제 끝에 붙는 "Loading papers… 2 of 6 months (partial)" — 통째로 줄바꿈된다 */
     .load-note { display: inline-block; font-weight: 600; color: var(--dash-navy); }
     /* 불러오기 실패 알림(헤더 바로 아래 한 줄, 화면을 막지 않는다). #load-notice 가 hidden 토글 대상이라 display 는 안쪽 요소에만 둔다 */
-    .load-notice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 8px 8px 8px 14px; border: 1px solid #F3C4C4; border-radius: 10px; background: #FEF2F2; color: #B91C1C; font-size: 13px; font-weight: 600; }
-    /* 셀렉트: 헤더 검색창과 같은 테두리·모서리·배경 (전역 select 테두리 !important 보다 클래스가 앞선다) */
-    select.sel { appearance: none; -webkit-appearance: none; height: 40px; max-width: 100%; padding: 0 34px 0 12px; border: 1px solid #D3D8E0 !important; border-radius: 10px; background: #F9FAFB url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23586273' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center / 12px 12px; color: var(--dash-ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .load-notice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 8px 8px 8px 14px; border: 1px solid var(--dash-danger-border); border-radius: var(--radius-control); background: var(--dash-danger-bg); color: var(--dash-danger); font-size: 13px; font-weight: 600; }
+    /* 셀렉트: 헤더 검색창과 같은 테두리·모서리·배경 */
+    select.sel { appearance: none; -webkit-appearance: none; height: 40px; max-width: 100%; padding: 0 34px 0 12px; border: 1px solid var(--dash-control-border); border-radius: var(--radius-control); background: var(--dash-field) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23586273' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center / 12px 12px; color: var(--dash-ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
     select.sel:disabled { opacity: 0.5; cursor: not-allowed; }
     /* 버튼: Primary = 남색 채움(헤더 Download report 와 같은 값), Secondary = 흰 바탕 + 컨트롤 테두리 */
-    .btn { height: 44px; padding: 0 18px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; }
-    .btn-sm { height: 40px; padding: 0 14px; font-size: 13px; }
-    .btn-primary { background: var(--dash-navy); color: #fff; border: 1px solid var(--dash-navy) !important; }
+    .btn { height: 44px; padding: 0 18px; border-radius: var(--radius-control); font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .btn-sm { height: 40px; padding: 0 14px; font-size: 13px; font-weight: 600; }
+    .btn-primary { background: var(--dash-navy); color: var(--dash-surface); border: 1px solid var(--dash-navy); }
     .btn-primary:hover { background: var(--dash-navy-deep); }
-    .btn-secondary { background: var(--dash-surface); color: var(--dash-navy); border: 1px solid #D3D8E0 !important; }
-    .btn-secondary:hover { background: #F1F3F6; }
+    .btn-secondary { background: var(--dash-surface); color: var(--dash-navy); border: 1px solid var(--dash-control-border); }
+    .btn-secondary:hover { background: var(--dash-surface-soft); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     /* 필터 칩 (알약). All 모드에서는 칩 전체가 포함 상태라 옅게, All 칩만 진하게 */
-    .journal-chip { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border: 1px solid #D3D8E0 !important; border-radius: 9999px; background: var(--dash-surface); color: var(--dash-ink-2); font-size: 13px; font-weight: 600; line-height: 1.2; cursor: pointer; user-select: none; }
-    .journal-chip:hover { background: #F1F3F6; }
-    .journal-chip.active { background: var(--dash-navy); border-color: var(--dash-navy) !important; color: #fff; }
+    .journal-chip { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border: 1px solid var(--dash-control-border); border-radius: var(--radius-pill); background: var(--dash-surface); color: var(--dash-ink-2); font-size: 13px; font-weight: 600; line-height: 1.2; cursor: pointer; user-select: none; }
+    .journal-chip:hover { background: var(--dash-surface-soft); }
+    .journal-chip.active { background: var(--dash-navy); border-color: var(--dash-navy); color: var(--dash-surface); }
     .journal-chip.active:hover { background: var(--dash-navy-deep); }
     #journal-all-chip.active ~ #journal-chips .journal-chip.active,
     #broad-all-chip.active ~ #broad-chips .journal-chip.active,
-    #sharp-all-chip.active ~ #sharp-chips .journal-chip.active { background: #E8EEF8; border-color: #C3D0E6 !important; color: var(--dash-navy); }
+    #sharp-all-chip.active ~ #sharp-chips .journal-chip.active { background: var(--dash-navy-tint); border-color: var(--dash-bar-soft); color: var(--dash-navy); }
     .filter-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 14px 0; border-top: 1px solid var(--dash-hairline-soft); }
     .filter-row:first-child { border-top: 0; padding-top: 4px; }
     #sharp-filter-bar .filter-row { border-top: 1px solid var(--dash-hairline-soft); padding-top: 14px; }
@@ -201,42 +292,46 @@
       .filter-row > .lbl { padding-top: 7px; }
     }
     /* 체크박스 알약 (Advanced search 의 Search in) */
-    .chk-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px 0 12px; border: 1px solid #D3D8E0; border-radius: 9999px; background: var(--dash-surface); color: var(--dash-ink-2); font-size: 13px; font-weight: 600; cursor: pointer; user-select: none; }
+    .chk-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px 0 12px; border: 1px solid var(--dash-control-border); border-radius: var(--radius-pill); background: var(--dash-surface); color: var(--dash-ink-2); font-size: 13px; font-weight: 600; cursor: pointer; user-select: none; }
     .chk-chip input { width: 16px; height: 16px; margin: 0; accent-color: var(--dash-navy); cursor: pointer; }
-    .chk-chip:has(input:checked) { background: #E8EEF8; border-color: #C3D0E6; color: var(--dash-navy); }
+    .chk-chip:has(input:checked) { background: var(--dash-navy-tint); border-color: var(--dash-bar-soft); color: var(--dash-navy); }
     .chk-chip:has(input:focus-visible) { outline: 2px solid var(--dash-navy); outline-offset: 2px; }
-    .op-help { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--dash-muted); }
-    .op-code { padding: 1px 6px; border-radius: 6px; background: var(--dash-surface-soft); color: var(--dash-ink-2); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; }
+    .op-help { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; font-weight: 500; color: var(--dash-muted); }
+    .op-code { padding: 1px 6px; border-radius: var(--radius-sm); background: var(--dash-surface-soft); color: var(--dash-ink-2); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; }
 
     /* 차트 범례 칩: 색 선 + 이름. 누르면 그 계열을 켜고 끈다 */
     .lg-wrap { display: flex; flex-wrap: wrap; gap: 6px 8px; }
-    .lg-chip { display: inline-flex; align-items: center; gap: 7px; min-height: 30px; padding: 0 11px 0 9px; border: 1px solid var(--dash-hairline) !important; border-radius: 9999px; background: var(--dash-surface); color: var(--dash-ink-2); font-size: 12px; font-weight: 600; cursor: pointer; }
+    .lg-chip { display: inline-flex; align-items: center; gap: 7px; min-height: 30px; padding: 0 11px 0 9px; border: 1px solid var(--dash-hairline); border-radius: var(--radius-pill); background: var(--dash-surface); color: var(--dash-ink-2); font-size: 12px; font-weight: 600; cursor: pointer; }
     .lg-chip:hover { background: var(--dash-canvas); }
-    .lg-chip[aria-pressed="false"] { color: #7A8494; text-decoration: line-through; }
+    .lg-chip[aria-pressed="false"] { color: var(--dash-muted); text-decoration: line-through; }
     .lg-chip[aria-pressed="false"] .lg-key { opacity: 0.3; }
-    .lg-key { flex: none; width: 14px; height: 3px; border-radius: 2px; }
+    .lg-key { flex: none; width: 14px; height: 3px; border-radius: var(--radius-sm); }
 
     /* 막대 목록 변형 (Home 의 .top-row 위에 얹는다) */
     .bl { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
-    .top-row.is-card { font-size: 13px; }
+    .top-row.is-card { font-size: 13px; font-weight: 500; }
     .top-row.is-card .top-name { flex-basis: 48%; }
     .top-row.is-card .top-count { flex-basis: 68px; }
     .top-pct { margin-left: 6px; color: var(--dash-muted); }
-    .top-row.is-sub { font-size: 13px; }
+    .top-row.is-sub { font-size: 13px; font-weight: 500; }
     .top-row.is-sub .top-name { flex-basis: 150px; }
-    .bjk-card { padding: 16px; border: 1px solid var(--dash-hairline); border-radius: 12px; }
+    .bjk-card { padding: 16px; border: 1px solid var(--dash-hairline); border-radius: var(--radius-control); }
+    /* By journal keywords 카드 머리(저널 약어 · 논문 수) */
+    .bjk-name { margin: 0; font-size: 14px; font-weight: 800; color: var(--dash-ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bjk-total { flex: none; font-size: 12px; font-weight: 600; color: var(--dash-muted); }
+    .bjk-empty { margin: 0; font-size: 13px; font-weight: 500; color: var(--dash-muted); }
     /* Frequent keywords: 두 열 막대 목록 + broad → sharp 펼침 */
     .kw-cols { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 40px; row-gap: 2px; }
     .kw-col { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
     @media (min-width: 900px) { .kw-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    .kw-row { min-height: 44px; margin: 0 -8px; padding: 4px 8px; border-radius: 8px; cursor: pointer; }
+    .kw-row { min-height: 44px; margin: 0 -8px; padding: 4px 8px; border-radius: var(--radius-md); cursor: pointer; }
     .kw-row .top-name { flex-basis: 214px; }
     .kw-row:hover { background: var(--dash-canvas); }
-    .kw-row.is-filter { background: #E8EEF8; }
+    .kw-row.is-filter { background: var(--dash-navy-tint); }
     .kw-chev { display: inline-block; width: 16px; font-size: 12px; color: var(--dash-muted); }
-    .kw-pick { flex: none; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 8px; background: transparent; color: var(--dash-muted); cursor: pointer; }
-    .kw-pick:hover { background: #E8EBF0; color: var(--dash-navy); }
-    .kw-pick.is-on { background: #D6E0F2; color: var(--dash-navy); }
+    .kw-pick { flex: none; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--dash-muted); cursor: pointer; }
+    .kw-pick:hover { background: var(--dash-surface-soft); color: var(--dash-navy); }
+    .kw-pick.is-on { background: var(--dash-navy-tint-strong); color: var(--dash-navy); }
     /* 펼친 sharp 행: 들여쓴 만큼 이름 칸을 줄이고 오른쪽을 띄워 막대 시작점·건수 열이 broad 행과 맞는다 */
     .kw-sub { list-style: none; margin: 2px 0 10px 14px; padding: 4px 48px 4px 14px; border-left: 2px solid var(--dash-hairline-soft); display: flex; flex-direction: column; gap: 10px; }
     .kw-sub .top-row.is-sub .top-name { flex-basis: 184px; }
@@ -246,20 +341,20 @@
     #heatmap-table th, #heatmap-table td { padding: 0; }
     #heatmap-table th.hm-col { min-width: 40px; padding: 4px 0 8px; vertical-align: bottom; background: var(--dash-surface); }
     #heatmap-table th.hm-corner { position: sticky; left: 0; z-index: 20; background: var(--dash-surface); }
-    #heatmap-table td.hm-j { position: sticky; left: 0; z-index: 2; padding: 0 14px 0 0; background: var(--dash-surface); font-size: 13px; font-weight: 700; color: var(--dash-ink-2); white-space: nowrap; }
+    #heatmap-table td.hm-j { position: sticky; left: 0; z-index: 2; padding: 0 14px 0 0; background: var(--dash-surface); font-size: 13px; font-weight: 600; color: var(--dash-ink-2); white-space: nowrap; }
     #heatmap-table td.hm-j .hm-n { font-weight: 500; color: var(--dash-muted); }
-    #heatmap-table td.hm-cell { min-width: 40px; height: 36px; border-radius: 6px; box-shadow: inset 0 0 0 2px var(--dash-surface); text-align: center; font-size: 12px; font-weight: 700; }
+    #heatmap-table td.hm-cell { min-width: 40px; height: 36px; border-radius: var(--radius-sm); box-shadow: inset 0 0 0 2px var(--dash-surface); text-align: center; font-size: 12px; font-weight: 700; }
     .hm-col-label { display: inline-block; max-height: 150px; overflow: hidden; writing-mode: vertical-rl; transform: rotate(180deg); text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 700; color: var(--dash-ink-2); }
-    .hm-scale { display: inline-block; width: 120px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, rgba(22, 59, 115, 0.08), rgba(22, 59, 115, 0.92)); }
+    .hm-scale { display: inline-block; width: 120px; height: 8px; border-radius: var(--radius-sm); background: linear-gradient(90deg, rgba(22, 59, 115, 0.08), rgba(22, 59, 115, 0.92)); }   /* rgba = --dash-navy */
 
-    /* Browse 왼쪽 목록: 깔끔한 내비 항목 + 건수 (선택 = #E8EEF8 바탕 + 남색 글자) */
-    .browse-item { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--dash-ink-2); }
+    /* Browse 왼쪽 목록: 깔끔한 내비 항목 + 건수 (선택 = --dash-navy-tint 바탕 + 남색 글자) */
+    .browse-item { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border-radius: var(--radius-md); cursor: pointer; font-size: 14px; font-weight: 600; color: var(--dash-ink-2); }
     .browse-item:hover { background: var(--dash-canvas); }
-    .browse-item.active { background: #E8EEF8; color: var(--dash-navy); font-weight: 700; }
+    .browse-item.active { background: var(--dash-navy-tint); color: var(--dash-navy); font-weight: 700; }
     .browse-item .count { flex: none; font-size: 13px; font-weight: 600; color: var(--dash-muted); }
     .browse-item.active .count { color: var(--dash-navy); }
     .browse-item.sharp { padding-left: 34px; font-size: 13px; font-weight: 500; }
-    .browse-item.sharp.active { font-weight: 700; }
+    .browse-item.sharp.active { font-weight: 600; }
     .browse-item .expand-icon { display: inline-block; width: 14px; font-size: 11px; color: var(--dash-muted); }
     /* Browse 주제 상세: 제목 아래 검색 칸 + 저널 셀렉트 한 줄 (좁으면 셀렉트가 아래로 내려와 전체 폭) */
     .browse-filters { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -278,8 +373,14 @@
     .pl-title a { color: var(--dash-navy); }
     .pl-title a:hover { text-decoration: underline; }
     .pl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-    .pl-tag { padding: 2px 8px; border-radius: 6px; background: var(--dash-surface-soft); color: var(--dash-muted); font-size: 12px; font-weight: 600; }
+    .pl-tag { padding: 2px 8px; border-radius: var(--radius-sm); background: var(--dash-surface-soft); color: var(--dash-muted); font-size: 12px; font-weight: 600; }
     .pl-doi { font-size: 12px; color: var(--dash-muted); overflow-wrap: anywhere; }
+    .pl-more { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--dash-hairline-soft); }
+    mark.hl { padding: 0 2px; border-radius: var(--radius-sm); background: var(--dash-navy-tint-strong); color: var(--dash-ink); }   /* 검색어 강조 */
+    /* 모달 안 작은 부품: 키워드 체크 칩 · 피드백 상태 줄 */
+    .chk-chip-sm { min-height: 32px; gap: 6px; padding: 0 12px 0 10px; font-size: 12px; }
+    .chip-count { font-weight: 500; color: var(--dash-muted); }
+    .modal-status { font-size: 12px; font-weight: 600; text-align: center; }
 
     /* 모바일 전용 반응형 */
     @media (max-width: 640px) {
@@ -318,28 +419,28 @@
     }
 
     /* ===== 앱 전역 정리: 색 띠·그림자·그라디언트 없이 평평한 카드, 입력 포커스 링 통일 ===== */
+    /* Legacy: admin screens (login, Stats, Review, confirm modal) — 아직 Tailwind 색 클래스를 쓰는 관리자 화면용. 공개 화면 마크업·JS 는 이 규칙에 기대지 않는다 */
     .text-navy-900 { color: var(--dash-ink) !important; }
     .text-slate-400,
     .text-slate-500 { color: var(--dash-muted) !important; }
-    button,
-    select,
-    input {
+    :is(#login-screen, #view-stats, #view-review, #confirm-modal, #refresh-all-btn, #logout-btn) :is(button, select, input),
+    :is(#refresh-all-btn, #logout-btn) {
       border-color: var(--dash-hairline) !important;
       box-shadow: none !important;
     }
-    /* 헤더의 새로고침 아이콘 버튼은 컨트롤 테두리 색(#D3D8E0)을 쓴다 (ID 선택자가 위 !important 보다 우선) */
-    #refresh-btn { border-color: #D3D8E0 !important; }
-    /* 남아 있는 그라디언트 버튼(로그인·Refresh·다운로드)은 평평한 남색으로 */
+    /* 남아 있는 그라디언트 버튼(로그인·Refresh·확인 모달)은 평평한 남색으로 */
     .from-navy-900 { background-image: none !important; background-color: var(--dash-navy) !important; }
     input:focus:not(.bare-input),
     select:focus:not(.bare-input) {
       border-color: var(--dash-navy) !important;
-      box-shadow: 0 0 0 3px #D6E0F2 !important;
+      box-shadow: 0 0 0 3px var(--dash-navy-tint-strong) !important;
     }
     :where(button, a, [tabindex]):focus-visible { outline: 2px solid var(--dash-navy); outline-offset: 2px; }
     footer {
       background: var(--dash-canvas) !important;
       color: var(--dash-muted) !important;
+      font-size: 12px;
+      line-height: 1.625;
     }
   </style>
   <!-- Tailwind 빌드 결과(build_css.py). 반드시 위 <style> 뒤에 둔다 — Play CDN 이 <head> 맨 끝에 <style> 을 붙이던 것과 같은 캐스케이드 위치. v= 는 build_css.py 가 갱신 -->
@@ -392,17 +493,17 @@
       })();
     </script>
     <!-- ========== 상단 헤더: 1행 브랜드 · 검색 · Period · 새로고침 · 리포트 (관리자 버튼은 같은 행) / 2행 밑줄 탭 + 방문자 수 ========== -->
-    <header id="app-header" class="bg-white border-b border-[#E2E5EA]">
+    <header id="app-header" class="hdr">
       <div class="max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8 pt-3 lg:pt-4 flex flex-col gap-2 lg:gap-2.5">
         <div class="hdr-row">
           <div class="hdr-brand">
-            <p class="text-xl font-extrabold tracking-tight text-[#111827] leading-tight">get-ASAP</p>
-            <p class="text-[11px] sm:text-xs text-[#586273] truncate">Daily paper trends from <span id="hdr-journal-count">…</span> journals</p>
+            <p class="hdr-wordmark">get-ASAP</p>
+            <p class="hdr-tagline">Daily paper trends from <span id="hdr-journal-count">…</span> journals</p>
           </div>
 
           <!-- 검색: 어느 탭에서든 입력하면 Home 의 결과 카드가 열린다 -->
           <form id="main-search-form" role="search" class="hdr-search">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#586273" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="flex-none"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="flex-none"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
             <label for="main-search-input" class="sr-only">Search papers</label>
             <input id="main-search-input" type="search" class="bare-input" placeholder="Search title, journal, keyword or DOI" autocomplete="off" enterkeyhint="search">
             <button id="main-search-clear" type="button" class="search-clear hidden">Clear</button>
@@ -425,7 +526,7 @@
           <button id="refresh-btn" type="button" class="hdr-icon-btn" aria-label="Refresh data" title="Refresh data">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
           </button>
-          <button id="report-btn" type="button" class="h-11 px-3 lg:px-[18px] rounded-[10px] bg-navy-800 text-white text-[13px] lg:text-sm font-bold hover:bg-navy-900 transition-colors">Download report</button>
+          <button id="report-btn" type="button" class="btn btn-primary px-3 lg:px-[18px]">Download report</button>
           <button id="refresh-all-btn" type="button" class="hidden h-11 px-3 rounded-[10px] border border-slate-200 text-[13px] font-semibold text-[#374151] hover:bg-slate-50 transition-colors" title="관리자 전용: 전체 월 Notion 재조회 (과거 월 CSV 갱신)">
             🔄 Force Refresh All
           </button>
@@ -445,8 +546,8 @@
             <button id="tab-review" type="button" class="hdr-tab hidden" onclick="setView('review')">Review</button>
           </nav>
           <!-- 방문자 수: 좁은 화면에서는 탭 공간을 위해 숨긴다 -->
-          <p id="visitor-badge" class="hidden md:flex ml-auto flex-none items-center gap-1.5 pb-3 text-xs text-[#586273]">
-            <span id="visitor-badge-dot" class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          <p id="visitor-badge" class="visitor-badge hidden md:flex ml-auto flex-none items-center gap-1.5 pb-3">
+            <span id="visitor-badge-dot" class="visitor-dot inline-block"></span>
             <span id="visitor-badge-text">Loading visitor info…</span>
           </p>
         </div>
@@ -470,23 +571,23 @@
           <h2 class="sec-title">Search results</h2>
           <span id="main-search-count" class="sec-sub" aria-live="polite"></span>
         </div>
-        <p class="text-xs text-slate-400 mt-1 mb-3">Matches title, journal, keyword and DOI — every word must match. Searches all loaded papers, newest first.</p>
+        <p class="help mt-1 mb-3">Matches title, journal, keyword and DOI — every word must match. Searches all loaded papers, newest first.</p>
         <div id="main-search-results" class="max-h-[560px] overflow-y-auto"></div>
       </section>
 
       <!-- 공지·개선사항 (cache/announcements.json 비어있으면 자동 숨김) -->
       <section id="section-announcements" class="card px-4 py-3 sm:px-5 hidden">
-        <div class="flex items-center justify-between gap-2">
-          <h2 class="text-sm font-extrabold text-navy-900">Announcements</h2>
-          <button id="ann-toggle" type="button" class="min-h-[32px] px-2 text-xs font-semibold text-slate-400 hover:text-navy-900" onclick="toggleAnnouncements()">Collapse</button>
+        <div class="ann-head">
+          <h2 class="ann-heading">Announcements</h2>
+          <button id="ann-toggle" type="button" class="ann-toggle" onclick="toggleAnnouncements()">Collapse</button>
         </div>
-        <div id="announcements-list" class="mt-1 divide-y divide-[#EEF0F3]"></div>
+        <div id="announcements-list" class="ann-list"></div>
       </section>
 
       <!-- Overview 제목 + 기간 부제 -->
       <div class="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
-        <h1 id="home-title" class="m-0 text-2xl sm:text-[26px] font-extrabold tracking-tight leading-tight text-[#111827]">Overview</h1>
-        <p id="home-subline" class="text-sm text-[#586273]">Loading papers…</p>
+        <h1 id="home-title" class="page-title">Overview</h1>
+        <p id="home-subline" class="page-sub">Loading papers…</p>
       </div>
 
       <!-- KPI 띠: 한 컨테이너에 5칸 (Period 만 따른다) -->
@@ -535,7 +636,7 @@
         <div class="chart-container" style="height:260px">
           <canvas id="chart-daily" role="img" aria-label="Bar chart of papers per day"></canvas>
         </div>
-        <p id="chart-daily-note" class="hidden text-xs text-slate-400 -mt-2">Faded bar = current period, still in progress (left out of the 7-day average)</p>
+        <p id="chart-daily-note" class="hidden help -mt-2">Faded bar = current period, still in progress (left out of the 7-day average)</p>
       </section>
 
       <!-- Frequent journals + Frequent keywords (Period 만 따른다) -->
@@ -576,7 +677,7 @@
             <tbody id="paper-tbody"></tbody>
           </table>
         </div>
-        <p id="recent-more" class="hidden py-3 text-xs text-slate-400"></p>
+        <p id="recent-more" class="hidden py-3 help"></p>
       </section>
       </div>
     </main>
@@ -588,19 +689,19 @@
       <div class="flex flex-col gap-5 lg:gap-6">
       <!-- 페이지 제목 + 맥락 부제 (필터를 따른다) -->
       <div class="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
-        <h1 id="analytics-title" class="m-0 text-2xl sm:text-[26px] font-extrabold tracking-tight leading-tight text-[#111827]">Analytics</h1>
-        <p id="analytics-subline" class="text-sm text-[#586273]">Loading papers…</p>
+        <h1 id="analytics-title" class="page-title">Analytics</h1>
+        <p id="analytics-subline" class="page-sub">Loading papers…</p>
       </div>
 
       <!-- 필터 카드 (Analytics 에서만 노출 · 기본 접힘). setView 가 #analytics-filters 의 hidden 을 토글한다 -->
       <div id="analytics-filters" class="hidden">
         <div id="filters-mobile-toggle" class="card px-4 sm:px-6 py-1.5 flex items-center justify-between gap-3">
           <button id="filters-toggle-btn" type="button" aria-expanded="false" aria-controls="filters-body" class="flex items-center gap-2.5 min-h-[44px] min-w-0 text-left">
-            <span id="filters-toggle-icon" class="text-slate-400 text-xs w-3 flex-none" aria-hidden="true">▸</span>
+            <span id="filters-toggle-icon" class="filters-icon w-3 flex-none" aria-hidden="true">▸</span>
             <span class="sec-title flex-none">Filters</span>
-            <span id="filters-mobile-summary" class="truncate text-[13px] font-medium text-slate-400">All journals · All topics</span>
+            <span id="filters-mobile-summary" class="filters-summary truncate">All journals · All topics</span>
           </button>
-          <span id="filter-count-mobile" class="flex-none text-[13px] font-semibold text-slate-400"></span>
+          <span id="filter-count-mobile" class="count-note flex-none"></span>
         </div>
         <!-- 필터 본문 (클릭 시 펼침, 기본 접힘) -->
         <div id="filters-body" class="hidden card mt-2 px-4 py-3 sm:px-6 sm:py-4">
@@ -628,7 +729,7 @@
               </div>
             </div>
           </div>
-          <p class="sec-help pt-3 border-t border-[#EEF0F3]">From “All”, a click shows only that item; once filtering, clicks add or remove. <span id="filter-count" class="font-semibold text-[#374151]"></span></p>
+          <p class="sec-help pl-more">From “All”, a click shows only that item; once filtering, clicks add or remove. <span id="filter-count" class="count-note"></span></p>
         </div>
       </div>
       <!-- /analytics-filters -->
@@ -662,7 +763,7 @@
         <div class="chart-container" style="height:340px">
           <canvas id="chart-keyword" role="img" aria-label="Line chart of papers per period for the most frequent keywords"></canvas>
         </div>
-        <p id="chart-keyword-note" class="hidden text-xs text-slate-400">Dashed / faded = current period, still in progress</p>
+        <p id="chart-keyword-note" class="hidden help">Dashed / faded = current period, still in progress</p>
         <div id="chart-keyword-table" class="sr-only"></div>
       </section>
 
@@ -711,7 +812,7 @@
           <div class="chart-container" style="height:380px">
             <canvas id="chart-journal-monthly" role="img" aria-label="Line chart of papers per period for the most frequent journals"></canvas>
           </div>
-          <p id="chart-journal-monthly-note" class="hidden text-xs text-slate-400">Dashed / faded = current period, still in progress</p>
+          <p id="chart-journal-monthly-note" class="hidden help">Dashed / faded = current period, still in progress</p>
           <div id="chart-journal-monthly-table" class="sr-only"></div>
         </div>
       </section>
@@ -780,7 +881,7 @@
             <button id="hm-expand-btn" type="button" class="btn btn-secondary btn-sm" onclick="toggleHeatmapExpand()">Expand all</button>
           </div>
         </div>
-        <div class="flex items-center gap-2 text-xs text-slate-500">
+        <div class="flex items-center gap-2 help">
           <span>Fewer</span><span class="hm-scale" aria-hidden="true"></span><span>More</span>
           <span id="hm-legend" class="ml-1"></span>
         </div>
@@ -797,8 +898,8 @@
       <div class="flex flex-col gap-5 lg:gap-6">
       <!-- 페이지 제목 + 맥락 부제 -->
       <div class="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
-        <h1 id="browse-title" class="m-0 text-2xl sm:text-[26px] font-extrabold tracking-tight leading-tight text-[#111827]">Browse</h1>
-        <p id="browse-subline" class="text-sm text-[#586273]">Loading papers…</p>
+        <h1 id="browse-title" class="page-title">Browse</h1>
+        <p id="browse-subline" class="page-sub">Loading papers…</p>
       </div>
       <div class="seg seg-md self-start" role="group" aria-label="Browse by">
         <button id="browse-mode-journal" type="button" class="seg-btn is-on" aria-pressed="true" onclick="setBrowseMode('journal')">By journal</button>
@@ -809,7 +910,7 @@
           <div class="flex items-center justify-between gap-3 mb-2 px-1" id="browse-list-header">
             <span class="lbl">Journals</span>
             <div class="flex items-center gap-3">
-              <span id="browse-list-count" class="text-xs font-semibold text-slate-400"></span>
+              <span id="browse-list-count" class="count-note"></span>
               <div class="seg seg-md" role="group" aria-label="Sort">
                 <button id="browse-sort-count" type="button" class="seg-btn is-on" aria-pressed="true" onclick="setBrowseSort('count')" title="Count (descending)">#</button>
                 <button id="browse-sort-alpha" type="button" class="seg-btn" aria-pressed="false" onclick="setBrowseSort('alpha')" title="Alphabetical (A-Z)">A–Z</button>
@@ -832,8 +933,8 @@
       <div class="flex flex-col gap-5 lg:gap-6">
       <!-- 페이지 제목 + 맥락 부제 -->
       <div class="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
-        <h1 id="adv-title" class="m-0 text-2xl sm:text-[26px] font-extrabold tracking-tight leading-tight text-[#111827]">Advanced search</h1>
-        <p id="adv-subline" class="text-sm text-[#586273]">Loading papers…</p>
+        <h1 id="adv-title" class="page-title">Advanced search</h1>
+        <p id="adv-subline" class="page-sub">Loading papers…</p>
       </div>
 
       <!-- 검색 폼: 한 카드. 입력하면 바로 검색되고, Search/Enter 는 지금 바로 실행한다 -->
@@ -843,7 +944,7 @@
             <label for="advanced-search-input" class="lbl">Query</label>
             <div class="flex flex-col sm:flex-row gap-2">
               <div class="fld sm:flex-1">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#586273" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="flex-none"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="flex-none"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
                 <input id="advanced-search-input" type="text" class="bare-input"
                   placeholder='e.g. +ammonia cataly* "hydrogen carrier" -battery'
                   autocomplete="off" enterkeyhint="search">
@@ -1036,34 +1137,34 @@
       </section>
     </main>
 
-    <footer class="pb-10 text-xs leading-relaxed">
+    <footer class="pb-10">
       <div class="max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex flex-wrap items-center gap-x-6 gap-y-1">
         <p class="mr-auto">
           get-ASAP &copy; 2026
-          <a href="https://github.com/hydrochan" target="_blank" rel="noopener" class="hover:text-navy-800 hover:underline">Chan Kim</a>
+          <a href="https://github.com/hydrochan" target="_blank" rel="noopener">Chan Kim</a>
           ·
-          <a href="https://hydrochan.com" target="_blank" rel="noopener" class="hover:text-navy-800 hover:underline">hydrochan.com</a>
+          <a href="https://hydrochan.com" target="_blank" rel="noopener">hydrochan.com</a>
         </p>
-        <button id="feedback-btn" type="button" class="min-h-[40px] px-1 text-xs font-semibold text-navy-800 hover:underline" title="Report a bug · Suggest a feature · Share an idea">Send feedback</button>
+        <button id="feedback-btn" type="button" class="ftr-btn" title="Report a bug · Suggest a feature · Share an idea">Send feedback</button>
       </div>
-      <p class="text-[11px]">All rights reserved. Unauthorized copying, reproduction, or distribution of this site or its source is prohibited.</p>
+      <p class="help">All rights reserved. Unauthorized copying, reproduction, or distribution of this site or its source is prohibited.</p>
       </div>
     </footer>
   </div>
 
   <!-- ========== Report 설정 모달 ========== -->
-  <div id="report-modal" class="hidden fixed inset-0 z-50 bg-slate-950/45 flex items-center justify-center p-4">
-    <div class="card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-extrabold text-navy-900">Download report</h3>
-        <button id="report-close" class="text-slate-400 hover:text-slate-700 text-xl font-bold">&times;</button>
+  <div id="report-modal" class="hidden modal-backdrop flex">
+    <div class="modal max-w-lg max-h-[90vh] overflow-y-auto">
+      <div class="modal-head">
+        <h3 class="modal-title">Download report</h3>
+        <button id="report-close" type="button" class="modal-close" aria-label="Close">&times;</button>
       </div>
       <div class="space-y-5">
         <!-- 기간 -->
         <div>
-          <label for="report-months" class="text-xs font-bold text-slate-500">Period</label>
-          <select id="report-months" class="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-800">
+          <label for="report-months" class="lbl">Period</label>
+          <select id="report-months" class="sel modal-field">
             <option value="1">Last 1 month</option>
             <option value="3" selected>Last 3 months</option>
             <option value="6">Last 6 months</option>
@@ -1073,28 +1174,28 @@
 
         <!-- 포함 섹션 -->
         <div>
-          <p class="text-xs font-bold text-slate-500">Include</p>
-          <div class="mt-2 space-y-2 text-sm">
-            <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-summary" checked> <span>Summary (total papers · journals)</span></label>
-            <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-topkw" checked> <span>Frequent keywords table (20)</span></label>
-            <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-journals" checked> <span>Journal frequency (15 most frequent)</span></label>
-            <label class="flex items-center gap-2"><input type="checkbox" id="report-inc-papers-by-kw"> <span>Papers by keyword (choose below)</span></label>
+          <p class="lbl">Include</p>
+          <div class="mt-2 space-y-2">
+            <label class="modal-check"><input type="checkbox" id="report-inc-summary" checked> <span>Summary (total papers · journals)</span></label>
+            <label class="modal-check"><input type="checkbox" id="report-inc-topkw" checked> <span>Frequent keywords table (20)</span></label>
+            <label class="modal-check"><input type="checkbox" id="report-inc-journals" checked> <span>Journal frequency (15 most frequent)</span></label>
+            <label class="modal-check"><input type="checkbox" id="report-inc-papers-by-kw"> <span>Papers by keyword (choose below)</span></label>
           </div>
         </div>
 
         <!-- 키워드 선택 (키워드별 논문 목록 체크 시만 활성) -->
         <div id="report-kw-section" class="opacity-50 pointer-events-none transition-opacity">
           <div class="flex items-baseline justify-between">
-            <p class="text-xs font-bold text-slate-500">Keywords (broad)</p>
-            <div class="flex items-center gap-2 text-[10px]">
-              <button type="button" id="report-kw-all" class="text-navy-700 font-bold hover:underline">All</button>
-              <button type="button" id="report-kw-none" class="text-slate-400 font-bold hover:underline">None</button>
+            <p class="lbl">Keywords (broad)</p>
+            <div class="flex items-center gap-3">
+              <button type="button" id="report-kw-all" class="link-btn">All</button>
+              <button type="button" id="report-kw-none" class="link-btn">None</button>
             </div>
           </div>
-          <div id="report-kw-chips" class="mt-2 flex flex-wrap gap-1.5 max-h-40 overflow-y-auto border border-slate-100 rounded-lg p-2 bg-slate-50"></div>
+          <div id="report-kw-chips" class="modal-chips mt-2 flex flex-wrap gap-1.5 max-h-40 overflow-y-auto p-2"></div>
           <div class="mt-2 flex items-center gap-2">
-            <label class="text-[10px] font-semibold text-slate-500">Max papers per keyword:</label>
-            <select id="report-papers-per-kw" class="text-xs border border-slate-200 rounded px-2 py-1">
+            <label for="report-papers-per-kw" class="lbl">Max papers per keyword:</label>
+            <select id="report-papers-per-kw" class="sel">
               <option value="10">10</option>
               <option value="20" selected>20</option>
               <option value="50">50</option>
@@ -1103,44 +1204,44 @@
           </div>
         </div>
 
-        <div class="flex gap-2 pt-2 border-t border-slate-100">
-          <button type="button" id="report-cancel" class="flex-1 py-2 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50">Cancel</button>
-          <button type="button" id="report-generate" class="flex-1 py-2 bg-gradient-to-r from-navy-900 to-navy-800 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">Download</button>
+        <div class="modal-actions ruled">
+          <button type="button" id="report-cancel" class="btn btn-secondary btn-sm">Cancel</button>
+          <button type="button" id="report-generate" class="btn btn-primary btn-sm">Download</button>
         </div>
       </div>
     </div>
   </div>
 
   <!-- ========== 피드백 모달 ========== -->
-  <div id="feedback-modal" class="hidden fixed inset-0 z-50 bg-slate-950/45 flex items-center justify-center p-4">
-    <div class="card p-6 w-full max-w-md">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-extrabold text-navy-900">Send feedback</h3>
-        <button id="feedback-close" class="text-slate-400 hover:text-slate-700 text-xl font-bold">&times;</button>
+  <div id="feedback-modal" class="hidden modal-backdrop flex">
+    <div class="modal max-w-md">
+      <div class="modal-head">
+        <h3 class="modal-title">Send feedback</h3>
+        <button id="feedback-close" type="button" class="modal-close" aria-label="Close">&times;</button>
       </div>
-      <p class="text-xs text-slate-500 mb-4">Bug reports, feature ideas, praise or complaints — anything goes. You can send feedback anonymously without signing in; only the admin can read it.</p>
+      <p class="help mb-4">Bug reports, feature ideas, praise or complaints — anything goes. You can send feedback anonymously without signing in; only the admin can read it.</p>
       <form id="feedback-form" class="space-y-3">
         <input type="text" name="hp" id="feedback-hp" autocomplete="off" tabindex="-1" aria-hidden="true" class="hidden">
         <div>
-          <label for="feedback-category" class="text-xs font-bold text-slate-500">Category</label>
-          <select id="feedback-category" class="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-800">
+          <label for="feedback-category" class="lbl">Category</label>
+          <select id="feedback-category" class="sel modal-field">
             <option value="bug">Bug report</option>
             <option value="feature" selected>Feature request</option>
             <option value="other">Other</option>
           </select>
         </div>
         <div>
-          <label for="feedback-message" class="text-xs font-bold text-slate-500">Message</label>
+          <label for="feedback-message" class="lbl">Message</label>
           <textarea id="feedback-message" rows="5" maxlength="2000" required
-            class="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 resize-none"
+            class="modal-textarea"
             placeholder="e.g. Journal ABC seems to be missing / I'd like a custom date range"></textarea>
-          <p class="text-[10px] text-slate-400 text-right mt-1"><span id="feedback-charcount">0</span> / 2000</p>
+          <p class="help text-right mt-1"><span id="feedback-charcount">0</span> / 2000</p>
         </div>
-        <div class="flex gap-2 pt-2">
-          <button type="button" id="feedback-cancel" class="flex-1 py-2 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50">Cancel</button>
-          <button type="submit" id="feedback-submit" class="flex-1 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-shadow">Send</button>
+        <div class="modal-actions">
+          <button type="button" id="feedback-cancel" class="btn btn-secondary btn-sm">Cancel</button>
+          <button type="submit" id="feedback-submit" class="btn btn-primary btn-sm">Send</button>
         </div>
-        <p id="feedback-status" class="text-xs text-center font-semibold hidden"></p>
+        <p id="feedback-status" class="modal-status hidden"></p>
       </form>
     </div>
   </div>
@@ -1180,8 +1281,10 @@
     // 여러 계열 차트(Keyword trends · Frequent journals trend)의 범주 색: dataviz 기준 8색을 정해진 순서로만 쓴다
     // (흰 바탕 light 모드에서 validate_palette 통과: 인접 CVD ΔE 9.1, 정상시력 ΔE 19.6). 9번째 이후는 색을 만들지 않고
     // 무채색 + 점선으로 넘긴다 — 색만으로 구분하지 않도록 범례 칩과 툴팁이 이름을 항상 함께 보여 준다.
-    const SERIES_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'];
-    const SERIES_OVERFLOW = [{ color: '#6B7280', dash: undefined }, { color: '#9AA3B2', dash: [2, 4] }];
+    // 색의 단일 출처는 <style> 의 :root 토큰이다 — JS 는 여기서 읽어 쓴다 (값은 6자리 hex 라 뒤에 '80' 알파를 붙일 수 있다)
+    const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+    const SERIES_COLORS = [1, 2, 3, 4, 5, 6, 7, 8].map(i => cssVar('--series-' + i));
+    const SERIES_OVERFLOW = [{ color: cssVar('--series-overflow-1'), dash: undefined }, { color: cssVar('--series-overflow-2'), dash: [2, 4] }];
     // 색은 계열(이름)을 따라가지 순위를 따라가지 않는다: 한 번 받은 칸은 필터·개수가 바뀌어도 그대로 두고, 빠진 계열의 칸만 새 계열에 준다.
     const _seriesSlots = { keyword: new Map(), journal: new Map() };
     function seriesStyles(store, names) {
@@ -1209,12 +1312,12 @@
     // 차트 공통 기본값: Manrope + 흐린 본문색 (Chart.js CDN 로딩 실패 시에도 나머지 화면은 동작하도록 방어)
     if (window.Chart) {
       Chart.defaults.font.family = '"Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
-      Chart.defaults.color = '#586273';
+      Chart.defaults.color = cssVar('--dash-muted');
     }
     // 시계열 축 공통: Home 의 Papers per day 와 같은 모양 (x 격자 없음 · 가는 y 격자 · 흐린 눈금)
     // (Chart.js 가 옵션 객체를 가공하므로 차트마다 새로 만든다)
-    const axisX = (tickCallback) => ({ grid: { display: false }, border: { color: '#C9CED6' }, ticks: { maxRotation: 0, minRotation: 0, autoSkip: true, font: { size: 12 }, ...(tickCallback ? { callback: tickCallback } : {}) } });
-    const axisY = () => ({ beginAtZero: true, border: { display: false }, grid: { color: '#EEF0F3' }, ticks: { precision: 0, font: { size: 11 } } });
+    const axisX = (tickCallback) => ({ grid: { display: false }, border: { color: cssVar('--dash-axis') }, ticks: { maxRotation: 0, minRotation: 0, autoSkip: true, font: { size: 12 }, ...(tickCallback ? { callback: tickCallback } : {}) } });
+    const axisY = () => ({ beginAtZero: true, border: { display: false }, grid: { color: cssVar('--dash-hairline-soft') }, ticks: { precision: 0, font: { size: 11 } } });
 
     // ---------- Home 표시용 날짜 헬퍼 ('YYYY-MM-DD' 문자열 기준 — 타임존 영향 없음) ----------
     const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1341,19 +1444,19 @@
       const duration = opts.duration != null ? opts.duration : 4000;
       const id = 'toast-' + (++_toastSeq);
       const STYLES = {
-        success: { cls: 'bg-emerald-50 border-emerald-300 text-emerald-800', icon: '✓' },
-        error:   { cls: 'bg-red-50 border-red-300 text-red-700',             icon: '✕' },
-        info:    { cls: 'bg-slate-50 border-slate-300 text-slate-700',       icon: 'ℹ' },
+        success: { cls: 'toast-success', icon: '✓' },
+        error:   { cls: 'toast-error',   icon: '✕' },
+        info:    { cls: 'toast-info',    icon: 'ℹ' },
       };
       const st = STYLES[type] || STYLES.info;
       const el = document.createElement('div');
       el.id = id;
       el.setAttribute('role', 'status');
-      el.className = `toast-enter pointer-events-auto border rounded-lg shadow-lg px-3.5 py-3 text-xs font-semibold flex items-start gap-2 ${st.cls}`;
+      el.className = `toast ${st.cls}`;
       el.innerHTML = `
-        <span class="mt-0.5">${st.icon}</span>
-        <span class="flex-1 leading-relaxed whitespace-pre-line">${_escapeHtmlToast(message)}</span>
-        <button type="button" aria-label="Close" class="text-current opacity-50 hover:opacity-100 font-bold leading-none">&times;</button>
+        <span class="toast-icon">${st.icon}</span>
+        <span class="toast-text">${_escapeHtmlToast(message)}</span>
+        <button type="button" aria-label="Close" class="toast-close">&times;</button>
       `;
       el.querySelector('button').addEventListener('click', () => dismissToast(id));
       container.appendChild(el);
@@ -1602,7 +1705,7 @@
       return {
         segment: { borderDash: (ctx) => ctx.p1DataIndex === lastIdx ? [5, 4] : undefined },
         pointBackgroundColor: (ctx) => ctx.dataIndex === lastIdx
-          ? '#fff'
+          ? cssVar('--dash-surface')
           : (ctx.dataset.backgroundColor ?? Chart.defaults.backgroundColor),
         pointBorderColor: color,
         pointBorderWidth: (ctx) => ctx.dataIndex === lastIdx ? 2 : 1,
@@ -2221,11 +2324,12 @@
         // 날짜 내림차순 정렬
         items.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
 
+        // 색은 CSS(.ann-fix/.ann-update/.ann-info/.ann-warning)가 정한다
         const typeStyle = {
-          fix:     { label: 'FIX',     color: '#f97316', bg: '#fff7ed' },
-          update:  { label: 'UPDATE',  color: '#10b981', bg: '#ecfdf5' },
-          info:    { label: 'INFO',    color: '#002F6C', bg: '#eff6ff' },
-          warning: { label: 'WARNING', color: '#dc2626', bg: '#fef2f2' },
+          fix:     { label: 'FIX',     cls: 'ann-fix' },
+          update:  { label: 'UPDATE',  cls: 'ann-update' },
+          info:    { label: 'INFO',    cls: 'ann-info' },
+          warning: { label: 'WARNING', cls: 'ann-warning' },
         };
 
         const esc = (s) => String(s || '').replace(/[&<>"']/g, c => (
@@ -2236,14 +2340,14 @@
         const html = items.map(it => {
           const t = typeStyle[it.type] || typeStyle.info;
           return `
-            <div class="flex gap-3 py-2.5">
-              <div class="flex-shrink-0 flex flex-col items-start gap-1 min-w-[72px]">
-                <span class="text-[10px] font-extrabold tracking-[0.06em] px-1.5 py-0.5 rounded" style="background:${t.color}; color:#F8FAFC;">${t.label}</span>
-                <span class="text-xs font-semibold text-slate-500">${esc(it.date)}</span>
+            <div class="ann-row">
+              <div class="ann-side">
+                <span class="ann-badge ${t.cls}">${t.label}</span>
+                <span class="ann-date">${esc(it.date)}</span>
               </div>
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-bold text-navy-900 leading-snug">${esc(it.title)}</p>
-                <p class="text-[13px] text-[#374151] mt-0.5 leading-relaxed">${esc(it.body)}</p>
+              <div class="ann-main">
+                <p class="ann-title">${esc(it.title)}</p>
+                <p class="ann-body">${esc(it.body)}</p>
               </div>
             </div>`;
         }).join('');
@@ -2405,8 +2509,7 @@
       parts.push(allBroadsMode ? 'All topics' : `${selectedBroads.size} topic${selectedBroads.size === 1 ? '' : 's'}`);
       sum.textContent = parts.join(' · ');
       const hasFilter = !allJournalsMode || !allBroadsMode;
-      sum.classList.toggle('text-navy-800', hasFilter);
-      sum.classList.toggle('text-slate-400', !hasFilter);
+      sum.classList.toggle('has-filter', hasFilter);
     }
     (function() {
       const btn = document.getElementById('filters-toggle-btn');
@@ -2718,18 +2821,18 @@
           <span class="top-bar"><span class="${fill}" style="width:${(count / max * 100).toFixed(1)}%"></span></span>
           <span class="top-count">${count.toLocaleString('en-US')}</span>
         </button></li>`;
-      const empty = '<li class="text-[13px] text-[#586273] py-6 text-center">No data</li>';
+      const empty = '<li class="empty-note">No data</li>';
 
       const topJ = jSorted.slice(0, 8);
       document.getElementById('top-journals').innerHTML = topJ.length
-        ? topJ.map(([j, c]) => row(journalLabel(j), j !== journalAbbr(j) ? j : '', c, topJ[0][1], 'bg-[#163B73]', j, 'journal', j)).join('')
+        ? topJ.map(([j, c]) => row(journalLabel(j), j !== journalAbbr(j) ? j : '', c, topJ[0][1], 'bar-journal', j, 'journal', j)).join('')
         : empty;
       document.getElementById('top-journals-all').textContent = `All ${jSorted.length.toLocaleString('en-US')} →`;
 
       const kFreq = getFreq(papers, 'sharp', '');   // paper 단위 중복 제거 — 값이 곧 "그 sharp 키워드를 가진 논문 수"
       const topK = Object.entries(kFreq).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 8);
       document.getElementById('top-keywords').innerHTML = topK.length
-        ? topK.map(([k, c]) => row(kwLabel(k), kwLabel(sharpToParent[k] || ''), c, topK[0][1], 'bg-[#4F74B3]', k, 'topic', topicKeyOf(k))).join('')
+        ? topK.map(([k, c]) => row(kwLabel(k), kwLabel(sharpToParent[k] || ''), c, topK[0][1], 'bar-keyword', k, 'topic', topicKeyOf(k))).join('')
         : empty;
     }
 
@@ -2903,7 +3006,7 @@
             datasets: [{
               label, data,
               // 단일 period가 진행 중이면 모든 막대를 흐리게 (색 + '80' = 알파 50%)
-              backgroundColor: '#4F74B3' + (kwProgress ? '80' : ''),
+              backgroundColor: cssVar('--dash-navy-mid') + (kwProgress ? '80' : ''),
               borderRadius: { topRight: 4, bottomRight: 4 }, maxBarThickness: 20,
             }]
           },
@@ -2915,7 +3018,7 @@
             },
             scales: {
               x: axisY(),
-              y: { grid: { display: false }, border: { color: '#C9CED6' }, ticks: { font: { size: 12 } } }
+              y: { grid: { display: false }, border: { color: cssVar('--dash-axis') }, ticks: { font: { size: 12 } } }
             }
           }
         });
@@ -2958,7 +3061,7 @@
         label, data,
         borderColor: style.color, backgroundColor: style.color, borderWidth: 2, borderDash: style.dash, tension: 0.25,
         pointRadius: (ctx) => ctx.dataIndex === lastIdx ? 4 : 0, pointHoverRadius: 5, pointHitRadius: 12,
-        pointBackgroundColor: style.color, pointBorderColor: '#fff', pointBorderWidth: 2,
+        pointBackgroundColor: style.color, pointBorderColor: cssVar('--dash-surface'), pointBorderWidth: 2,
         ...(inProgress ? partialLineStyle(style.color, lastIdx) : {}),
       };
     }
@@ -3030,7 +3133,7 @@
         let row = `<li>
           <div class="top-row kw-row kw-broad-row${isFilter ? ' is-filter' : ''}" data-broad="${broadAttr}" role="button" tabindex="0" ${topSharps.length ? `aria-expanded="${isOpen}"` : ''}>
             <span class="top-name" title="${broadAttr}"><span class="top-name-main"><span class="kw-chev" aria-hidden="true">${chevron}</span>${_escapeHtml(kwLabel(broad))}</span>${topSharps.length ? `<span class="top-name-sub">${topSharps.length}${hasMore ? '+' : ''} sharp keywords</span>` : ''}</span>
-            <span class="top-bar"><span style="width:${(count / maxBroad * 100).toFixed(1)}%;background:${isFilter ? '#163B73' : '#4F74B3'}"></span></span>
+            <span class="top-bar"><span class="${isFilter ? 'bar-journal' : 'bar-keyword'}" style="width:${(count / maxBroad * 100).toFixed(1)}%"></span></span>
             <span class="top-count">${count.toLocaleString('en-US')}</span>
             <button type="button" class="kw-pick kw-pick-broad${isFilter ? ' is-on' : ''}" data-broad="${broadAttr}" aria-pressed="${isFilter}" aria-label="Filter charts by ${_escapeHtml(kwLabel(broad))}" title="Filter charts by this domain">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg>
@@ -3043,7 +3146,7 @@
           row += `<ul class="kw-sub">${topSharps.map(([sharp, sc]) =>
             `<li><button type="button" class="top-row is-sub top-link" data-browse-open="topic" data-browse-key="${_escapeHtml(topicKeyOf(sharp, broad))}" aria-label="${_escapeHtml(kwLabel(sharp))}, ${sc.toLocaleString('en-US')} paper${sc === 1 ? '' : 's'}, view in Browse">
               <span class="top-name" title="${_escapeHtml(sharp)}"><span class="top-name-main">${_escapeHtml(kwLabel(sharp))}</span></span>
-              <span class="top-bar"><span style="width:${(sc / maxSharp * 100).toFixed(1)}%;background:#C3D0E6"></span></span>
+              <span class="top-bar"><span class="bar-sharp" style="width:${(sc / maxSharp * 100).toFixed(1)}%"></span></span>
               <span class="top-count">${sc.toLocaleString('en-US')}</span>
             </button></li>`).join('')}</ul>`;
         }
@@ -3145,7 +3248,7 @@
         ? sorted.map(([j, perUnit, total]) =>
           `<li class="top-row">
             <span class="top-name" title="${_escapeHtml(`${j}: ${perUnit.toFixed(2)} papers / ${unit} (${total} total)`)}"><span class="top-name-main">${_escapeHtml(journalLabel(j))}</span></span>
-            <span class="top-bar"><span style="width:${(perUnit / sorted[0][1] * 100).toFixed(1)}%;background:#163B73"></span></span>
+            <span class="top-bar"><span class="bar-journal" style="width:${(perUnit / sorted[0][1] * 100).toFixed(1)}%"></span></span>
             <span class="top-count">${fmt(perUnit)}</span>
           </li>`).join('')
         : '<li class="empty-note">No data</li>';
@@ -3179,8 +3282,8 @@
       document.getElementById('chart-daily').setAttribute('aria-label',
         `Bar chart of papers per ${unitWord}${isDay ? ' with a 7-day average line' : ''}`);
 
-      // 막대: Day 는 옅은 파랑(#C3D0E6, 평균선이 주인공), Week/Month 는 선이 없어 한 톤 진하게. 진행 중인 마지막 막대는 알파 50%.
-      const BAR = isDay ? '#C3D0E6' : '#8FA8D1';
+      // 막대: Day 는 옅은 파랑(--dash-bar-soft, 평균선이 주인공), Week/Month 는 선이 없어 한 톤 진하게(--dash-bar-mid). 진행 중인 마지막 막대는 알파 50%.
+      const BAR = isDay ? cssVar('--dash-bar-soft') : cssVar('--dash-bar-mid');
       const datasets = [{
         type: 'bar',
         label: isDay ? 'Daily' : 'Papers',
@@ -3202,7 +3305,7 @@
         });
         datasets.push({
           type: 'line', label: '7-day average', data: avg,
-          borderColor: '#163B73', backgroundColor: '#163B73', borderWidth: 2.5,
+          borderColor: cssVar('--dash-navy'), backgroundColor: cssVar('--dash-navy'), borderWidth: 2.5,
           pointRadius: 0, pointHoverRadius: 4, tension: 0.25, spanGaps: true, order: 1,
         });
       }
@@ -3247,13 +3350,13 @@
           scales: {
             x: {
               grid: { display: false },
-              border: { color: '#C9CED6' },
+              border: { color: cssVar('--dash-axis') },
               ticks: {
                 autoSkip: !isDay, maxRotation: 0, minRotation: 0, align: 'inner', font: { size: 12 },
                 callback(value, index) { return fmtTick(this.getLabelForValue(value), index); },
               }
             },
-            y: { beginAtZero: true, border: { display: false }, grid: { color: '#EEF0F3' }, ticks: { precision: 0, font: { size: 11 } } }
+            y: { beginAtZero: true, border: { display: false }, grid: { color: cssVar('--dash-hairline-soft') }, ticks: { precision: 0, font: { size: 11 } } }
           }
         }
       });
@@ -3296,7 +3399,7 @@
             datasets: [{
               label, data,
               // 단일 period가 진행 중이면 모든 막대를 흐리게 (색 + '80' = 알파 50%)
-              backgroundColor: '#163B73' + (jmProgress ? '80' : ''),
+              backgroundColor: cssVar('--dash-navy') + (jmProgress ? '80' : ''),
               borderRadius: { topRight: 4, bottomRight: 4 }, maxBarThickness: 20,
             }]
           },
@@ -3312,7 +3415,7 @@
             },
             scales: {
               x: axisY(),
-              y: { grid: { display: false }, border: { color: '#C9CED6' }, ticks: { font: { size: 12 } } }
+              y: { grid: { display: false }, border: { color: cssVar('--dash-axis') }, ticks: { font: { size: 12 } } }
             }
           }
         });
@@ -3473,6 +3576,7 @@
         html += `<th class="hm-col" scope="col" title="${_escapeHtml(kw)}"><span class="hm-col-label">${_escapeHtml(kwLabel(kw))}</span></th>`;
       }
       html += '</tr></thead><tbody>';
+      const hmEmpty = cssVar('--dash-canvas'), hmTextOn = cssVar('--dash-surface'), hmTextOff = cssVar('--dash-ink');
       for (const j of topJ) {
         const total = perJournalFreq[j].total;
         const jLabel = `${_escapeHtml(journalLabel(j))} <span class="hm-n">(${total})</span>`;
@@ -3481,9 +3585,9 @@
           const cell = matrix[j][kw];
           const v = heatmapCellMode === 'pct' ? cell.pct : cell.raw;
           const intensity = Math.min(v / colorMax, 1);
-          // 남색(#163B73) 알파 눈금. 진한 칸(≥0.68)만 흰 글자 — 그 아래는 어두운 글자가 더 잘 읽힌다
-          const bg = v === 0 ? '#F4F5F7' : `rgba(22,59,115,${(0.08 + intensity * 0.84).toFixed(3)})`;
-          const tc = intensity >= 0.68 ? '#FFFFFF' : '#111827';
+          // 남색(rgba(22,59,115) = --dash-navy) 알파 눈금. 진한 칸(≥0.68)만 흰 글자 — 그 아래는 어두운 글자가 더 잘 읽힌다
+          const bg = v === 0 ? hmEmpty : `rgba(22,59,115,${(0.08 + intensity * 0.84).toFixed(3)})`;
+          const tc = intensity >= 0.68 ? hmTextOn : hmTextOff;
           // 표시 텍스트 + tooltip(반대 단위 동시 노출)
           const display = heatmapCellMode === 'pct' ? (v>0 ? v.toFixed(1)+'%' : '') : (v||'');
           const tip = `${kw} @ ${j}\nRaw: ${cell.raw} / ${total}\n%: ${cell.pct.toFixed(1)}%`;
@@ -3563,11 +3667,11 @@
 
         // 카드 머리: 저널 약어(굵게) + 논문 수(흐리게). 아래는 Home 과 같은 막대 목록 행
         const head = `<div class="flex items-baseline justify-between gap-3 mb-3">
-              <h3 class="m-0 text-sm font-extrabold text-[#374151] truncate" title="${_escapeHtml(j)}">${_escapeHtml(journalAbbr(j))}</h3>
-              <span class="flex-none text-xs font-semibold text-slate-400">${total.toLocaleString('en-US')} papers</span>
+              <h3 class="bjk-name" title="${_escapeHtml(j)}">${_escapeHtml(journalAbbr(j))}</h3>
+              <span class="bjk-total">${total.toLocaleString('en-US')} papers</span>
             </div>`;
         if (top.length === 0) {
-          return `<div class="bjk-card">${head}<p class="m-0 text-[13px] text-slate-400">No keyword data</p></div>`;
+          return `<div class="bjk-card">${head}<p class="bjk-empty">No keyword data</p></div>`;
         }
 
         const maxFreq = top[0][1];
@@ -3577,7 +3681,7 @@
           const key = bjkView === 'sharp' ? topicKeyOf(kw, bjkBroadFilter) : kw;
           return `<li><button type="button" class="top-row is-card top-link" data-browse-open="topic" data-browse-key="${_escapeHtml(key)}" aria-label="${_escapeHtml(kwLabel(kw))}, ${n.toLocaleString('en-US')} paper${n === 1 ? '' : 's'} in ${_escapeHtml(journalAbbr(j))}, view in Browse">
               <span class="top-name" title="${_escapeHtml(kw)}"><span class="top-name-main">${_escapeHtml(kwLabel(kw))}</span></span>
-              <span class="top-bar"><span style="width:${(n / maxFreq * 100).toFixed(1)}%;background:#4F74B3"></span></span>
+              <span class="top-bar"><span class="bar-keyword" style="width:${(n / maxFreq * 100).toFixed(1)}%"></span></span>
               <span class="top-count">${n.toLocaleString('en-US')}<span class="top-pct">${pct.toFixed(0)}%</span></span>
             </button></li>`;
         }).join('');
@@ -3942,13 +4046,13 @@
       for (const t of sorted) {
         if (!t) continue;
         const re = new RegExp('(' + t.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&') + ')', 'gi');
-        safe = safe.replace(re, '<mark class="bg-yellow-200 text-navy-900 rounded px-0.5">$1</mark>');
+        safe = safe.replace(re, '<mark class="hl">$1</mark>');
       }
       return safe;
     }
 
     // ---------- 논문 목록 공통 마크업 (Browse · Advanced search · Home 검색 결과) ----------
-    // Recent papers 표와 같은 모양: 날짜 그룹 머리글 + 행(저널 굵게 #374151 · 제목 남색 링크). 목록은 모두 이 두 함수로 그린다.
+    // Recent papers 표와 같은 모양: 날짜 그룹 머리글 + 행(저널 굵게 --dash-ink-2 · 제목 남색 링크). 목록은 모두 이 두 함수로 그린다.
     function paperGroupHtml(dateKey, count) {
       const thisYear = String(new Date().getFullYear());
       return `<div class="pl-group"><span>${_escapeHtml(fmtDate(dateKey, dateKey.slice(0, 4) !== thisYear))}</span><span class="count">${count.toLocaleString('en-US')} paper${count === 1 ? '' : 's'}</span></div>`;
@@ -4874,23 +4978,23 @@
         });
         if (res.ok) {
           fbStatus.textContent = '✓ Thanks for your feedback!';
-          fbStatus.className = 'text-xs text-center font-semibold text-emerald-600';
+          fbStatus.className = 'modal-status modal-status-ok';
           fbStatus.classList.remove('hidden');
           setTimeout(closeFeedback, 1400);
         } else if (res.status === 429) {
           fbStatus.textContent = 'Too many requests. Please try again in a moment.';
-          fbStatus.className = 'text-xs text-center font-semibold text-red-500';
+          fbStatus.className = 'modal-status modal-status-err';
           fbStatus.classList.remove('hidden');
         } else if (res.status === 400) {
           fbStatus.textContent = 'Please check your message.';
-          fbStatus.className = 'text-xs text-center font-semibold text-red-500';
+          fbStatus.className = 'modal-status modal-status-err';
           fbStatus.classList.remove('hidden');
         } else {
           throw new Error('Send failed');
         }
       } catch (err) {
         fbStatus.textContent = '✗ Couldn\'t send. Please try again in a moment.';
-        fbStatus.className = 'text-xs text-center font-semibold text-red-500';
+        fbStatus.className = 'modal-status modal-status-err';
         fbStatus.classList.remove('hidden');
       } finally {
         submitBtn.disabled = false;
@@ -5176,7 +5280,7 @@
         </div>
         <div class="browse-filters">
           <div class="fld">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#586273" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="flex-none"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="flex-none"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
             <label for="browse-detail-search" class="sr-only">Search within this ${browseMode === 'journal' ? 'journal' : 'topic'}</label>
             <input id="browse-detail-search" type="text" class="bare-input" value="${_escapeHtml(_browseDetailFilter)}"
               placeholder="Search within this ${browseMode === 'journal' ? 'journal' : 'topic'} (title, keyword or DOI)" autocomplete="off">
@@ -5198,7 +5302,7 @@
         parts.push('<p class="empty-note">No matching papers.</p>');
       }
       if (total > BROWSE_ROW_CAP) {
-        parts.push(`<p class="sec-help mt-3 pt-3 border-t border-[#EEF0F3]">Showing the newest ${BROWSE_ROW_CAP.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} papers.</p>`);
+        parts.push(`<p class="sec-help pl-more">Showing the newest ${BROWSE_ROW_CAP.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} papers.</p>`);
       }
 
       container.innerHTML = parts.join('');
@@ -5280,10 +5384,10 @@
       chipsEl.innerHTML = sortedKw.map(([kw, c], i) => {
         // 기본: 상위 10개만 선택
         const checked = i < 10 ? 'checked' : '';
-        return `<label class="inline-flex items-center gap-1 bg-white border border-slate-200 rounded-full px-2.5 py-1 text-[11px] cursor-pointer hover:border-navy-600 transition-colors">
+        return `<label class="chk-chip chk-chip-sm">
           <input type="checkbox" class="report-kw-chip" value="${_escapeHtml(kw)}" ${checked}>
           <span>${_escapeHtml(kw)}</span>
-          <span class="text-slate-400">(${c})</span>
+          <span class="chip-count">(${c})</span>
         </label>`;
       }).join('');
 

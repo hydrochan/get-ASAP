@@ -90,3 +90,6 @@ outreach-email-director-lee.md
 
 # Tailwind standalone CLI (build_css.py 가 사용; 바이너리는 커밋 금지)
 .tools/
+
+# git worktrees (feature branches checked out inside the repo)
+.worktrees/
