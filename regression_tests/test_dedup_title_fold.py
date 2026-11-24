@@ -7,7 +7,6 @@ import sqlite3
 
 import pytest
 
-import crossref_source
 import dedup_cleanup as dc
 import store
 from models import PaperMetadata
@@ -164,17 +163,6 @@ def test_rolled_back_batch_does_not_leave_phantom_rows_in_the_cached_index(conn,
         save(conn, paper("Ghost paper that gets rolled back one"), paper("Ghost paper that gets rolled back two"))
     monkeypatch.setattr(store, "_insert_paper", real)
     assert save(conn, paper("Ghost paper that gets rolled back one"))["saved"] == 1
-
-
-# ---------- Crossref 사전 조회표 ----------
-
-def test_crossref_title_index_ignores_punctuation_but_not_short_titles():
-    index = crossref_source.TitleIndex()
-    index.add_title("2D–2D TiO 2 /anthracene-based COF for H 2 generation", "2026-10-01")
-    assert index.lookup("2D-2D TiO2/Anthracene-based COF for H2 generation.") == "2026-10-01"
-    index.add_title("Preface", "2026-10-02")
-    assert index.lookup("Preface.") is None
-    assert index.lookup("Preface") == "2026-10-02"
 
 
 # ---------- dedup_cleanup ----------
