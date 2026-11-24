@@ -22,6 +22,7 @@ import csv
 import datetime as _dt
 import hashlib
 import json
+import html
 import logging
 import os
 import pathlib
@@ -319,6 +320,70 @@ def normalize_title(title: str) -> str:
     return normalized.strip().casefold()
 
 
+_TAG_RE = re.compile(r"</?[A-Za-z][^<>]*>")
+_NON_ALNUM_RE = re.compile(r"[\W_]+")
+_DOI_SLUG_RE = re.compile(r"/(?:full|abs|pdf|epdf|fulltext|figures|references|suppl_file)(?:/.*)?$")
+MIN_FOLD_LEN = 8  # 이보다 짧은 접힌 제목은 우연히 같을 수 있어 title_fold 일치만으로는 같은 논문으로 보지 않는다
+
+
+def title_fold(title: str) -> str:
+    """표기 차이를 모두 지운 비교 전용 키: HTML 엔티티 해제 + 태그 제거 + NFKC + casefold + 영숫자 외 전부 제거.
+    저장하는 title_key(normalize_title)와 달리 첨자 주변 공백·끝 마침표·하이픈·기호 차이가 키에 남지 않는다.
+    DB 에 저장하지 않고 비교할 때마다 계산한다(저장 형식을 바꾸지 않으려는 것 - 기존 행·유일 인덱스와 호환)."""
+    s = unicodedata.normalize("NFKC", _TAG_RE.sub("", html.unescape(title or ""))).casefold()
+    return _NON_ALNUM_RE.sub("", s)
+
+
+def doi_key(url: str | None) -> str:
+    """url 에서 뽑은 DOI 의 비교용 정규형: 소문자, doi.org 접두·`/full` 같은 URL 꼬리·끝 구두점 제거. 없으면 빈 문자열."""
+    d = doi_from_url(url).casefold()
+    m = _DOI_SLUG_RE.search(d)
+    if m and m.start() > d.find("/"):  # DOI 자체의 첫 `/`(접두 뒤)는 꼬리가 아니다
+        d = d[: m.start()]
+    return d.rstrip("/.)")
+
+
+class _DedupIndex:
+    """같은 논문을 title_fold·DOI 로 찾는 메모리 조회표(정본 행 dup_of IS NULL, tombstone 포함 - title_key 유일 인덱스와 같은 범위).
+    처음 조회할 때 한 번 읽고(쓰기 트랜잭션 안에서 만들어야 일관된다), 이후 삽입한 행은 add 로 반영한다."""
+
+    def __init__(self, conn: sqlite3.Connection):
+        self._conn = conn
+        self._loaded = False
+        self.by_fold: dict[str, int] = {}
+        self.by_doi: dict[str, int] = {}
+        self.doi_of: dict[int, str] = {}
+
+    def _load(self) -> None:
+        self._loaded = True
+        for r in self._conn.execute("SELECT id, title, url FROM papers WHERE dup_of IS NULL ORDER BY id"):
+            self.add(r["id"], r["title"], r["url"])
+
+    def add(self, paper_id: int, title: str, url: str | None) -> None:
+        if not self._loaded:
+            return self._load()  # 전체를 읽으면 이 행도 들어 있다(이미 INSERT 됨)
+        fold = title_fold(title)
+        if len(fold) >= MIN_FOLD_LEN:
+            self.by_fold.setdefault(fold, paper_id)
+        doi = doi_key(url)
+        if doi:
+            self.by_doi.setdefault(doi, paper_id)
+            self.doi_of[paper_id] = doi
+
+    def find(self, title: str, url: str | None) -> int | None:
+        """같은 논문인 기존 행 id. DOI 가 같으면 제목과 무관하게 같은 논문, 제목만 같으면 양쪽 DOI 가 있고 다를 때만 다른 논문으로 본다."""
+        if not self._loaded:
+            self._load()
+        doi = doi_key(url)
+        if doi and doi in self.by_doi:
+            return self.by_doi[doi]
+        fold = title_fold(title)
+        owner = self.by_fold.get(fold) if len(fold) >= MIN_FOLD_LEN else None
+        if owner is not None and doi and self.doi_of.get(owner, doi) != doi:
+            return None
+        return owner
+
+
 def normalize_pub_date(value) -> str | None:
     """발행일 문자열을 `YYYY-MM-DD`로. 앞 10자가 실제 달력 날짜가 아니면 None."""
     s = (value or "").strip()[:10] if isinstance(value, str) or value is None else ""
@@ -355,12 +420,39 @@ def _bump(conn: sqlite3.Connection) -> int:
     return last_seq(conn)
 
 
-def _insert_paper(conn: sqlite3.Connection, rec: dict, *, allow_dup: bool = False) -> int | None:
+# 프로세스 안 재사용: 같은 DB 의 마지막 change_seq 가 그대로면(index 입력인 제목·url·dup_of 는 전부 추적 열이라 바뀌면 seq 가 오른다)
+# 다음 save_papers 가 7만 행 재조회·재계산(~0.8초)을 건너뛴다. 가져갈 때 pop 해서 소유권을 넘기고 커밋 뒤에만 되돌린다.
+_DEDUP_INDEX_CACHE: dict[str, tuple[tuple[int, int], "_DedupIndex"]] = {}
+
+
+def _db_file(conn: sqlite3.Connection) -> str:
+    return conn.execute("PRAGMA database_list").fetchone()[2]
+
+
+def _take_dedup_index(conn: sqlite3.Connection) -> "_DedupIndex":
+    """write_tx 안에서 호출. 캐시가 현재 last_seq 와 맞으면 그것을, 아니면 새 조회표(지연 로드)를 준다."""
+    cached = _DEDUP_INDEX_CACHE.pop(_db_file(conn), None)
+    if cached is not None and cached[0] == _dedup_stamp(conn):
+        cached[1]._conn = conn  # 지연 로드 전에 캐시된 조회표는 닫힌 연결을 들고 있을 수 있다
+        return cached[1]
+    return _DedupIndex(conn)
+
+
+def _dedup_stamp(conn: sqlite3.Connection) -> tuple[int, int]:
+    """조회표가 아직 DB 와 같은지 보는 표식: (last_seq, MAX(id)). store 밖 직접 INSERT 도 id 로 걸린다."""
+    return last_seq(conn), conn.execute("SELECT COALESCE(MAX(id), 0) FROM papers").fetchone()[0]
+
+
+def _insert_paper(
+    conn: sqlite3.Connection, rec: dict, *, allow_dup: bool = False, dedup_index: "_DedupIndex | None" = None
+) -> int | None:
     """행 삽입 + seq 부여. title_key가 이미 점유(tombstone 포함)되어 있으면:
     allow_dup=False -> None 반환(스킵, seq 소비 없음) / allow_dup=True -> dup_of에 기존 행을 달아 삽입(이관용).
 
     allow_dup=False 에서는 공백만 다른 키("CO2" vs 옛 파서가 쪼갠 "CO 2")도 같은 논문으로 보고 스킵한다
     (범위는 정확 키와 같다: 전 기간·dup_of IS NULL·tombstone 포함). allow_dup=True(이관) 동작은 그대로다.
+    allow_dup=False 에서는 마지막으로 _DedupIndex(title_fold 일치 또는 같은 DOI)도 본다: 구두점·HTML·하이픈 표기 차이나
+    추적 URL 행과 DOI URL 행으로 따로 들어온 같은 논문을 스킵한다. 스킵하면 먼저 들어온 행(상태 포함)이 그대로 남는다.
     """
     title_key = normalize_title(rec["title"])
     owner = conn.execute(
@@ -372,6 +464,11 @@ def _insert_paper(conn: sqlite3.Connection, rec: dict, *, allow_dup: bool = Fals
         ).fetchone()
     if owner is not None and not allow_dup:
         return None
+    if not allow_dup:
+        if dedup_index is None:
+            dedup_index = _DedupIndex(conn)
+        if dedup_index.find(rec["title"], rec.get("url")) is not None:
+            return None
     seq = _bump(conn)
     now = _now()
     cur = conn.execute(
@@ -391,6 +488,8 @@ def _insert_paper(conn: sqlite3.Connection, rec: dict, *, allow_dup: bool = Fals
     )
     if cur.rowcount == 0:  # 위 선확인 때문에 도달 불가 - 방어용
         return None
+    if dedup_index is not None and owner is None:
+        dedup_index.add(cur.lastrowid, rec["title"], rec.get("url"))
     return cur.lastrowid
 
 
@@ -468,6 +567,7 @@ def save_papers(papers, conn: sqlite3.Connection | None = None, today: _dt.date 
         with write_tx(conn):
             _ensure_title_squash_index(conn)
             now = _now()
+            dedup_index = _take_dedup_index(conn)
             for paper in papers:
                 title = paper.title or ""
                 if not normalize_title(title):
@@ -489,7 +589,7 @@ def save_papers(papers, conn: sqlite3.Connection | None = None, today: _dt.date 
                 }
                 conn.execute("SAVEPOINT paper_row")
                 try:
-                    inserted = _insert_paper(conn, rec)
+                    inserted = _insert_paper(conn, rec, dedup_index=dedup_index)
                     conn.execute("RELEASE paper_row")
                 except sqlite3.IntegrityError as e:
                     conn.execute("ROLLBACK TO paper_row")
@@ -502,6 +602,8 @@ def save_papers(papers, conn: sqlite3.Connection | None = None, today: _dt.date 
                     result["skipped"] += 1
                 else:
                     result["saved"] += 1
+            stamp = _dedup_stamp(conn)
+        _DEDUP_INDEX_CACHE[_db_file(conn)] = (stamp, dedup_index)  # 커밋된 뒤에만 되돌려 둔다(롤백된 가짜 행이 남지 않도록)
     finally:
         if own:
             conn.close()
