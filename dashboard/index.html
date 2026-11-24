@@ -5519,9 +5519,21 @@
 
     // ---------- 세션 체크 ----------
     // Pages 모드: 공개(게스트) 화면 - 세션은 묻지 않고(/api/session 호출 없음) 바로 그린다. 방문은 페이지 로드마다 한 번 원본에 알린다
-    // (본문·사용자 헤더 없는 POST 라 preflight 가 없다. 원본이 봇 UA 를 걸러 IP 해시만 저장). 끝나면 첫 방문자 지표 조회를 깨운다(loadMetrics 옆).
+    // (본문은 문자열뿐이고 사용자 헤더가 없어 preflight 가 없다. 원본이 봇 UA 를 걸러 해시만 저장). 끝나면 첫 방문자 지표 조회를 깨운다(loadMetrics 옆).
+    // 방문자 구분용 ID 는 이 브라우저에서 무작위로 만든 익명 값이다(개인정보 없음). 서버는 salt 를 섞은 해시만 저장하며, ID 가 없으면 IP 해시로 폴백한다.
+    function visitorId() {
+      try {
+        let v = localStorage.getItem('asap_vid');
+        if (!/^[A-Za-z0-9-]{16,64}$/.test(v || '')) {
+          v = (crypto.randomUUID ? crypto.randomUUID()
+            : Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join(''));
+          localStorage.setItem('asap_vid', v);
+        }
+        return v;
+      } catch { return ''; }
+    }
     if (PAGES_MODE) {
-      try { fetch(apiUrl('/api/visit'), { method: 'POST', mode: 'cors', credentials: 'omit', keepalive: true }).catch(() => {}).finally(() => { if (typeof onVisitRecorded === 'function') onVisitRecorded(); }); } catch {}
+      try { const vid = visitorId(); fetch(apiUrl('/api/visit'), Object.assign({ method: 'POST', mode: 'cors', credentials: 'omit', keepalive: true }, vid ? { body: vid } : {})).catch(() => {}).finally(() => { if (typeof onVisitRecorded === 'function') onVisitRecorded(); }); } catch {}
     }
     (async function checkSession() {
       if (PAGES_MODE) {

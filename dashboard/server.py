@@ -246,7 +246,9 @@ def _init_access_db():
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_fb_ts ON feedback(ts)")
         # 방문자 지표 테이블 (익명 방문자 포함).
-        # PRIVACY: raw IP는 저장하지 않는다 — salted hash(visit_hash)만 저장.
+        # visit_hash = 공개(Pages) 화면은 브라우저 익명 ID 의 salted hash, ID 가 없으면 IP hash(폴백). 원본 GET / 은 IP hash.
+        # 한 사람이 브라우저 둘을 쓰면 2명으로 세고, 저장소를 지우면 새 ID 라 새 방문자가 된다.
+        # PRIVACY: raw IP·raw ID 는 저장하지 않는다 — salted hash(visit_hash)만 저장.
         # upsert 구조: visit_hash당 1행. 각 행이 곧 distinct visitor이고
         # last_seen이 그 방문자의 최근 방문 시각 → online/today/total 모두 정확히 distinct 집계 가능.
         conn.execute("""
@@ -268,6 +270,14 @@ def _hash_ip(ip: str) -> str:
     raw IP 대신 해시만 저장한다(_maybe_record_visit의 visit_hash 계산과 동일 방식으로 일원화).
     """
     return hashlib.sha256((config.VISIT_HASH_SALT + ip).encode("utf-8")).hexdigest()
+
+
+_VISITOR_ID_RE = re.compile(r"^[A-Za-z0-9-]{16,64}$")
+
+
+def _hash_visitor_id(vid: str) -> str:
+    """브라우저 익명 ID 의 salted hash. "vid:" 접두어로 IP 해시와 절대 겹치지 않는다."""
+    return hashlib.sha256((config.VISIT_HASH_SALT + "vid:" + vid).encode("utf-8")).hexdigest()
 
 
 def _ip_hash_for_display(stored_value: str) -> str:
@@ -451,9 +461,11 @@ def _query_metrics() -> dict:
     today  = 한국(KST) 자정 이후 활동한 distinct 방문자 (VM 시계는 UTC 라 서버 로컬 자정을 쓰면 한국 오전 9시에 초기화된다)
     total  = 전체 기간 distinct 방문자
 
-    visit_hash 는 nginx 가 넘기는 실제 방문자 IP 기준이다. Cloudflare 를 거친 요청은 nginx real_ip 설정
-    (/etc/nginx/conf.d/cloudflare-realip.conf, 2026-11-24)이 CF-Connecting-IP 로 복원한다. 이 설정이 없으면
-    Cloudflare 엣지 IP 를 세게 되어 방문자 수가 몇 명으로 뭉친다.
+    visit_hash 는 공개(Pages) 화면에서는 브라우저 익명 ID 의 해시이고, ID 를 못 보낸 경우와 원본 GET / 은 IP 해시다
+    (기관 NAT 뒤 여러 명이 IP 하나로 뭉치는 것을 피하려고 ID 를 우선한다). 한 사람이 브라우저 둘을 쓰면 2명으로 세고,
+    저장소를 지우면 새 ID 라 새 방문자가 된다. IP 해시는 nginx 가 넘기는 실제 방문자 IP 기준이며, Cloudflare 를 거친 요청은
+    nginx real_ip 설정(/etc/nginx/conf.d/cloudflare-realip.conf, 2026-11-24)이 CF-Connecting-IP 로 복원한다.
+    이 설정이 없으면 Cloudflare 엣지 IP 를 세게 되어 IP 폴백 방문자 수가 몇 명으로 뭉친다.
 
     upsert 테이블이라 각 행이 곧 distinct visitor이고 last_seen이 최근 방문 시각이므로,
     "구간 내 최소 1회 방문" == "last_seen이 구간 하한 이상"이 되어 세 값 모두 정확하다.
@@ -739,18 +751,17 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             return xff.split(",")[0].strip()
         return self.client_address[0]
 
-    def _maybe_record_visit(self):
-        """대시보드 진입(index.html 서빙) 시 방문자 지표 기록.
+    def _maybe_record_visit(self, visit_hash: str = ""):
+        """방문자 지표 기록. visit_hash 를 주면(브라우저 ID 해시) 그것을, 없으면 클라이언트 IP 해시를 쓴다.
 
-        봇/크롤러/모니터링/CLI는 User-Agent로 제외한다.
-        PRIVACY: raw IP는 저장하지 않는다 — salt로 해시한 visit_hash만 visits 테이블에 기록.
-        raw IP는 해시 계산에만 잠시 쓰이고 어디에도 저장/로깅되지 않는다.
+        봇/크롤러/모니터링/CLI는 User-Agent로 제외한다(두 경로 모두).
+        PRIVACY: raw IP·raw ID 는 저장하지 않는다 — salt로 해시한 visit_hash만 visits 테이블에 기록.
+        raw IP 는 해시 계산에만 잠시 쓰이고 어디에도 저장/로깅되지 않는다.
         """
         ua = self.headers.get("User-Agent", "")
         if not ua or _BOT_UA_RE.search(ua):
             return
-        ip = self._get_client_ip()
-        _record_visit(_hash_ip(ip))
+        _record_visit(visit_hash or _hash_ip(self._get_client_ip()))
 
     def _serve_slim_csv(self, month: str, versioned: bool):
         """`GET /api/csv/<월>?fmt=slim[&v=<ver>]`. 파일이 없거나 전체 CSV 보다 낡았으면 DB 에서 지연 생성한다.
@@ -1306,9 +1317,11 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             return
 
         # 방문 신호 (PUBLIC) - Pages 에서 서빙되는 공개 화면이 페이지 로드마다 한 번 보낸다. index.html 을 원본이 서빙하지 않으므로
-        # GET / 의 방문 기록을 대신한다(같은 봇 UA 제외·IP 해시 저장). 본문은 쓰지 않는다.
+        # GET / 의 방문 기록을 대신한다(같은 봇 UA 제외). 본문이 브라우저 익명 ID(형식 검사 통과)면 그 해시를,
+        # 아니면(빈 본문·형식 불량) IP 해시로 폴백한다. raw ID 는 저장·로깅하지 않는다.
         if path == "/api/visit":
-            self._maybe_record_visit()
+            vid = body.decode("utf-8", errors="ignore").strip()
+            self._maybe_record_visit(_hash_visitor_id(vid) if _VISITOR_ID_RE.match(vid) else "")
             self.send_response(204)
             self.end_headers()
             return

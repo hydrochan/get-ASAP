@@ -305,21 +305,33 @@ const scenarios = {
   async 'no session call and one visit beacon in pages mode'() {
     const startMarker = '// Pages 모드: 공개(게스트) 화면';
     const tail = main.slice(main.indexOf(startMarker), main.lastIndexOf('})();'));
-    const run = (pagesMode) => {
+    const makeStore = (init = {}) => { const m = { ...init }; return { getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, m }; };
+    const run = (pagesMode, localStorage = makeStore()) => {
       const calls = []; const log = [];
       new Function('apiUrl', 'fetch', 'PAGES_MODE', 'applyUserVisibility', 'loadData', 'syncLoginScreenFromHash',
-        'currentUser', 'isAdmin', 'currentUserConfig', tail.replace(/\bcurrentUser = /g, 'void ').replace(/\bisAdmin = /g, 'void ').replace(/\bcurrentUserConfig = /g, 'void '))
+        'currentUser', 'isAdmin', 'currentUserConfig', 'localStorage', 'crypto', tail.replace(/\bcurrentUser = /g, 'void ').replace(/\bisAdmin = /g, 'void ').replace(/\bcurrentUserConfig = /g, 'void '))
         ((p) => (pagesMode ? API + p : p), (u, o) => { calls.push({ url: u, opts: o }); return Promise.resolve(resp({ ok: true, user: '' })); },
-          pagesMode, () => log.push('visibility'), () => log.push('loadData'), () => log.push('sync'), '', false, {});
+          pagesMode, () => log.push('visibility'), () => log.push('loadData'), () => log.push('sync'), '', false, {}, localStorage, require('crypto').webcrypto);
       return { calls, log };
     };
-    const p = run(true);
+    const store = makeStore();
+    const p = run(true, store);
     await new Promise(r => setTimeout(r, 10));
     assert.deepStrictEqual(p.calls.map(c => c.url), [API + '/api/visit']);   // /api/session 없음, 방문 신호 한 번
     const o = p.calls[0].opts;
     assert.deepStrictEqual({ method: o.method, mode: o.mode, credentials: o.credentials, keepalive: o.keepalive }, { method: 'POST', mode: 'cors', credentials: 'omit', keepalive: true });
-    assert.strictEqual(o.headers, undefined);   // 사용자 헤더·본문 없음 -> preflight 없는 단순 요청
-    assert.strictEqual(o.body, undefined);
+    assert.strictEqual(o.headers, undefined);   // 사용자 헤더 없음 + 문자열 본문 -> text/plain 단순 요청(preflight 없음)
+    assert.ok(/^[A-Za-z0-9-]{16,64}$/.test(o.body), String(o.body));
+    assert.strictEqual(o.body, store.m.asap_vid);   // 본문 = 저장된 익명 ID
+    const again = run(true, store);   // 재방문은 같은 ID 재사용
+    await new Promise(r => setTimeout(r, 10));
+    assert.strictEqual(again.calls[0].opts.body, o.body);
+    const broken = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); } };
+    const noStore = run(true, broken);   // 저장소 차단: 신호는 가되 본문 없음(서버가 IP 해시로 폴백)
+    await new Promise(r => setTimeout(r, 10));
+    assert.deepStrictEqual(noStore.calls.map(c => c.url), [API + '/api/visit']);
+    assert.strictEqual(noStore.calls[0].opts.body, undefined);
+    assert.strictEqual(noStore.calls[0].opts.headers, undefined);
     assert.deepStrictEqual(p.log, ['visibility', 'loadData', 'sync']);
     const q = run(false);
     await new Promise(r => setTimeout(r, 10));

@@ -248,6 +248,29 @@ def test_visit_skips_bots_and_missing_ua(web, ua):
     assert web.visits == []
 
 
+VID = "0b6f1c2e-9d34-4a7b-8c51-2f3e4d5a6b7c"
+
+
+def test_visit_valid_browser_id_records_id_hash_not_ip_hash(web):
+    status, _, _ = web("POST", "/api/visit", body=VID.encode(), **{"Content-Type": "text/plain;charset=UTF-8"})
+    assert status == 204
+    assert web.visits == [web.server._hash_visitor_id(VID)]
+    assert web.visits[0] != web.server._hash_ip(IP)
+    assert VID not in web.visits[0]  # raw ID 는 저장하지 않는다
+
+
+@pytest.mark.parametrize("bad", ["short-id", "x" * 65, "0b6f1c2e-9d34-4a7b-8c51-2f3e4d5a6b7c!", "a b c d e f g h i j k l m n"])
+def test_visit_invalid_browser_id_falls_back_to_ip_hash(web, bad):
+    assert web("POST", "/api/visit", body=bad.encode())[0] == 204
+    assert web.visits == [web.server._hash_ip(IP)]
+
+
+def test_visit_bot_ua_with_valid_id_records_nothing(web):
+    status, _, _ = web("POST", "/api/visit", body=VID.encode(), **{"User-Agent": "Googlebot/2.1"})
+    assert status == 204
+    assert web.visits == []
+
+
 def test_visit_rejects_oversized_body(web):
     assert web("POST", "/api/visit", body=b"x" * 2000)[0] == 413
     assert web.visits == []
