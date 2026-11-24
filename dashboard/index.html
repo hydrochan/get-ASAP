@@ -2392,14 +2392,18 @@
         const online = Number.isFinite(data.online) ? data.online : 0;
         const today = Number.isFinite(data.today) ? data.today : 0;
         const total = Number.isFinite(data.total) ? data.total : 0;
-        textEl.textContent = `${online.toLocaleString('en-US')} online · ${today.toLocaleString('en-US')} today · ${total.toLocaleString('en-US')} visits`;
+        textEl.textContent = `${online.toLocaleString('en-US')} online · ${today.toLocaleString('en-US')} today · ${total.toLocaleString('en-US')} visitors`;
         if (dotEl) dotEl.classList.remove('hidden');
       } catch {
         textEl.textContent = 'Visitor info —';
         if (dotEl) dotEl.classList.add('hidden');
       }
     }
-    loadMetrics();
+    // Pages 모드: 첫 지표 조회는 이번 방문 기록(/api/visit, 아래 '세션 체크' 블록에서 보냄)이 끝난 뒤에 한다.
+    // 동시에 보내면 조회가 먼저 끝나 지금 보고 있는 사람이 online·today 에서 빠진다. 기록이 늦어도 3초 뒤에는 조회한다.
+    let onVisitRecorded = null;
+    const visitRecorded = PAGES_MODE ? new Promise((resolve) => { onVisitRecorded = resolve; setTimeout(resolve, 3000); }) : Promise.resolve();
+    visitRecorded.then(loadMetrics);
     setInterval(loadMetrics, 30000);
 
     // ---------- 저널 필터 ----------
@@ -5515,9 +5519,9 @@
 
     // ---------- 세션 체크 ----------
     // Pages 모드: 공개(게스트) 화면 - 세션은 묻지 않고(/api/session 호출 없음) 바로 그린다. 방문은 페이지 로드마다 한 번 원본에 알린다
-    // (본문·사용자 헤더 없는 POST 라 preflight 가 없다. 원본이 봇 UA 를 걸러 IP 해시만 저장).
+    // (본문·사용자 헤더 없는 POST 라 preflight 가 없다. 원본이 봇 UA 를 걸러 IP 해시만 저장). 끝나면 첫 방문자 지표 조회를 깨운다(loadMetrics 옆).
     if (PAGES_MODE) {
-      try { fetch(apiUrl('/api/visit'), { method: 'POST', mode: 'cors', credentials: 'omit', keepalive: true }).catch(() => {}); } catch {}
+      try { fetch(apiUrl('/api/visit'), { method: 'POST', mode: 'cors', credentials: 'omit', keepalive: true }).catch(() => {}).finally(() => { if (typeof onVisitRecorded === 'function') onVisitRecorded(); }); } catch {}
     }
     (async function checkSession() {
       if (PAGES_MODE) {

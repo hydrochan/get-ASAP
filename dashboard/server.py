@@ -448,8 +448,12 @@ def _query_metrics() -> dict:
     """방문자 지표 집계 — 모두 distinct visitor(visit_hash) 기준.
 
     online = 최근 5분 내 활동한 distinct 방문자
-    today  = 서버 로컬 자정 이후 활동한 distinct 방문자
+    today  = 한국(KST) 자정 이후 활동한 distinct 방문자 (VM 시계는 UTC 라 서버 로컬 자정을 쓰면 한국 오전 9시에 초기화된다)
     total  = 전체 기간 distinct 방문자
+
+    visit_hash 는 nginx 가 넘기는 실제 방문자 IP 기준이다. Cloudflare 를 거친 요청은 nginx real_ip 설정
+    (/etc/nginx/conf.d/cloudflare-realip.conf, 2026-11-24)이 CF-Connecting-IP 로 복원한다. 이 설정이 없으면
+    Cloudflare 엣지 IP 를 세게 되어 방문자 수가 몇 명으로 뭉친다.
 
     upsert 테이블이라 각 행이 곧 distinct visitor이고 last_seen이 최근 방문 시각이므로,
     "구간 내 최소 1회 방문" == "last_seen이 구간 하한 이상"이 되어 세 값 모두 정확하다.
@@ -457,7 +461,8 @@ def _query_metrics() -> dict:
     """
     now = time.time()
     online_cutoff = now - 300  # 5분
-    midnight = datetime.datetime.now().replace(
+    kst = datetime.timezone(datetime.timedelta(hours=9))  # 한국은 일광절약시간이 없어 고정 +9 로 충분하다
+    midnight = datetime.datetime.now(kst).replace(
         hour=0, minute=0, second=0, microsecond=0
     ).timestamp()
     with _db_lock:
