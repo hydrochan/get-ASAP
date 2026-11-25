@@ -300,6 +300,18 @@ def test_verdicts_roundtrip_conflict_gone_and_idempotency(api):
     assert (changed["status"], changed["status_source"], changed["gpt_reason"]) == ("관련", "paper_autodown", "it is relevant")
 
 
+def test_verdicts_download_report_on_human_relevant_applies(api):
+    seed(api.db_file, "Human relevant")
+    ref = {r["title"]: r for r in api.jcall("/api/sync/v1/changes").json["rows"]}["Human relevant"]["ref"]
+    c = store.connect(str(api.db_file))
+    c.execute("UPDATE papers SET status='관련', status_source='human', status_seq=50 WHERE ref=?", (ref,))
+    c.close()
+    r = api.jcall("/api/sync/v1/verdicts", {"seen_through": 0, "items": [{"ref": ref, "status": "다운완료"}]})
+    assert r.status == 200 and r.json["results"][0]["result"] == "updated"
+    row_ = {x["ref"]: x for x in api.jcall("/api/sync/v1/changes").json["rows"]}[ref]
+    assert (row_["status"], row_["status_source"]) == ("다운완료", "paper_autodown")
+
+
 def test_verdicts_validation(api):
     big = {"items": [{"ref": f"r{i}", "status": "관련"} for i in range(201)]}
     assert api.jcall("/api/sync/v1/verdicts", big).status == 400

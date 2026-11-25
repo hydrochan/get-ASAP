@@ -707,6 +707,7 @@ def apply_verdicts(conn: sqlite3.Connection, items: list, seen_through: int) -> 
     항목별 결과: updated / unchanged / gone(모르는 ref·tombstone) / conflict / invalid.
     conflict: status_source='human' AND status_seq > seen_through AND 요청 status != 현재 status
               -> 적용하지 않고 current를 돌려준다(2단계 수동 판정 보호).
+              예외: 사람이 '관련'으로 둔 행에 '다운완료'를 보내는 것은 그 판정의 다음 단계라 충돌이 아니다.
     status가 실제로 바뀌면 status_source=paper_autodown, status_seq=새 seq. gpt_reason은 4000자로 자른다.
     status와 gpt_reason이 모두 null이고 article_kind도 없는 항목은 할 일이 없으므로 unchanged다.
 
@@ -746,12 +747,18 @@ def _apply_one_verdict(conn: sqlite3.Connection, item, seen_through: int, now: s
     kind_changed = _record_ai_article_kind(conn, row, kind) if kind is not None else False
     if status is None and reason is None:
         return {"ref": ref, "result": "updated" if kind_changed else "unchanged"}
+    # 사람 '관련' -> '다운완료'는 판정을 뒤집는 게 아니라 그 판정대로 받았다는 보고다. 이것까지 막으면
+    # 피드를 먼저 엿보지 않는 경로(elsevier-download, import-dois)가 오래된 커서로 보낸 '다운완료'가 전부
+    # conflict로 버려지고 재시도도 없어 서버에 '관련'으로 영영 남는다(2026-11-25 실측 18건). 사람이 그 뒤
+    # 무관/불확실로 바꿨다면 현재 status가 '관련'이 아니므로 여전히 conflict로 보호된다.
+    download_report = status == "다운완료" and row["status"] == "관련"
     if (
         status is not None
         and status != row["status"]
         and row["status_source"] == "human"
         and row["status_seq"] is not None
         and row["status_seq"] > seen_through
+        and not download_report
     ):
         return {"ref": ref, "result": "conflict", "current": _current_feed_row(conn, ref)}
     changes = {}

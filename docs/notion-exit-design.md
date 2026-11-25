@@ -149,6 +149,7 @@ server.py가 `/api/sync/v1/` prefix 요청을 이 모듈로 넘긴다.
 - 집합(set) 의미라 같은 요청을 재시도해도 결과가 같다. 배치 하나가 트랜잭션 하나다.
 - `gone`: 모르는 ref이거나 tombstone인 행.
 - `conflict`: `status_source='human'` AND `status_seq > seen_through` AND 요청 status ≠ 현재 status일 때다. 적용하지 않고 `current`를 돌려준다. 2단계 수동 판정을 보호하기 위한 규칙이다.
+  - 예외(2026-11-25): 현재 사람 판정이 `관련`이고 요청이 `다운완료`이면 충돌로 보지 않고 적용한다. 판정대로 받았다는 보고이기 때문이다. 피드를 먼저 엿보지 않는 경로(elsevier-download, import-dois)는 오래된 커서를 보내므로, 이 예외가 없으면 '다운완료'가 버려져 서버에 `관련`으로 남는다.
 - status를 적용하면 `status_source=paper_autodown`, `status_seq`=새 seq로 바뀐다.
 - status가 그대로여도 **무언가(예: gpt_reason)가 실제로 바뀌고 현재 `status_source`가 `notion_migrated`이면** `status_source=paper_autodown`으로 넘긴다(`status_seq`는 status가 바뀔 때만 바뀐다). 이관 재실행(`upsert_migrated`)이 그 행을 `notion_migrated`로 보고 판정 사유를 덮어쓰지 못하게 하려는 것이다. `human` 출처는 reason만 바뀌는 판정으로는 바꾸지 않는다(status 변경은 위 규칙을 따른다).
 - `gpt_reason`은 서버에서 4000자로 자른다. 클라이언트는 지금처럼 1900자로 자른다.

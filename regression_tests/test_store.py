@@ -541,6 +541,30 @@ def test_verdict_conflict_protects_unseen_human_decision(conn):
     assert (after["status"], after["status_source"], after["status_seq"]) == ("무관", "paper_autodown", after["change_seq"])
 
 
+def test_verdict_download_report_on_human_relevant_is_not_a_conflict(conn):
+    ref = make_human(conn, "Promoted by hand", status="관련", status_seq=10)
+    res = store.apply_verdicts(conn, [{"ref": ref, "status": "다운완료"}], 0)["results"][0]
+    after = row(conn, "Promoted by hand")
+    assert res["result"] == "updated"
+    assert (after["status"], after["status_source"]) == ("다운완료", "paper_autodown")
+
+
+def test_verdict_download_exception_is_only_for_relevant_to_downloaded(conn):
+    # 사람이 그 뒤 무관/불확실로 바꿨다면 다운완료 요청은 여전히 막힌다
+    for status in ("무관", "불확실"):
+        title = f"Human {status}"
+        ref = make_human(conn, title, status=status, status_seq=10)
+        seq_before = store.last_seq(conn)
+        res = store.apply_verdicts(conn, [{"ref": ref, "status": "다운완료"}], 0)["results"][0]
+        assert res["result"] == "conflict" and res["current"]["status"] == status
+        assert row(conn, title)["status"] == status and row(conn, title)["status_source"] == "human"
+        assert store.last_seq(conn) == seq_before
+    # 관련 -> 무관은 여전히 충돌
+    ref = make_human(conn, "Relevant stays", status="관련", status_seq=10)
+    res = store.apply_verdicts(conn, [{"ref": ref, "status": "무관"}], 0)["results"][0]
+    assert res["result"] == "conflict" and row(conn, "Relevant stays")["status"] == "관련"
+
+
 def test_verdict_only_notion_migrated_or_autodown_rows_never_conflict(conn):
     save(conn, paper("Auto row"))
     ref = row(conn, "Auto row")["ref"]
